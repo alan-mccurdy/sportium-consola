@@ -365,6 +365,9 @@
     <div class="drop" id="drop">Arrastra o sube documentos (PDF, TXT, MD) · o imágenes para [IMG:]</div>
     <input type="file" id="kbFile" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.gif,.webp,image/*" multiple style="display:none">
     <div class="savemsg" id="kbStatus" style="margin:6px 0"></div>
+    <div class="fld" style="margin-top:8px">O lee una página web (bonos/promos en vivo)</div>
+    <div class="hint">Pega la URL (ej. la página de bonos de Colombia). Lee los datos actuales del sitio, los indexa y genera FAQs. Nota: si la página carga con mucho JavaScript, puede traer poco texto; en ese caso copia y pega el texto.</div>
+    <div style="display:flex;gap:6px;margin-bottom:8px"><input class="in" id="kbUrl" placeholder="https://sportium.com.co/promociones" style="flex:1"><button class="btn" id="kbUrlBtn">Leer</button></div>
     <div class="fld" style="margin-top:8px">O pega / escribe notas para indexar (lo más confiable)</div>
     <input class="in" id="kbNoteName" placeholder="nombre (ej. Bonos junio)" style="margin-bottom:6px">
     <textarea class="ta" id="kbNoteText" placeholder="Pega aquí el texto de tus notas y dale Indexar…"></textarea>
@@ -441,6 +444,7 @@ const ADMIN_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/sporti
 const INGEST_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/kb-ingest";
 const CLASSIFY_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/kb-classify";
 const LOGIN_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/request-login";
+const FETCHURL_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/fetch-url";
 
 /* ============================================================
    MARCA / CONFIG  —  lo UNICO que cambia por cliente.
@@ -1069,6 +1073,24 @@ const readText=f=>new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.
 const readURL=f=>new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.result);x.onerror=j;x.readAsDataURL(f);});
 async function extractPdf(f){const b=await f.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:b}).promise;let t='';for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const c=await pg.getTextContent();t+=c.items.map(it=>it.str).join(' ')+'\n';}return t;}
 function kbStatus(t,kind){ const el=$('kbStatus'); if(!el)return; el.textContent=t||''; el.style.color=kind==='err'?'#c0392b':(kind==='ok'?'var(--ok)':'var(--txt-2)'); }
+/* leer una página web -> indexar + clasificar + FAQs (datos en vivo del sitio) */
+async function indexFromUrl(){
+  if(!isAdmin())return;
+  let url=$('kbUrl').value.trim(); if(!url){ kbStatus('Pega una URL.','err'); return; }
+  const name='web: '+url.replace(/^https?:\/\//,'').slice(0,70);
+  $('kbUrlBtn').disabled=true; procesando.push(name); renderKB(); kbStatus('Leyendo '+url+'…');
+  try{ const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(FETCHURL_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({url})});
+    const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
+    if(!d||!d.ok||!d.text||d.text.length<40){ procesando=procesando.filter(p=>p!==name); kbStatus('No pude leer texto útil de esa página (quizá carga con JavaScript). Copia el texto y pégalo en notas.','err'); return; }
+    const [n,clas]=await Promise.all([ ingestKB(name,d.text), classifyKB(name,d.text) ]);
+    procesando=procesando.filter(p=>p!==name); await loadIndexed();
+    const real=IDX.find(x=>x.name===name);
+    if(real&&real.chunks>0){ kbStatus('✅ "'+name+'": '+real.chunks+' trozos en la base'+(clas?' · país y FAQs actualizados':'')+'.','ok'); $('kbUrl').value=''; }
+    else kbStatus('⚠️ No quedó en la base (posible cupo de embeddings).','err');
+  }catch(e){ procesando=procesando.filter(p=>p!==name); kbStatus('Error: '+(e.message||e),'err'); }
+  finally{ $('kbUrlBtn').disabled=false; }
+}
 /* indexar texto pegado/escrito directo (sin depender de leer un archivo) */
 async function indexNote(){
   if(!isAdmin())return;
@@ -1218,6 +1240,7 @@ async function addFaq(){
 async function delFaq(id){ if(!isAdmin())return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_delete',id})}); await loadFaqs(); }catch(e){} }
 $('drop').onclick=()=>$('kbFile').click(); $('kbFile').onchange=e=>{ addFiles(e.target.files); e.target.value=''; };
 if($('kbNoteBtn')) $('kbNoteBtn').onclick=indexNote;
+if($('kbUrlBtn')) $('kbUrlBtn').onclick=indexFromUrl;
 ['dragover','dragenter'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();}));
 $('drop').addEventListener('drop',e=>{e.preventDefault(); if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);});
 function openPanel(){ if(!isAdmin())return; $('overlay').classList.add('on');$('cpanel').classList.add('on'); loadUsers(); }

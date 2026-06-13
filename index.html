@@ -76,7 +76,9 @@
 
   .chat{flex:1;overflow-y:auto;padding:20px 18px;display:flex;flex-direction:column;gap:11px}
   .chat::-webkit-scrollbar{width:7px}.chat::-webkit-scrollbar-thumb{background:var(--line);border-radius:10px}
-  .msg{max-width:84%;padding:12px 15px;font-size:14.5px;line-height:1.5;border-radius:18px;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap}
+  .msg{max-width:84%;padding:12px 15px;font-size:14.5px;line-height:1.5;border-radius:18px;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap;position:relative}
+  .msgdel{position:absolute;top:-7px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--bad);font-size:13px;line-height:18px;text-align:center;cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow)}
+  .msg:hover .msgdel{opacity:1} @media(hover:none){.msgdel{opacity:.55}}
   .msg.ai{align-self:flex-start;background:var(--bubble-ai);border-bottom-left-radius:5px}
   .msg.me{align-self:flex-end;background:var(--bubble-me);color:var(--bubble-me-txt);border-bottom-right-radius:5px}
   .msg img{max-width:240px;width:100%;border-radius:12px;margin:6px 0;display:block}
@@ -285,6 +287,7 @@
         <button class="ic" id="retailBtn" title="Salas Retail · IPs / VNC / PuTTY" onclick="openRetail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M6 8l3 2-3 2M13.5 12H17"/></svg></button>
         <button class="ic realadminonly" id="demoBtn" title="Ver como agente (demo)" onclick="toggleDemo()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
         <button class="ic adminonly" id="adminBtn" title="Panel de administración" onclick="openPanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <button class="ic" id="clearBtn" title="Limpiar esta conversación" onclick="limpiarChat()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg></button>
         <button class="ic" id="logoutBtn" title="Cerrar sesión" onclick="doLogout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></button>
       </div>
     </header>
@@ -1004,9 +1007,11 @@ function renderContent(text){ let t=esc(text);
   return t.replace(/\n/g,'<br>'); }
 function renderChat(){
   const c=$('chat'); c.querySelectorAll('.msg').forEach(e=>e.remove());
-  activeS().mensajes.forEach(m=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); d.innerHTML=h; c.appendChild(d); });
+  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
   c.appendChild($('typing')); c.scrollTop=c.scrollHeight;
 }
+function delMsg(i){ const s=activeS(); if(!s||!s.mensajes[i])return; s.mensajes.splice(i,1); renderChat(); }
+function limpiarChat(){ const s=activeS(); if(!s||!s.mensajes.length)return; if(!confirm('¿Borrar toda la conversación de este chat?'))return; s.mensajes=[]; renderChat(); }
 function renderAll(){ renderTabs(); renderPanel(); renderChat(); }
 
 /* ---- autocompletar buscador ---- */

@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sportium — Consola de soporte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  /* Paleta calida de baja luz azul (eye-care): sin blancos puros ni negros azulados */
+  :root[data-theme="light"]{--bg:#FAF6EE;--surface:#FFFCF6;--line:#ECE5D7;--txt:#241F18;--txt-2:#726A5C;--txt-3:#ABA290;
+    --accent:#E2001A;--accent-soft:#FBE7E2;--bubble-ai:#F4EFE4;--bubble-me:#E2001A;--bubble-me-txt:#fff;
+    --ok:#1B7A52;--warn:#9A6E1E;--bad:#BF4527;--shadow:0 1px 2px rgba(60,50,30,.05),0 8px 24px -16px rgba(60,50,30,.18);}
+  :root[data-theme="dark"]{--bg:#15110C;--surface:#1E1810;--line:rgba(255,238,210,.10);--txt:#F3ECE0;--txt-2:#A99E8C;--txt-3:#6B6253;
+    --accent:#FF5A4D;--accent-soft:rgba(255,90,77,.13);--bubble-ai:#241D14;--bubble-me:#E2001A;--bubble-me-txt:#fff;
+    --ok:#4FD18B;--warn:#E8B45E;--bad:#FF6B5E;--shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -18px rgba(0,0,0,.6);}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Manrope',system-ui,sans-serif;background:var(--bg);color:var(--txt);height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--accent);color:#fff}
+  /* tarjetas consistentes (estilo Apple): misma sombra suave en todos los apartados */
+  .blk,.tile,.chero,.sec,.card-c,.auth-card,.uitem,.file{box-shadow:var(--shadow)}
+  .blk,.sec,.chero{transition:box-shadow .2s}
+  .flag{display:inline-block;vertical-align:middle;flex-shrink:0;image-rendering:pixelated;overflow:hidden}
+  .app{display:flex;height:100vh;max-width:1180px;margin:0 auto;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .side{width:344px;border-left:1px solid var(--line);background:var(--surface);overflow-y:auto;flex-shrink:0}
+  .side::-webkit-scrollbar{width:7px}.side::-webkit-scrollbar-thumb{background:var(--line);border-radius:10px}
+  @media(max-width:820px){.side{display:none}}
+  @media(max-width:600px){
+    .app{height:100dvh;border:none;max-width:100%}
+    header{padding:9px 11px;gap:7px}
+    .mark{font-size:15px} .mark .d{width:8px;height:8px}
+    .sub{display:none} .who{display:none}
+    .m-name{display:none}
+    #useMeter{margin-right:0;font-size:11px;max-width:none}
+    .hbtns{gap:4px}
+    .ic{width:34px;height:34px;border-radius:9px}
+    .ic svg{width:18px;height:18px}
+    .tabs{padding:8px 10px;gap:6px}
+    .chat{padding:14px 12px}
+    .msg{max-width:90%;font-size:14px}
+    .composer{padding:9px 11px 12px}
+    .retail{width:100%;height:100dvh;border-radius:0;inset:0;margin:0}
+    .retail-in{padding:12px 13px}
+    .panel{width:100%} #teampanel{width:100%}
+    .panel-in{padding:18px 16px}
+  }
+
+  header{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .mark{font-weight:800;font-size:18px;letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
+  .mark .d{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  .sub{font-size:12px;color:var(--txt-2)}
+  .hbtns{margin-left:auto;display:flex;gap:6px;align-items:center}
+  .who{font-size:11.5px;color:var(--txt-2);margin-right:4px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .who b{color:var(--accent)}
+  .ic{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:transparent;color:var(--txt-2);display:grid;place-items:center;cursor:pointer;transition:.2s}
+  .ic:hover{color:var(--accent);border-color:var(--accent)} .ic svg{width:18px;height:18px} .ic.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+  .ic.adminonly{display:none} .ic.realadminonly{display:none}
+  .demo-bar{position:fixed;top:0;left:0;right:0;z-index:60;background:var(--accent);color:#fff;font-size:12.5px;display:none;align-items:center;justify-content:center;gap:14px;padding:7px 14px;text-align:center}
+  .demo-bar.on{display:flex} .demo-bar b{font-weight:800}
+  .demo-bar button{background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.55);color:#fff;border-radius:8px;padding:3px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+  body.demo-on .app{height:calc(100vh - 34px);margin-top:34px}
+
+  /* TABS (globitos) */
+  .tabs{display:flex;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line);overflow-x:auto;align-items:center}
+  .tab{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:100px;padding:6px 8px 6px 12px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;background:var(--surface);color:var(--txt-2);transition:.15s}
+  .tab:hover{color:var(--txt)}
+  .tab.active{color:var(--txt);border-color:var(--accent)}
+  .tab .flag{width:17px;height:12px;border-radius:2px;border:1px solid rgba(0,0,0,.18)}
+  .tab .x{width:17px;height:17px;border-radius:50%;display:grid;place-items:center;font-size:14px;color:var(--txt-3)}
+  .tab .x:hover{background:var(--accent);color:#fff}
+  .tab .tabnum{font-size:10px;font-weight:800;background:var(--line);color:var(--txt-2);border-radius:5px;padding:1px 5px;min-width:16px;text-align:center}
+  .tab.active .tabnum{background:var(--accent);color:#fff}
+
+  .chat{flex:1;overflow-y:auto;padding:20px 18px;display:flex;flex-direction:column;gap:11px}
+  .chat::-webkit-scrollbar{width:7px}.chat::-webkit-scrollbar-thumb{background:var(--line);border-radius:10px}
+  .msg{max-width:84%;padding:12px 15px;font-size:14.5px;line-height:1.5;border-radius:18px;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap}
+  .msg.ai{align-self:flex-start;background:var(--bubble-ai);border-bottom-left-radius:5px}
+  .msg.me{align-self:flex-end;background:var(--bubble-me);color:var(--bubble-me-txt);border-bottom-right-radius:5px}
+  .msg img{max-width:240px;width:100%;border-radius:12px;margin:6px 0;display:block}
+  .typing{align-self:flex-start;background:var(--bubble-ai);border-radius:18px;border-bottom-left-radius:5px;padding:13px 16px;display:none;gap:5px}
+  .typing.on{display:flex}.typing i{width:7px;height:7px;border-radius:50%;background:var(--txt-3);animation:b 1.2s infinite}
+  .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}@keyframes b{0%,60%,100%{opacity:.3}30%{opacity:1}}
+
+  .composer{padding:12px 16px 16px;border-top:1px solid var(--line);position:relative}
+  .searchwrap{position:relative;margin-bottom:9px}
+  .searchwrap input{width:100%;border:1px solid var(--line);border-radius:12px;padding:9px 12px;font-family:inherit;font-size:13px;color:var(--txt);background:var(--bg)}
+  .searchwrap input:focus{outline:none;border-color:var(--accent)}
+  .acbox{position:absolute;bottom:100%;left:0;right:0;margin-bottom:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px -16px rgba(0,0,0,.3);overflow:hidden;display:none;z-index:5}
+  .acbox.on{display:block}
+  .acitem{padding:9px 13px;cursor:pointer;display:flex;align-items:center;gap:9px;font-size:13px}
+  .acitem:hover{background:var(--accent-soft)}
+  .acitem .flag{width:17px;height:12px;border-radius:2px;border:1px solid rgba(0,0,0,.18);flex-shrink:0}
+  .acitem .acico{width:17px;display:grid;place-items:center;color:var(--accent);flex-shrink:0}.acitem .acico .pxi{width:13px;height:13px}
+  .acitem small{color:var(--txt-2)}
+  .cbox{display:flex;align-items:flex-end;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:7px 7px 7px 16px}
+  .cbox:focus-within{border-color:var(--accent)}
+  .cbox textarea{flex:1;border:none;background:transparent;resize:none;font-family:inherit;font-size:14px;color:var(--txt);max-height:110px;padding:7px 0;line-height:1.45}
+  .cbox textarea:focus{outline:none}
+  .send{width:40px;height:40px;border-radius:13px;border:none;background:var(--accent);color:#fff;display:grid;place-items:center;cursor:pointer;flex-shrink:0}
+  .send svg{width:17px;height:17px}.send:disabled{opacity:.5}
+  .att-btn{width:36px;height:36px;border-radius:11px;border:none;background:transparent;color:var(--txt-2);display:grid;place-items:center;cursor:pointer;flex-shrink:0;align-self:flex-end}
+  .att-btn:hover{color:var(--accent)} .att-btn svg{width:18px;height:18px}
+  .attach{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px}.attach:empty{display:none}
+  .athumb{position:relative;width:54px;height:54px;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+  .athumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .athumb .rm{position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:12px;line-height:1;display:grid;place-items:center;cursor:pointer}
+  .msg img{max-width:230px;border-radius:11px;margin-top:7px;display:block}
+
+  /* SIDE PANEL — premium */
+  .side-h{padding:18px 20px 14px;font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--txt-3);display:flex;align-items:center;gap:8px}
+  .side-h::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .side-empty{padding:54px 28px;text-align:center;color:var(--txt-3);font-size:13.5px;line-height:1.65;display:flex;flex-direction:column;align-items:center}
+  .side-empty svg{width:36px;height:36px;margin-bottom:14px;opacity:.45}
+  .pnl{padding:0 14px 24px;display:flex;flex-direction:column;gap:13px}
+
+  /* hero del cliente */
+  .chero{position:relative;border:1px solid var(--line);border-radius:18px;padding:17px 16px;overflow:hidden;
+     background:radial-gradient(130% 90% at 0% 0%,var(--accent-soft),transparent 58%),var(--surface)}
+  .chero .ch-top{display:flex;align-items:center;gap:13px}
+  .chero .avt{width:52px;height:52px;border-radius:15px;display:grid;place-items:center;font-weight:800;font-size:19px;color:#fff;
+     letter-spacing:.5px;flex-shrink:0;background:linear-gradient(135deg,var(--accent),#8a0010);box-shadow:0 9px 22px -9px var(--accent)}
+  .chero .nm{font-weight:800;font-size:16.5px;letter-spacing:-.3px}
+  .chero .us{font-size:12.5px;color:var(--txt-2);display:flex;align-items:center;gap:7px;margin-top:3px}
+  .chero .us .flag{width:18px;height:13px;border-radius:3px;border:1px solid rgba(0,0,0,.18)}
+
+  /* tiles (saldo destacado + KYC) */
+  .tiles{display:grid;grid-template-columns:1.25fr 1fr;gap:10px}
+  .tile{border:1px solid var(--line);border-radius:15px;padding:13px 14px;background:var(--surface)}
+  .tile .tl{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--txt-3);margin-bottom:8px}
+  .tile .tv{font-weight:800;font-size:20px;letter-spacing:-.5px;line-height:1.05}
+  .tile .tv.sm{font-size:14px}
+  .tile.accent{border-color:transparent;background:linear-gradient(135deg,var(--accent),#a3000f);box-shadow:0 10px 26px -12px var(--accent)}
+  .tile.accent .tl{color:rgba(255,255,255,.72)} .tile.accent .tv{color:#fff}
+
+  /* chips de estado */
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:100px;font-size:12px;font-weight:600;border:1px solid var(--line)}
+  .chip .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .chip.ok{color:var(--ok);border-color:rgba(27,122,82,.28);background:rgba(27,122,82,.08)} .chip.ok .dot{background:var(--ok)}
+  .chip.warn{color:var(--warn);border-color:rgba(154,110,30,.3);background:rgba(154,110,30,.08)} .chip.warn .dot{background:var(--warn)}
+  .chip.bad{color:var(--bad);border-color:rgba(191,69,39,.3);background:rgba(191,69,39,.08)} .chip.bad .dot{background:var(--bad)}
+
+  /* escalamiento */
+  .escbox{border:1px solid var(--bad);background:rgba(191,69,39,.09);color:var(--bad);border-radius:15px;padding:13px 15px;font-size:12.5px;line-height:1.5;display:flex;gap:11px}
+  .escbox svg{width:18px;height:18px;flex-shrink:0;margin-top:1px}
+  .escbox b{display:block;margin-bottom:3px;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px}
+
+  /* bloques de sección */
+  .blk{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--surface)}
+  .blk-h{padding:13px 15px 11px;font-size:10.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--txt-3);display:flex;align-items:center;gap:8px}
+  .brow{display:flex;align-items:center;gap:11px;padding:11px 15px;border-top:1px solid var(--line);font-size:13px}
+  .brow .bi{width:31px;height:31px;border-radius:9px;display:grid;place-items:center;font-size:15px;background:var(--bg);flex-shrink:0}
+  .brow .bmeta{flex:1;min-width:0}
+  .brow .bk{color:var(--txt-3);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .brow .bv{font-weight:600;margin-top:2px;line-height:1.35;overflow-wrap:anywhere}
+  .brow.off .bv{color:var(--txt-3);font-weight:500}
+  .brow .bi{color:var(--accent)} .brow.off .bi{color:var(--txt-3)}
+  .pxi{width:16px;height:16px;display:block}
+  .blk-h .pxi{width:12px;height:12px}
+  .tile .pxi{width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:5px}
+
+  /* detalle k/v */
+  .row{display:flex;justify-content:space-between;gap:10px;padding:10px 15px;font-size:13px;border-top:1px solid var(--line)}
+  .row .k{color:var(--txt-2)} .row .v{font-weight:600;text-align:right;max-width:62%}
+  .reqd{color:var(--txt-2);font-weight:500;font-size:11px;display:block;margin-top:2px}
+  .ipcopy{cursor:pointer;color:var(--accent)} .ipcopy:hover{text-decoration:underline}
+  .admin-blk{border-color:var(--accent)}
+  .hl{font-weight:700;color:var(--accent)}
+  .blocklbl{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--accent);margin:3px 0 1px}
+  .blocklbl .pxi{width:11px;height:11px}
+
+  /* SALAS RETAIL — terminal */
+  .retail{position:fixed;inset:0;margin:auto;width:min(940px,96%);height:min(90vh,860px);height:min(90dvh,860px);background:#0b0e12;color:#cfe3d0;border:1px solid #1d2733;border-radius:14px;z-index:30;transform:scale(.96);opacity:0;pointer-events:none;transition:.25s;display:flex;flex-direction:column;font-family:Consolas,'SFMono-Regular','Liberation Mono',monospace;box-shadow:0 30px 80px -20px rgba(0,0,0,.7)}
+  .retail.on{transform:none;opacity:1;pointer-events:auto}
+  .retail-in{padding:16px 18px;display:flex;flex-direction:column;gap:11px;height:100%;overflow:hidden}
+  .retail-top{display:flex;align-items:center;justify-content:space-between}
+  .retail-top .ic{border-color:#243140;color:#8aa0ad} .retail-top .ic:hover{color:#5be07a;border-color:#5be07a}
+  .retail-title{font-size:14px;font-weight:700;color:#5be07a}
+  .retail-role{font-size:11px;color:#6b7a86;font-weight:400;margin-left:6px}
+  .term-search{background:#11161d;border:1px solid #243140;border-radius:8px;padding:9px 12px;color:#cfe3d0;font-family:inherit;font-size:13px}
+  .term-search:focus{outline:none;border-color:#5be07a}
+  .term{background:#0c1117;border:1px solid #1b2531;border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.55;overflow-y:auto}
+  #salaResults{flex:1;min-height:80px} #cmdList{flex:1.3;min-height:140px}
+  .term-h{font-size:10.5px;color:#6b7a86;text-transform:uppercase;letter-spacing:1px}
+  .sala-card{border-bottom:1px solid #1b2531;padding:8px 0}.sala-card:last-child{border-bottom:none}
+  .sala-card .sn{color:#5be07a;font-weight:700}.sala-card .ln{color:#9fb4c2;margin-top:2px}
+  .ipchip{display:inline-block;background:#13202b;border:1px solid #243140;border-radius:5px;padding:1px 7px;margin:2px 4px 2px 0;color:#7fd4ff;cursor:pointer}
+  .ipchip:hover{border-color:#5be07a;color:#5be07a}
+  .cmd{padding:6px 0;cursor:pointer;border-bottom:1px solid #131a22}.cmd:last-child{border-bottom:none}
+  .cmd:hover .cmd-l{color:#5be07a} .cmd-l{color:#cfe3d0} .cmd-d{color:#6b7a86;font-size:11.5px}
+  .cmd-out{color:#7fd4ff;white-space:pre-wrap;margin-top:4px;display:none;padding-left:10px;border-left:2px solid #243140}
+  .cmd.on .cmd-out{display:block}
+  .badge{display:inline-block;padding:2px 9px;border-radius:100px;font-size:11.5px;font-weight:700}
+  .badge.ok{background:rgba(27,122,82,.14);color:var(--ok)} .badge.warn{background:rgba(154,110,30,.16);color:var(--warn)} .badge.bad{background:rgba(191,69,39,.14);color:var(--bad)}
+
+  /* CONFIG / ADMIN PANEL */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:.3s;z-index:20}
+  .overlay.on{opacity:1;pointer-events:auto}
+  .panel{position:fixed;top:0;right:0;bottom:0;width:min(440px,94%);background:var(--surface);border-left:1px solid var(--line);z-index:21;transform:translateX(100%);transition:.35s;overflow-y:auto}
+  .panel.on{transform:none} .panel-in{padding:24px}
+  .panel h3{font-size:18px;margin-bottom:4px}
+  .panel .lead{font-size:12.5px;color:var(--txt-2);margin-bottom:18px}
+  .sec{border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+  .sec h4{font-size:13.5px;margin-bottom:4px;display:flex;align-items:center;gap:7px}
+  .sec .hint{font-size:11.5px;color:var(--txt-2);margin-bottom:11px;line-height:1.4}
+  .fld{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--txt-3);margin:10px 0 5px}
+  textarea.ta,input.in{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-family:inherit;font-size:13px;color:var(--txt);background:var(--bg)}
+  textarea.ta{resize:vertical;min-height:80px;line-height:1.45}
+  textarea.ta:focus,input.in:focus{outline:none;border-color:var(--accent)}
+  .btn{border:none;border-radius:10px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:var(--accent);color:#fff}
+  .btn:disabled{opacity:.5}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+  .btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btnrow{display:flex;gap:8px;align-items:center;margin-top:11px}
+  .savemsg{font-size:12px;color:var(--ok)}
+  .ulist{margin-top:11px;display:flex;flex-direction:column;gap:6px}
+  .uitem{display:flex;align-items:center;gap:9px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px}
+  .uitem .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ubtn{border:1px solid var(--line);background:transparent;color:var(--bad);border-radius:8px;padding:5px 10px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .ubtn:hover{border-color:var(--bad)} .ubtn.on{color:var(--ok)} .ubtn.on:hover{border-color:var(--ok)}
+  .drop{border:1.5px dashed var(--line);border-radius:13px;padding:18px;text-align:center;font-size:13px;color:var(--txt-2);cursor:pointer}
+  .drop:hover{border-color:var(--accent);color:var(--accent)}
+  .files{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+  .file{display:flex;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px}
+  .file .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file .rm{cursor:pointer;color:var(--txt-3)}
+
+  /* AUTH GATE */
+  .auth-gate{position:fixed;inset:0;background:var(--bg);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+  .auth-gate.hide{display:none}
+  .auth-card{width:min(380px,100%);background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:30px 28px;text-align:center}
+  .auth-card .mark{justify-content:center;font-size:22px;margin-bottom:4px}
+  .auth-card .tag{font-size:12.5px;color:var(--txt-2);margin-bottom:22px}
+  .auth-card input{width:100%;border:1px solid var(--line);border-radius:11px;padding:11px 13px;font-family:inherit;font-size:14px;color:var(--txt);background:var(--bg);margin-bottom:10px}
+  .auth-card input:focus{outline:none;border-color:var(--accent)}
+  .auth-card .btn{width:100%;padding:11px;font-size:14px}
+  .auth-or{font-size:11px;color:var(--txt-3);text-transform:uppercase;letter-spacing:1px;margin:14px 0}
+  .gbtn{width:100%;border:1px solid var(--line);border-radius:11px;padding:10px;font-family:inherit;font-size:14px;font-weight:600;color:var(--txt);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px}
+  .gbtn:hover{border-color:var(--accent)}
+  .gbtn svg{width:18px;height:18px}
+  .auth-msg{margin-top:16px;font-size:12.5px;color:var(--txt-2);line-height:1.5;min-height:18px}
+  .auth-msg.err{color:var(--bad)}
+  .auth-by{margin-top:18px;font-size:11px;color:var(--txt-3);letter-spacing:.3px}
+  .auth-by b{color:var(--txt-2);font-weight:700}
+  .auth-brand{font-weight:800;font-size:38px;letter-spacing:-1.2px;line-height:1;margin-bottom:8px;
+    background:linear-gradient(120deg,var(--txt) 35%,var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+</style>
+</head>
+<body>
+
+<div class="demo-bar" id="demoBar"><span>Vista de demostración — estás viendo la consola como un <b>Agente</b> (sin permisos de admin)</span><button onclick="toggleDemo()">Volver a admin</button></div>
+
+<!-- ===== PANTALLA DE ACCESO ===== -->
+<div class="auth-gate" id="authGate">
+  <div class="auth-card">
+    <div class="auth-brand" id="authBrand">JobAny</div>
+    <div class="tag" id="authTag">Sportium · acceso restringido</div>
+    <input id="authEmail" type="email" placeholder="tu-correo@sportium.com" autocomplete="email">
+    <button class="btn" id="authMagic">Enviarme enlace de acceso</button>
+    <div class="auth-or">— o —</div>
+    <button class="gbtn" id="authGoogle">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+      Entrar con Google
+    </button>
+    <div class="auth-msg" id="authMsg"></div>
+    <div class="auth-by" id="authBy"></div>
+  </div>
+</div>
+
+<div class="app">
+  <div class="main">
+    <header>
+      <div><div class="mark"><span class="d"></span><span class="brandname">Sportium</span></div><div class="sub">Consola de soporte (interna)</div></div>
+      <div class="hbtns">
+        <span class="who" id="useMeter" style="cursor:help;display:none"></span>
+        <span class="who" id="who"></span>
+        <button class="ic" id="copyToggle" title="Auto-copiar respuesta sugerida" onclick="toggleAutocopy()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+        <button class="ic" id="themeBtn" title="Tema" onclick="toggleTheme()">
+          <svg id="iM" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+          <svg id="iS" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button class="ic" id="teamBtn" title="Chat de equipo" onclick="openTeam()" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span id="teamDot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#E2001A"></span></button>
+        <button class="ic" id="retailBtn" title="Salas Retail · IPs / VNC / PuTTY" onclick="openRetail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M6 8l3 2-3 2M13.5 12H17"/></svg></button>
+        <button class="ic realadminonly" id="demoBtn" title="Ver como agente (demo)" onclick="toggleDemo()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button class="ic adminonly" id="adminBtn" title="Panel de administración" onclick="openPanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <button class="ic" id="logoutBtn" title="Cerrar sesión" onclick="doLogout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></button>
+      </div>
+    </header>
+
+    <div class="tabs" id="tabs"></div>
+
+    <div class="chat" id="chat"><div class="typing" id="typing"><i></i><i></i><i></i></div></div>
+
+    <div class="composer">
+      <div class="searchwrap">
+        <div class="acbox" id="acbox"></div>
+        <input id="search" placeholder="Buscar cliente (usuario/correo/cédula) o sala (número/ciudad)…" autocomplete="off">
+      </div>
+      <div class="attach" id="attach"></div>
+      <div class="cbox">
+        <button class="att-btn" id="attBtn" title="Adjuntar imagen (o pega con Ctrl+V)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 11.05 12.25 20.2a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.19 9.19a1 1 0 0 1-1.41-1.41l8.48-8.49"/></svg></button>
+        <input type="file" id="attFile" accept="image/*" multiple style="display:none">
+        <textarea id="input" rows="1" placeholder="Escribe la duda o pega una imagen (Ctrl+V)…"></textarea>
+        <button class="send" id="send"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="side-h">Datos de la cuenta</div>
+    <div id="panelData"></div>
+  </aside>
+</div>
+
+<!-- ===== PANEL DE ADMINISTRACIÓN (solo admin) ===== -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<aside class="panel" id="cpanel"><div class="panel-in">
+  <h3>Panel de administración</h3>
+  <div class="lead">Solo visible para administradores.</div>
+
+  <!-- Contexto de la IA -->
+  <div class="sec">
+    <h4>🧠 Contexto de la IA (en vivo)</h4>
+    <div class="hint">Lo que escribas aquí se aplica de inmediato a las respuestas de la IA. Úsalo para corregir datos (p. ej. condiciones de un bono) sin tocar el flujo.</div>
+    <div class="fld">Instrucciones generales (aplican a todos los países)</div>
+    <textarea class="ta" id="ctxPrompt" placeholder="Ej. Tono cordial, siempre verificar KYC antes de hablar de retiros…"></textarea>
+    <div class="fld">Contexto por país y vertiente (bonos, promos, procesos)</div>
+    <div class="hint">Elige país y tipo de servicio; el texto se guarda <b>solo</b> para esa combinación, así Colombia y Panamá no se pisan. La IA elige el bloque correcto según la pregunta del agente.</div>
+    <div style="display:flex;gap:8px;margin-bottom:7px">
+      <select class="in" id="ctxPais" style="flex:1">
+        <option value="MX">🇲🇽 México</option>
+        <option value="PA">🇵🇦 Panamá</option>
+        <option value="CO">🇨🇴 Colombia</option>
+      </select>
+      <select class="in" id="ctxVert" style="flex:1">
+        <option value="online">Online (clientes externos)</option>
+        <option value="retail">Retail (casinos físicos)</option>
+      </select>
+    </div>
+    <textarea class="ta" id="ctxBonos" placeholder="Ej. Bono de bienvenida: 100% hasta $3,000, rollover 3x, código MAXSPORT. Vigencia 30 días…"></textarea>
+    <div class="fld">Lógica de cálculo (reglas sobre los datos de la base, todos los países)</div>
+    <textarea class="ta" id="ctxReglas" placeholder="Ej. Si un cliente tiene 2 retiros rechazados seguidos, escalar a Riesgos. Si el saldo supera 5x el último depósito sin apuestas, alertar posible bonus abuse…"></textarea>
+    <div class="btnrow"><button class="btn" id="ctxSave">Guardar contexto</button><span class="savemsg" id="ctxMsg"></span></div>
+  </div>
+
+  <!-- Usuarios -->
+  <div class="sec">
+    <h4>👤 Usuarios del equipo</h4>
+    <div class="hint">Da de alta a un agente por correo. Recibirá un enlace de acceso (sin contraseña).</div>
+    <input class="in" id="newEmail" type="email" placeholder="correo del agente" style="margin-bottom:7px">
+    <input class="in" id="newName" placeholder="nombre (opcional)">
+    <div class="btnrow"><button class="btn" id="userCreate">Crear / invitar</button><span class="savemsg" id="userMsg"></span></div>
+    <div class="ulist" id="userList"></div>
+  </div>
+
+  <!-- Base de conocimientos -->
+  <div class="sec">
+    <h4>📁 Base de conocimientos</h4>
+    <div class="hint">Sube un documento: se <b>envía y se indexa en la base de datos</b> (no se queda guardado en la página). Abajo ves el estado REAL leído de la base, con cuántos trozos quedaron y sin duplicar.</div>
+    <div class="drop" id="drop">Arrastra o sube documentos (PDF, TXT, MD) · o imágenes para [IMG:]</div>
+    <input type="file" id="kbFile" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.gif,.webp,image/*" multiple style="display:none">
+    <div class="savemsg" id="kbStatus" style="margin:6px 0"></div>
+    <div class="fld" style="margin-top:8px">O pega / escribe notas para indexar (lo más confiable)</div>
+    <input class="in" id="kbNoteName" placeholder="nombre (ej. Bonos junio)" style="margin-bottom:6px">
+    <textarea class="ta" id="kbNoteText" placeholder="Pega aquí el texto de tus notas y dale Indexar…"></textarea>
+    <div class="btnrow"><button class="btn" id="kbNoteBtn">Indexar nota</button></div>
+    <div class="fld" style="margin-top:10px">Indexado en la base de datos</div>
+    <div class="files" id="kbList"></div>
+  </div>
+</div></aside>
+
+<!-- ===== SALAS RETAIL (terminal) ===== -->
+<div class="overlay" id="retailOverlay" onclick="closeRetail()"></div>
+<div class="retail" id="retailPanel"><div class="retail-in">
+  <div class="retail-top">
+    <div class="retail-title">▸ Salas Retail · Panamá <span class="retail-role" id="retailRole"></span></div>
+    <button class="ic" title="Cerrar" onclick="closeRetail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <input class="term-search" id="salaSearch" placeholder="Buscar sala por número (ej. 60001) o ciudad (ej. David)…" autocomplete="off">
+  <div class="term" id="salaResults"></div>
+  <div class="term-h">Comandos — clic en uno para ver la salida esperada</div>
+  <input class="term-search" id="cmdSearch" placeholder="Buscar comando (ping, systemctl, vnc, impresora…)" autocomplete="off">
+  <div class="term" id="cmdList"></div>
+</div></div>
+
+<!-- ===== CHAT DE EQUIPO (privado) ===== -->
+<style>
+  #teampanel{display:flex;flex-direction:column;padding:0}
+  #teampanel .tc-top{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+  #teampanel .tc-top h3{margin:0;font-size:16px;flex:1}
+  #tcMsgs{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+  .tcm{max-width:82%;padding:8px 11px;border-radius:13px;font-size:14px;line-height:1.45;word-wrap:break-word;white-space:pre-wrap}
+  .tcm.mine{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  .tcm.their{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .tcm .who{font-size:11px;opacity:.7;margin-bottom:2px;font-weight:600}
+  .tcm img{max-width:100%;border-radius:9px;margin-top:5px;cursor:pointer;display:block}
+  .tc-composer{display:flex;gap:8px;align-items:flex-end;padding:12px;border-top:1px solid var(--line);background:var(--card)}
+  .tc-composer textarea{flex:1;border:1px solid var(--line);border-radius:11px;padding:9px 12px;font-size:14px;font-family:inherit;resize:none;max-height:90px}
+  .tc-att{display:flex;gap:6px;padding:0 12px 8px;flex-wrap:wrap}
+  .tc-att img{height:46px;border-radius:7px;border:1px solid var(--line)}
+</style>
+<div class="overlay" id="teamOverlay" onclick="closeTeam()"></div>
+<aside class="panel" id="teampanel">
+  <div class="tc-top">
+    <h3>💬 Chat de equipo</h3>
+    <button class="ic" title="Cerrar" onclick="closeTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div id="tcMsgs"></div>
+  <div class="tc-att" id="tcAtt"></div>
+  <div class="tc-composer">
+    <button class="att-btn" id="tcAttBtn" title="Adjuntar imagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 11.05 12.25 20.2a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.19 9.19a1 1 0 0 1-1.41-1.41l8.48-8.49"/></svg></button>
+    <input type="file" id="tcFile" accept="image/*" multiple style="display:none">
+    <textarea id="tcInput" rows="1" placeholder="Escribe al equipo… (pega imágenes con Ctrl+V)"></textarea>
+    <button class="send" id="tcSend" onclick="sendTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </div>
+</aside>
+
+<script>
+/* ============================================================
+   CONFIG  —  pega aquí tus valores de Supabase (Fase 3 de la guía)
+   ============================================================ */
+const SUPABASE_URL  = "https://rmcsmxjzvxoybrziplhw.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtY3NteGp6dnhveWJyemlwbGh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMDkxMjksImV4cCI6MjA5Njc4NTEyOX0.qqFMgco0dYevjkSZI6D_Gjb0GJrm_sL2uPIEwUHGcgs";
+const WEBHOOK       = "https://n8n-production-aff6.up.railway.app/webhook/sportium-chat";
+const ADMIN_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/sportium-admin";
+const INGEST_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/kb-ingest";
+const CLASSIFY_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/kb-classify";
+const LOGIN_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/request-login";
+
+/* ============================================================
+   MARCA / CONFIG  —  lo UNICO que cambia por cliente.
+   Para un cliente nuevo: copia este index.html y edita solo esto.
+   Plataforma (tu producto) = Jobany · Cliente visible = Sportium.
+   ============================================================ */
+const CONFIG = {
+  plataforma: "Jobany",      // tu marca (aparece como "by Jobany")
+  cliente:    "Sportium",    // marca visible para los agentes
+  tenant:     "sportium",    // slug que se envia al backend multi-tenant
+  acento:     "#E2001A",     // color de acento del cliente (hex)
+  soloChatAgentes: true      // true = los agentes (no-admin) solo ven el chat de consultas general
+};
+
+const $=id=>document.getElementById(id);
+/* acceso seguro a localStorage (algunos navegadores in-app, p.ej. Telegram, lo bloquean) */
+const lsGet=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const lsSet=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const sbReady = (typeof window.supabase!=='undefined') && /^https?:\/\//.test(SUPABASE_URL);
+const sb = sbReady ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+
+function emptyPaises(){ return { MX:{online:'',retail:''}, PA:{online:'',retail:''}, CO:{online:'',retail:''} }; }
+let me=null, myProfile={role:'agent'}, ctxCache={system_prompt:'',bonos_notes:'',reglas_calculo:'',paises:emptyPaises()};
+let demoAgent=false;  // cuando un admin "ve como agente" (demo)
+const isRealAdmin=()=>myProfile && myProfile.role==='admin';
+const isAdmin=()=>isRealAdmin() && !demoAgent;   // permisos efectivos (demo => agente)
+
+/* ============================================================
+   AUTENTICACIÓN
+   ============================================================ */
+function authMsg(t,err){ const m=$('authMsg'); m.textContent=t||''; m.classList.toggle('err',!!err); }
+function gateShow(){ $('authGate').classList.remove('hide'); }
+function gateHide(){ $('authGate').classList.add('hide'); }
+
+async function initAuth(){
+  if(!sb){ gateShow(); authMsg('Falta configurar Supabase: edita SUPABASE_URL y SUPABASE_ANON en el index.html (ver GUIA-DESPLIEGUE.md).',true); return; }
+  const { data:{ session } } = await sb.auth.getSession();
+  sb.auth.onAuthStateChange((_e,s)=>handleSession(s));
+  handleSession(session);
+}
+async function handleSession(session){
+  if(!session){ me=null; myProfile={role:'agent'}; applyRoleUI(); gateShow(); return; }
+  me=session.user;
+  try{ const {data}=await sb.from('profiles').select('*').eq('id',me.id).single(); myProfile=data||{role:'agent',email:me.email}; }
+  catch(e){ myProfile={role:'agent',email:me.email}; }
+  // cuenta bloqueada por el admin -> cerrar sesión
+  if(myProfile && myProfile.active===false){ authMsg('Tu cuenta está bloqueada. Contacta al administrador.',true); try{ await sb.auth.signOut(); }catch(e){} me=null; myProfile={role:'agent'}; gateShow(); return; }
+  gateHide(); applyRoleUI();
+  $('who').innerHTML=(me.email||'')+(isAdmin()?' · <b>admin</b>':'');
+  await loadContext();
+  await loadKB();
+  initTeam();
+  logAudit('login',{});
+}
+function applyRoleUI(){
+  document.querySelectorAll('.adminonly').forEach(el=>el.style.display=isAdmin()?'grid':'none');
+  document.querySelectorAll('.realadminonly').forEach(el=>el.style.display=isRealAdmin()?'grid':'none');
+  const dm=$('demoBar'); if(dm) dm.classList.toggle('on', demoAgent);
+  document.body.classList.toggle('demo-on', demoAgent);
+  // Agente restringido: solo el chat de consultas general (sin salas, sin búsqueda de cliente, sin panel de cuenta)
+  const soloChat = CONFIG.soloChatAgentes && !isAdmin();
+  const rb=$('retailBtn'); if(rb) rb.style.display=soloChat?'none':'';
+  const sw=document.querySelector('.searchwrap'); if(sw) sw.style.display=soloChat?'none':'';
+  const side=document.querySelector('.side'); if(side) side.style.display=soloChat?'none':'';
+  document.body.classList.toggle('solo-chat', soloChat);
+}
+/* Admin "ve como agente" para demo (sin crear cuenta real) */
+function toggleDemo(){
+  if(!isRealAdmin() && !demoAgent) return;
+  demoAgent=!demoAgent;
+  if(demoAgent){ closePanel(); closeRetail&&closeRetail(); }
+  applyRoleUI(); renderAll();
+}
+$('authMagic').onclick=async()=>{
+  const email=$('authEmail').value.trim(); if(!email){authMsg('Escribe tu correo.',true);return;}
+  authMsg('Enviando…'); $('authMagic').disabled=true;
+  try{
+    // pasa por el backend: solo envía el enlace si el agente está dado de alta y ACTIVO
+    const r=await fetch(LOGIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,redirect:location.href.split(/[?#]/)[0]})});
+    const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
+    if(d&&d.ok){ authMsg('✅ Te envié un enlace a '+email+'. Ábrelo desde este dispositivo.'); }
+    else{ const M={bloqueado:'Tu cuenta está bloqueada. Contacta al administrador.',no_invitado:'Ese correo no está dado de alta. Pide acceso al administrador.',limite:'Llegaste al límite de enlaces por hoy. Intenta mañana.',email:'Correo inválido.'}; authMsg(M[d&&d.reason]||'No se pudo enviar el enlace. Intenta de nuevo en un momento.',true); }
+  }catch(e){ authMsg('Error de conexión. Intenta de nuevo.',true); }
+  finally{ $('authMagic').disabled=false; }
+};
+$('authGoogle').onclick=async()=>{
+  if(!sb)return;
+  const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.href.split(/[?#]/)[0]}});
+  if(error)authMsg(error.message,true);
+};
+$('authEmail').addEventListener('keydown',e=>{if(e.key==='Enter')$('authMagic').click();});
+async function doLogout(){ if(sb) await sb.auth.signOut(); location.reload(); }
+
+/* auditoría ligera */
+async function logAudit(action,detail){ try{ if(sb&&me) await sb.from('audit_log').insert({user_id:me.id,email:me.email,action,detail}); }catch(e){} }
+
+/* ============================================================
+   CONTEXTO DE LA IA  (admin edita; todos lo leen)
+   ============================================================ */
+/* paises: { MX:{online,retail}, PA:{...}, CO:{...} }. El textarea de bonos edita UN slot (pais+vertiente) a la vez. */
+function normPaises(p){ const out=emptyPaises(); if(p&&typeof p==='object'){ ['MX','PA','CO'].forEach(k=>{ const v=p[k]||{}; out[k]={online:String(v.online||''),retail:String(v.retail||'')}; }); } return out; }
+let lastSlot={pais:'MX',vert:'online'};   // recuerda el slot abierto para no perder lo escrito al cambiar de selector
+function curPais(){ return ($('ctxPais')&&$('ctxPais').value)||'MX'; }
+function curVert(){ return ($('ctxVert')&&$('ctxVert').value)||'online'; }
+function stashSlot(pais,vert){ if(!$('ctxBonos'))return; if(!ctxCache.paises) ctxCache.paises=emptyPaises(); if(!ctxCache.paises[pais]) ctxCache.paises[pais]={online:'',retail:''}; ctxCache.paises[pais][vert]=$('ctxBonos').value; }
+function fillSlot(){ if($('ctxBonos')){ const p=(ctxCache.paises&&ctxCache.paises[curPais()])||{}; $('ctxBonos').value=p[curVert()]||''; } }
+function fillCtxFields(){ if($('ctxPrompt')){ $('ctxPrompt').value=ctxCache.system_prompt||''; if($('ctxReglas')) $('ctxReglas').value=ctxCache.reglas_calculo||''; lastSlot={pais:curPais(),vert:curVert()}; fillSlot(); } }
+function onSlotChange(){ stashSlot(lastSlot.pais,lastSlot.vert); lastSlot={pais:curPais(),vert:curVert()}; fillSlot(); }
+async function loadContext(){
+  // 1) localStorage: persistencia garantizada (sobrevive aunque no haya Supabase)
+  try{ const ls=localStorage.getItem('jobany-ctx'); if(ls){ const o=JSON.parse(ls); ctxCache={...ctxCache,...o}; ctxCache.paises=normPaises(o.paises); } }catch(e){}
+  // 2) Supabase: fuente compartida con el equipo (si está configurada) — tiene prioridad
+  if(sb){ try{ const {data}=await sb.from('ai_context').select('*').eq('id',1).single(); if(data){
+    ctxCache.system_prompt=data.system_prompt||ctxCache.system_prompt;
+    if(data.reglas_calculo!=null) ctxCache.reglas_calculo=data.reglas_calculo;
+    // bonos_notes guarda el JSON por país (nuevo). Si trae texto plano viejo, se conserva como fallback.
+    let parsed=null; try{ parsed=JSON.parse(data.bonos_notes); }catch(_){}
+    if(parsed&&typeof parsed==='object'){ ctxCache.paises=normPaises(parsed); ctxCache.bonos_notes=''; }
+    else if(data.bonos_notes){ ctxCache.bonos_notes=data.bonos_notes; }
+  } }catch(e){} }
+  fillCtxFields();
+}
+async function saveContext(){
+  if(!isAdmin())return;
+  $('ctxSave').disabled=true; $('ctxMsg').textContent='Guardando…';
+  stashSlot(curPais(),curVert());   // guarda lo escrito en el slot actual ANTES de persistir
+  ctxCache={...ctxCache, system_prompt:$('ctxPrompt').value, reglas_calculo:($('ctxReglas')?$('ctxReglas').value:(ctxCache.reglas_calculo||''))};
+  ctxCache.paises=normPaises(ctxCache.paises);
+  const paisesJSON=JSON.stringify(ctxCache.paises);
+  // 1) localStorage SIEMPRE → al reabrir la consola sigue ahí y se manda a la IA en cada mensaje
+  try{ localStorage.setItem('jobany-ctx', JSON.stringify({system_prompt:ctxCache.system_prompt, bonos_notes:ctxCache.bonos_notes, reglas_calculo:ctxCache.reglas_calculo, paises:ctxCache.paises})); }catch(e){}
+  // 2) Supabase (compartido con el equipo). El JSON por país viaja en la columna bonos_notes.
+  let err=null;
+  if(sb){ try{
+    let r=await sb.from('ai_context').update({system_prompt:ctxCache.system_prompt, bonos_notes:paisesJSON, reglas_calculo:ctxCache.reglas_calculo, updated_at:new Date().toISOString(), updated_by:me.id}).eq('id',1);
+    if(r.error){ r=await sb.from('ai_context').update({system_prompt:ctxCache.system_prompt, bonos_notes:paisesJSON, updated_at:new Date().toISOString(), updated_by:me.id}).eq('id',1); }
+    err=r.error;
+  }catch(e){ err=e; } }
+  $('ctxSave').disabled=false; $('ctxMsg').textContent = err? 'Guardado en este equipo ✓ (sin sincronizar al equipo)' : '✅ Guardado y sincronizado';
+  logAudit('edit_context',{}); setTimeout(()=>$('ctxMsg').textContent='',3000);
+}
+
+/* ============================================================
+   USUARIOS  (crear via webhook n8n con service_role)
+   ============================================================ */
+async function createUser(){
+  if(!sb||!isAdmin())return;
+  const email=$('newEmail').value.trim(); const full_name=$('newName').value.trim();
+  if(!email){$('userMsg').textContent='Escribe un correo';return;}
+  $('userCreate').disabled=true; $('userMsg').textContent='Creando…';
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const res=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+      body:JSON.stringify({action:'create_user',email,full_name})});
+    if(!res.ok)throw new Error('Servidor '+res.status);
+    $('userMsg').textContent='✅ Invitado'; $('newEmail').value='';$('newName').value='';
+    logAudit('create_user',{email}); loadUsers();
+  }catch(e){ $('userMsg').textContent='Error: '+e.message; }
+  finally{ $('userCreate').disabled=false; setTimeout(()=>$('userMsg').textContent='',3000); }
+}
+async function loadUsers(){
+  if(!sb||!isAdmin())return;
+  const L=$('userList'); if(L) L.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'list_users'})});
+    const j=await r.json().catch(()=>({})); const users=(j&&j.users)||[];
+    L.innerHTML=users.map(u=>{
+      const act=u.active!==false; const esAdmin=u.role==='admin';
+      return '<div class="uitem"><div style="flex:1;min-width:0">'+
+        '<div class="nm">'+(u.full_name||u.email)+(act?'':' <span style="color:#c0392b;font-size:11px">· bloqueado</span>')+'</div>'+
+        '<small style="color:var(--txt-2)">'+u.email+' · '+(u.emailsHoy||0)+' correo(s) hoy</small></div>'+
+        '<span class="badge '+(esAdmin?'ok':'warn')+'">'+u.role+'</span>'+
+        (esAdmin?'':'<button class="ubtn'+(act?'':' on')+'" onclick="toggleAgent(\''+u.id+'\','+(!act)+')">'+(act?'Bloquear':'Desbloquear')+'</button>')+
+      '</div>';
+    }).join('')||'<small style="color:var(--txt-2)">Sin agentes todavía.</small>';
+  }catch(e){ if(L) L.innerHTML='<small style="color:#c0392b">No se pudo cargar la lista.</small>'; }
+}
+async function toggleAgent(id,active){
+  if(!isAdmin())return;
+  if(!confirm(active?'¿Desbloquear a este agente? Volverá a poder iniciar sesión y recibir enlaces.':'¿Bloquear a este agente? No podrá iniciar sesión, no recibirá enlaces de acceso y se cerrará su sesión.'))return;
+  try{ const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'set_active',id,active})});
+    const j=await r.json().catch(()=>({})); if(j&&j.ok===false) throw new Error(j.error||'falló');
+    loadUsers();
+  }catch(e){ alert('No se pudo: '+(e.message||e)); }
+}
+
+/* ---- banderas ---- */
+/* Banderas en PIXEL-ART (mismo lenguaje visual que los iconos). Se generan como
+   SVG data-URI para que todos los usos existentes (background:FLAG[pais]) se vean pixelados. */
+const FLAGPX={
+ MX:{w:18,h:12,c:{g:'#006847',w:'#ffffff',r:'#ce1126',e:'#6e4a23'},rows:[
+  'ggggggwwwwwwrrrrrr','ggggggwwwwwwrrrrrr','ggggggwwwwwwrrrrrr','ggggggwwwwwwrrrrrr',
+  'ggggggwweewwrrrrrr','ggggggweeeewrrrrrr','ggggggweeeewrrrrrr','ggggggwweewwrrrrrr',
+  'ggggggwwwwwwrrrrrr','ggggggwwwwwwrrrrrr','ggggggwwwwwwrrrrrr','ggggggwwwwwwrrrrrr']},
+ CO:{w:18,h:12,c:{y:'#FCD116',b:'#003893',r:'#CE1126'},rows:[
+  'yyyyyyyyyyyyyyyyyy','yyyyyyyyyyyyyyyyyy','yyyyyyyyyyyyyyyyyy','yyyyyyyyyyyyyyyyyy',
+  'yyyyyyyyyyyyyyyyyy','yyyyyyyyyyyyyyyyyy','bbbbbbbbbbbbbbbbbb','bbbbbbbbbbbbbbbbbb',
+  'bbbbbbbbbbbbbbbbbb','rrrrrrrrrrrrrrrrrr','rrrrrrrrrrrrrrrrrr','rrrrrrrrrrrrrrrrrr']},
+ PA:{w:18,h:12,c:{w:'#ffffff',r:'#D21034',b:'#072357',B:'#072357',R:'#D21034'},rows:[
+  'wwwwwwwwwrrrrrrrrr','wwwwBwwwwrrrrrrrrr','wwwBBBwwwrrrrrrrrr','wwwwBwwwwrrrrrrrrr',
+  'wwwwwwwwwrrrrrrrrr','wwwwwwwwwrrrrrrrrr','bbbbbbbbbwwwwwwwww','bbbbbbbbbwwwwRwwww',
+  'bbbbbbbbbwwwRRRwww','bbbbbbbbbwwwwRwwww','bbbbbbbbbwwwwwwwww','bbbbbbbbbwwwwwwwww']}
+};
+function flagHTML(p){ const f=FLAGPX[p]; if(!f) return ''; let r='';
+ for(let y=0;y<f.h;y++){ const row=f.rows[y]; let x=0;
+   while(x<row.length){ const k=row[x]; let w=1; while(x+w<row.length && row[x+w]===k) w++; const col=f.c[k]; if(col) r+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="1" fill="'+col+'"/>'; x+=w; } }
+ return '<svg class="flag" viewBox="0 0 '+f.w+' '+f.h+'" preserveAspectRatio="none" shape-rendering="crispEdges">'+r+'</svg>'; }
+const PAISN={MX:'México',PA:'Panamá',CO:'Colombia'};
+
+/* ============================================================
+   BASE DE DATOS FICTICIA (lo que proveeria la empresa real).
+   La IA y TODOS los indicadores se CALCULAN a partir de estos
+   datos crudos + el catalogo de bonos. Nada viene "pre-masticado".
+   ============================================================ */
+const HOY = new Date('2026-06-11');
+const MON = {MX:'MXN', CO:'COP', PA:'PAB'};
+
+/* Catalogo de bonos vigentes por pais (reglas reales Sportium 2026) */
+const BONOS = {
+ MX:[
+  {id:'mx_dep', tipo:'deportes', nombre:'Bono de Bienvenida Deportes', codigo:'MAXSPORT', deposito_min:100, porcentaje:100, monto_max:5000, rollover_factor:2, rollover_base:'deposito', cuota_min:2.00, vigencia_dias:15, kyc_requerido:true},
+  {id:'mx_casino', tipo:'casino', nombre:'Bono Casino 100%', codigo:'MAXCASINO', deposito_min:100, porcentaje:100, monto_max:5000, rollover_factor:40, rollover_base:'bono', vigencia_dias:7, kyc_requerido:true, max_ganancia:15000}
+ ],
+ CO:[
+  {id:'co_dep', tipo:'deportes', nombre:'Bono de Bienvenida Deportes', codigo:'STYVIP', deposito_min:20000, porcentaje:100, monto_max:50000, rollover_factor:2, rollover_base:'deposito', cuota_min:1.50, vigencia_dias:7, kyc_requerido:true},
+  {id:'co_casino', tipo:'casino', nombre:'Bono Casino', codigo:'STYCASINO', deposito_min:20000, porcentaje:100, monto_max:100000, rollover_factor:25, rollover_base:'bono', vigencia_dias:7, kyc_requerido:true}
+ ],
+ PA:[
+  {id:'pa_dep', tipo:'deportes', nombre:'Bono de Bienvenida Deportes', codigo:'GANA', deposito_min:10, porcentaje:100, monto_max:5000, rollover_factor:3, rollover_base:'deposito', cuota_min:1.50, vigencia_dias:7, kyc_requerido:true},
+  {id:'pa_free', tipo:'sin_deposito', nombre:'Bono sin deposito (registro)', codigo:null, deposito_min:0, monto_fijo:5, rollover_factor:3, rollover_base:'bono', vigencia_dias:7, kyc_requerido:true}
+ ]
+};
+
+/* Clientes: DATOS CRUDOS. Cada cuenta trae lo que se revisa en una casa de
+   apuestas: depositos, retiros, codigo aplicado, KYC, rollover, IP del
+   dispositivo (para multicuenta), accesos y autoexclusion. */
+const CLIENTES=[
+ {usuario:'juanp88', nombre:'Juan Perez', pais:'MX', email:'juan@mail.com', celular:'+52 55 1234 5678', cedula:'-', registro:'2026-06-05',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:225, fecha:'2026-06-05', metodo:'tarjeta'}], retiros:[],
+  bono_reclamado:'mx_dep', codigo_ingresado:'MAXSPORT', bono_acreditado:true, rollover_acumulado:270, saldo:450, logins_fallidos:0, ip:'189.203.45.12', ip_pais:'MX', dispositivo:'Android', autoexcluido:false},
+ {usuario:'juanp_mx2', nombre:'J. Perez (2da cuenta)', pais:'MX', email:'juanperez2@mail.com', celular:'+52 55 1234 0000', cedula:'-', registro:'2026-06-07',
+  kyc:{verificado:false, documentos_faltantes:['identificacion']}, depositos:[{monto:120, fecha:'2026-06-07', metodo:'tarjeta'}], retiros:[],
+  bono_reclamado:'mx_dep', codigo_ingresado:'MAXSPORT', bono_acreditado:false, rollover_acumulado:0, saldo:120, logins_fallidos:0, ip:'189.203.45.12', ip_pais:'MX', dispositivo:'Android', autoexcluido:false},
+ {usuario:'lauragb', nombre:'Laura Gomez', pais:'CO', email:'laura@mail.com', celular:'+57 312 345 6789', cedula:'1.012.345.678', registro:'2026-06-03',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:20000, fecha:'2026-06-07', metodo:'PSE'}], retiros:[],
+  bono_reclamado:'co_dep', codigo_ingresado:null, bono_acreditado:false, rollover_acumulado:0, saldo:0, logins_fallidos:0, ip:'181.49.10.22', ip_pais:'CO', dispositivo:'iOS', autoexcluido:false},
+ {usuario:'diegor10', nombre:'Diego Ruiz', pais:'PA', email:'diego@mail.com', celular:'+507 6123 4567', cedula:'8-888-8888', registro:'2026-04-20',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:50, fecha:'2026-04-20', metodo:'tarjeta'}], retiros:[{monto:100, fecha:'2026-05-01', estado:'pagado'}],
+  bono_reclamado:'pa_dep', codigo_ingresado:'GANA', bono_acreditado:true, rollover_acumulado:150, saldo:120, logins_fallidos:0, ip:'200.46.88.7', ip_pais:'PA', dispositivo:'Web', autoexcluido:false},
+ {usuario:'mariaml', nombre:'Maria Lopez', pais:'MX', email:'maria@mail.com', celular:'+52 33 9876 5432', cedula:'-', registro:'2026-05-28',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:50, fecha:'2026-05-28', metodo:'oxxo'}], retiros:[],
+  bono_reclamado:'mx_dep', codigo_ingresado:'MAXSPORT', bono_acreditado:false, rollover_acumulado:0, saldo:50, logins_fallidos:0, ip:'201.140.33.91', ip_pais:'MX', dispositivo:'Android', autoexcluido:false},
+ {usuario:'carlosr', nombre:'Carlos Ramirez', pais:'CO', email:'carlos@mail.com', celular:'+57 320 111 2233', cedula:'1.098.765.432', registro:'2026-06-01',
+  kyc:{verificado:false, documentos_faltantes:['comprobante de domicilio']}, depositos:[{monto:30000, fecha:'2026-06-06', metodo:'PSE'}], retiros:[{monto:25000, fecha:'2026-06-10', estado:'rechazado'}],
+  bono_reclamado:'co_dep', codigo_ingresado:'STYVIP', bono_acreditado:true, rollover_acumulado:60000, saldo:30000, logins_fallidos:0, ip:'181.49.55.40', ip_pais:'CO', dispositivo:'Android', autoexcluido:false},
+ {usuario:'anat', nombre:'Ana Torres', pais:'PA', email:'ana@mail.com', celular:'+507 6987 6543', cedula:'2-222-2222', registro:'2026-03-15',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[], retiros:[],
+  bono_reclamado:'pa_free', codigo_ingresado:null, bono_acreditado:true, rollover_acumulado:0, saldo:5, logins_fallidos:0, ip:'200.46.12.9', ip_pais:'PA', dispositivo:'Web', autoexcluido:false},
+ {usuario:'pedros', nombre:'Pedro Sanchez', pais:'MX', email:'pedro@mail.com', celular:'+52 81 5555 4444', cedula:'-', registro:'2026-06-08',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:200, fecha:'2026-06-08', metodo:'tarjeta'}], retiros:[{monto:150, fecha:'2026-06-10', estado:'pendiente'}],
+  bono_reclamado:'mx_dep', codigo_ingresado:'MAXSPORT', bono_acreditado:true, rollover_acumulado:40, saldo:200, logins_fallidos:0, ip:'187.190.5.66', ip_pais:'MX', dispositivo:'iOS', autoexcluido:false},
+ {usuario:'robertog', nombre:'Roberto Gil', pais:'MX', email:'roberto@mail.com', celular:'+52 55 7777 8888', cedula:'-', registro:'2026-05-19',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:300, fecha:'2026-05-19', metodo:'tarjeta'}], retiros:[],
+  bono_reclamado:'mx_dep', codigo_ingresado:'MAXSPORT', bono_acreditado:true, rollover_acumulado:600, saldo:300, logins_fallidos:5, ip:'189.146.71.30', ip_pais:'MX', dispositivo:'Android', autoexcluido:false},
+ {usuario:'sofiav', nombre:'Sofia Vargas', pais:'CO', email:'sofia@mail.com', celular:'+57 315 222 3344', cedula:'1.055.222.333', registro:'2026-05-22',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:80000, fecha:'2026-05-22', metodo:'PSE'}], retiros:[],
+  bono_reclamado:'co_dep', codigo_ingresado:'STYVIP', bono_acreditado:true, rollover_acumulado:160000, saldo:80000, logins_fallidos:0, ip:'190.85.200.14', ip_pais:'MX', dispositivo:'Web', autoexcluido:false},
+ {usuario:'valentinar', nombre:'Valentina Reyes', pais:'MX', email:'valentina@mail.com', celular:'+52 55 2468 1357', cedula:'-', registro:'2026-06-09',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:200, fecha:'2026-06-09', metodo:'tarjeta'}], retiros:[],
+  bono_reclamado:'mx_dep', codigo_ingresado:'MAXSPORT', bono_acreditado:false, rollover_acumulado:0, saldo:520, logins_fallidos:0, ip:'200.68.140.3', ip_pais:'MX', dispositivo:'Android', autoexcluido:false},
+ {usuario:'mateov', nombre:'Mateo Vega', pais:'PA', email:'mateo@mail.com', celular:'+507 6555 1212', cedula:'3-333-3333', registro:'2026-02-10',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:80, fecha:'2026-02-10', metodo:'tarjeta'}], retiros:[],
+  bono_reclamado:null, codigo_ingresado:null, bono_acreditado:false, rollover_acumulado:0, saldo:15, logins_fallidos:0, ip:'200.46.77.5', ip_pais:'PA', dispositivo:'Android', autoexcluido:true},
+ {usuario:'gabrielah', nombre:'Gabriela Herrera', pais:'CO', email:'gabriela@mail.com', celular:'+57 311 999 8877', cedula:'1.033.444.555', registro:'2026-05-30',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:50000, fecha:'2026-05-30', metodo:'PSE'}], retiros:[{monto:120000, fecha:'2026-06-09', estado:'pendiente'}],
+  bono_reclamado:'co_dep', codigo_ingresado:'STYVIP', bono_acreditado:true, rollover_acumulado:100000, saldo:120000, logins_fallidos:0, ip:'181.49.77.88', ip_pais:'CO', dispositivo:'iOS', autoexcluido:false},
+ {usuario:'andresc', nombre:'Andres Castro', pais:'MX', email:'andres@mail.com', celular:'+52 33 4040 5050', cedula:'-', registro:'2026-06-02',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:500, fecha:'2026-06-02', metodo:'tarjeta'}], retiros:[],
+  bono_reclamado:'mx_casino', codigo_ingresado:'MAXCASINO', bono_acreditado:true, rollover_acumulado:8000, saldo:500, logins_fallidos:0, ip:'189.130.22.4', ip_pais:'MX', dispositivo:'Web', autoexcluido:false}
+];
+
+/* ============================================================
+   MOTOR DE ANALISIS  —  todo se CALCULA desde los datos crudos.
+   Reglas clave:
+   - El BONO se OTORGA con: deposito>=minimo + codigo correcto + dentro de vigencia.
+     (La verificacion KYC NO condiciona el otorgamiento del bono.)
+   - El RETIRO si requiere KYC verificada + rollover al 100%.
+   - Multicuenta: se marca si otra cuenta comparte la misma IP.
+   ============================================================ */
+function diasEntre(fechaISO, hasta){ return Math.floor((hasta - new Date(fechaISO)) / 86400000); }
+function fmtMon(n, pais){ return '$' + Number(n||0).toLocaleString('es-MX') + ' ' + (MON[pais]||''); }
+function bonoDe(c){ return (BONOS[c.pais]||[]).find(b=>b.id===c.bono_reclamado) || null; }
+
+/* Multicuenta: cuentas distintas que comparten IP de dispositivo */
+function detectarMulticuenta(c){
+  if(!c.ip) return {hay:false, cuentas:[]};
+  const otras = CLIENTES.filter(x=>x.ip===c.ip && x.usuario!==c.usuario).map(x=>x.usuario);
+  return {hay:otras.length>0, cuentas:otras};
+}
+
+function analizar(c){
+  const a = { pais:c.pais, saldoTxt:fmtMon(c.saldo,c.pais), kycOk:!!(c.kyc&&c.kyc.verificado), motivosFallo:[], checks:{}, escalar:{debe:false} };
+
+  // --- Acceso ---
+  if((c.logins_fallidos||0) >= 5){ a.acceso={estado:'Bloqueo de seguridad', clase:'bad', detalle:(c.logins_fallidos)+' intentos fallidos: bloqueo temporal. Desbloqueo segun el manual.'}; }
+  else if(c.ip_pais && c.ip_pais !== c.pais){ a.acceso={estado:'Acceso restringido (geo)', clase:'bad', detalle:'Conecta desde '+(PAISN[c.ip_pais]||c.ip_pais)+', fuera de su pais ('+PAISN[c.pais]+'). Recomendar conectarse desde '+PAISN[c.pais]+' o sin VPN.'}; }
+  else { a.acceso={estado:'Normal', clase:'ok', detalle:'Sin restricciones de acceso.'}; }
+  a.blocked = (c.logins_fallidos||0) >= 5;
+
+  // --- Multicuenta y autoexclusion (alertas) ---
+  a.multicuenta = detectarMulticuenta(c);
+  a.autoexcluido = !!c.autoexcluido;
+
+  // --- Retiros pendientes/rechazados ---
+  a.retiroPendiente = (c.retiros||[]).find(r=>r.estado==='pendiente') || null;
+
+  // --- Verificacion KYC (informativa; afecta RETIRO, no el bono) ---
+  const docs = (c.kyc&&c.kyc.documentos_faltantes)||[];
+  a.kyc = a.kycOk ? {ok:true, detalle:'KYC verificada'} : {ok:false, detalle:'KYC pendiente'+(docs.length?': falta '+docs.join(', '):'')};
+
+  // --- Bono ---
+  const bono = bonoDe(c); a.bono = bono;
+  if(!bono){ a.estado='Sin bono reclamado'; a.estadoClase=''; a.rollover={pct:0}; a.cumpleTodo=null; a.retiro=evaluarRetiro(a,c); return a; }
+  const dep = (c.depositos&&c.depositos[0]) || null;
+  const depMonto = dep ? dep.monto : 0;
+  const montoBono = (bono.monto_fijo!=null) ? bono.monto_fijo : Math.min(depMonto*(bono.porcentaje/100), bono.monto_max);
+  a.montoBono = montoBono;
+
+  // Requisitos de OTORGAMIENTO (sin KYC)
+  const cDep = bono.deposito_min===0 ? {ok:true, detalle:'No requiere deposito'} : {ok: depMonto>=bono.deposito_min, detalle:'Deposito '+fmtMon(depMonto,c.pais)+' vs minimo '+fmtMon(bono.deposito_min,c.pais)};
+  const cCod = (bono.codigo==null) ? {ok:true, detalle:'No requiere codigo'} : {ok:(c.codigo_ingresado||'').toUpperCase()===bono.codigo, detalle: c.codigo_ingresado ? ('Ingreso "'+c.codigo_ingresado+'", requiere "'+bono.codigo+'"') : ('No ingreso codigo (requiere "'+bono.codigo+'")')};
+  const dias = dep ? diasEntre(dep.fecha, HOY) : null;
+  const cVig = (bono.vigencia_dias==null||dias==null) ? {ok:true, detalle:'-'} : {ok: dias<=bono.vigencia_dias, detalle: dias+' dias desde el deposito (limite '+bono.vigencia_dias+')'};
+  a.checks = {deposito:cDep, codigo:cCod, vigencia:cVig, kyc:a.kyc};
+  a.cumpleTodo = cDep.ok && cCod.ok && cVig.ok;            // KYC NO entra aqui
+  if(!cDep.ok) a.motivosFallo.push('Deposito por debajo del minimo ('+cDep.detalle+')');
+  if(!cCod.ok) a.motivosFallo.push('Codigo de bono no aplicado ('+cCod.detalle+')');
+  if(!cVig.ok) a.motivosFallo.push('Fuera de la ventana de vigencia ('+cVig.detalle+')');
+
+  // Rollover
+  const base = (bono.rollover_base==='bono') ? montoBono : depMonto;
+  const objetivo = base * bono.rollover_factor;
+  const acum = c.rollover_acumulado || 0;
+  const pct = objetivo>0 ? Math.min(100, Math.round(acum/objetivo*100)) : 0;
+  a.rollover = {objetivo, acumulado:acum, pct, falta:Math.max(0,objetivo-acum), factor:bono.rollover_factor, cuota_min:bono.cuota_min, base:bono.rollover_base};
+
+  // Estado derivado: si YA fue acreditado esta otorgado; si NO, se evalua elegibilidad.
+  if(c.bono_acreditado){ a.estado = (pct>=100)?'Liberado (rollover completo)':'Activo · rollover '+pct+'% completado'; a.estadoClase='ok'; }
+  else if(a.cumpleTodo){ a.estado='ERROR: cumple requisitos pero NO acreditado'; a.estadoClase='bad';
+    a.escalar={debe:true, depto:'Bonos/Promociones', evidencias:['Captura del deposito ('+fmtMon(depMonto,c.pais)+', '+(dep?dep.fecha:'')+')','Codigo aplicado: '+bono.codigo,'Usuario: '+c.usuario,'Captura de que el bono no figura en el CRM']}; }
+  else { a.estado='No otorgado (requisitos incompletos)'; a.estadoClase='warn'; }
+
+  // Retiro (requiere KYC + rollover 100%)
+  a.retiro = evaluarRetiro(a, c);
+  return a;
+}
+
+/* Evalua si el cliente puede retirar: KYC verificada + rollover completo */
+function evaluarRetiro(a, c){
+  const motivos=[];
+  if(!a.kycOk) motivos.push('KYC sin verificar'+((c.kyc&&c.kyc.documentos_faltantes&&c.kyc.documentos_faltantes.length)?' (falta '+c.kyc.documentos_faltantes.join(', ')+')':''));
+  if(a.rollover && a.bono && c.bono_acreditado && a.rollover.pct<100) motivos.push('rollover en '+a.rollover.pct+'% (debe llegar a 100%)');
+  return {bloqueado:motivos.length>0, motivos};
+}
+/* ============================================================
+   SALAS RETAIL (Panama) — base ficticia. Cada sala: numero (5 digitos,
+   empieza con 60), ciudad, IP de la sala, usuario compartido, POS (1-2)
+   y pantallas de galgos (3). Se conecta por VNC/PuTTY usando estas IPs.
+   ============================================================ */
+const CIUDADES_PA=['Ciudad de Panama','Colon','David','Santiago','Chitre','La Chorrera','Penonome','Arraijan','Las Tablas','Bocas del Toro','Aguadulce','Changuinola'];
+const SALAS=(function(){
+  const arr=[]; const base=60001;
+  for(let i=0;i<60;i++){
+    const numero=String(base + i*7);            // 5 digitos, empieza con 60
+    const ciudad=CIUDADES_PA[i%CIUDADES_PA.length];
+    const oct=10+i;                              // segmento de IP por sala
+    const nPos=(i%5===0)?2:1;
+    const pos=[]; for(let p=1;p<=nPos;p++) pos.push({nombre:'POS-'+p, ip:'10.60.'+oct+'.'+(20+p)});
+    const galgos=[]; for(let g=1;g<=3;g++) galgos.push({nombre:'GALGO-'+g, ip:'10.60.'+oct+'.'+(40+g)});
+    const nMaq=2+(i%3);  // 2-4 maquinas (SSBT) por sala
+    const maquinas=[]; for(let mq=1;mq<=nMaq;mq++) maquinas.push({nombre:'MAQ-'+mq, ip:'10.60.'+oct+'.'+(60+mq)});
+    arr.push({numero, nombre:'Sala '+ciudad+' '+(i+1), ciudad, ip_sala:'10.60.'+oct+'.1', user_root:'root', user_n1:'n1', pos, galgos, maquinas, notas:''});
+  }
+  try{ arr.forEach(s=>{ const n=localStorage.getItem('sala-nota-'+s.numero); if(n!=null) s.notas=n; }); }catch(e){}
+  return arr;
+})();
+
+/* Comandos frecuentes (VNC / PuTTY) — base de conocimiento simulable */
+let COMANDOS=[
+ {cmd:'ping <ip_sala>', desc:'Verifica si la sala responde en red antes de conectar.', salida:'Reply from 10.60.x.1: bytes=32 time=12ms TTL=64\\nReply from 10.60.x.1: bytes=32 time=11ms TTL=64'},
+ {cmd:'putty -ssh soporte_sala@<ip_pos>', desc:'Abre sesion SSH al POS de la sala via PuTTY (usuario compartido).', salida:'login as: soporte_sala\\npassword: ********\\nLast login: Wed Jun 11 09:14'},
+ {cmd:'vncviewer <ip_pos>:5900', desc:'Abre el escritorio remoto (VNC) del POS o de la pantalla de galgos.', salida:'Connected to 10.60.x.21 (VNC) - 1280x1024'},
+ {cmd:'systemctl status pos-service', desc:'Revisa si el servicio del POS esta activo.', salida:'pos-service - Punto de venta\\n   Active: active (running) since 08:02'},
+ {cmd:'systemctl restart galgos-display', desc:'Reinicia la pantalla de galgos si se congelo.', salida:'galgos-display: stopping... started OK'},
+ {cmd:'tail -f /var/log/pos/transacciones.log', desc:'Ver en vivo las transacciones del POS.', salida:'[12:30:11] TICKET #4821 PAGO OK $5.00\\n[12:31:02] TICKET #4822 ANULADO'},
+ {cmd:'df -h', desc:'Revisa espacio en disco del POS (tickets no imprimen si esta lleno).', salida:'/dev/sda1  20G  14G  6.0G  70% /'},
+ {cmd:'reboot', desc:'Reinicia el equipo de la sala (ultimo recurso, avisar a la sala).', salida:'Broadcast: The system is going down for reboot NOW'}
+];
+
+const norm=x=>((x||'')+'').toLowerCase().replace(/[^a-z0-9@.]/g,'');
+function findCliente(q){ if(!q)return null; const s=(''+q).toLowerCase().trim(); const sn=norm(s);
+  return CLIENTES.find(c=>c.usuario.toLowerCase()===s||c.email.toLowerCase()===s||norm(c.cedula)===sn||c.nombre.toLowerCase()===s)
+    || CLIENTES.find(c=>c.usuario.toLowerCase().includes(s)||c.email.toLowerCase().includes(s)||(sn.length>5&&norm(c.cedula).includes(sn))||c.nombre.toLowerCase().includes(s)); }
+function detectCliente(text){ const low=(text||'').toLowerCase(); const sn=norm(low);
+  return CLIENTES.find(c=>low.includes(c.usuario.toLowerCase())||low.includes(c.email.toLowerCase())||(c.cedula!=='-'&&sn.includes(norm(c.cedula)))) || null; }
+
+/* ---- sesiones (multi-cliente) ---- */
+const GREET={role:'assistant',content:'¡Hola! Soy el asistente interno de Sportium. Busca o menciona un cliente y pregúntame sobre su cuenta, bonos, verificación, accesos…'};
+let sessions=[{id:'__gen__',cliente:null,mensajes:[{...GREET}]}];
+let activeId='__gen__';
+const activeS=()=>sessions.find(s=>s.id===activeId);
+function openCliente(c){
+  let s=sessions.find(x=>x.id===c.usuario);
+  if(!s){ s={id:c.usuario,cliente:c,mensajes:[{role:'assistant',content:'Cliente cargado: '+c.nombre+' ('+c.usuario+'). ¿Qué necesitas resolver de su cuenta?'}]}; sessions.push(s); }
+  activeId=c.usuario; renderAll();
+}
+function openSala(sa){
+  const id='sala_'+sa.numero;
+  let s=sessions.find(x=>x.id===id);
+  if(!s){ s={id, sala:sa, cliente:null, mensajes:[{role:'assistant',content:'Sala '+sa.numero+' ('+sa.ciudad+') cargada. Tienes a la derecha sus IPs y usuarios de acceso. Pregúntame cómo conectarte o resolver un problema (POS, galgos, máquinas, VNC, PuTTY).'}]}; sessions.push(s); }
+  activeId=id; renderAll();
+}
+function switchTo(id){ activeId=id; renderAll(); }
+function closeSession(id,ev){ ev&&ev.stopPropagation(); sessions=sessions.filter(s=>s.id!==id); if(activeId===id) activeId='__gen__'; renderAll(); }
+
+/* ---- render ---- */
+function flagSpan(p){ return p?flagHTML(p):''; }
+function renderTabs(){
+  const t=$('tabs'); t.innerHTML='';
+  sessions.forEach((s,i)=>{
+    const el=document.createElement('div'); el.className='tab'+(s.id===activeId?' active':''); el.title=i<9?('Alt+'+(i+1)):'';
+    const label=s.cliente?s.cliente.usuario:(s.sala?('Sala '+s.sala.numero):'Consulta general');
+    const num=i<9?'<span class="tabnum">'+(i+1)+'</span>':'';
+    const ico=s.cliente?flagSpan(s.cliente.pais):(s.sala?'<span class="acico">'+pxIcon('list')+'</span>':'');
+    el.innerHTML=num+ico+'<span>'+label+'</span>'+(s.id!=='__gen__'?'<span class="x">×</span>':'');
+    el.onclick=()=>switchTo(s.id);
+    if(s.id!=='__gen__'){ el.querySelector('.x').onclick=(e)=>closeSession(s.id,e); }
+    t.appendChild(el);
+  });
+}
+function badge(txt,cls){ return '<span class="badge '+cls+'">'+txt+'</span>'; }
+/* ---- iconos pixel-art (sprites dibujados, sin emojis) ---- */
+const PXMAP={
+ ball:["..####..",".######.","###..###","########","########","###..###",".######.","..####.."],
+ dice:["########","#......#","#.#..#.#","#......#","#......#","#.#..#.#","#......#","########"],
+ gift:["...##...","..####..","########","#..##..#","#..##..#","#..##..#","#..##..#","########"],
+ star:["...##...","...##...",".######.","########",".######.","..####..",".##..##."],
+ target:["..####..",".#....#.","#..##..#","#.####.#","#.####.#","#..##..#",".#....#.","..####.."],
+ list:["#.######","........","#.######","........","#.######","........","#.######"],
+ check:["......##",".....##.","#...##..","##.##...",".###....","..#....."],
+ clock:["######","#....#",".####.","..##..",".####.","#....#","######"]
+};
+function pxIcon(name){ const g=PXMAP[name]; if(!g)return ''; const w=g[0].length,h=g.length; let r='';
+ for(let y=0;y<h;y++){const row=g[y];for(let x=0;x<w;x++){if(row[x]==='#')r+='<rect x="'+x+'" y="'+y+'" width="1" height="1"/>';}}
+ return '<svg class="pxi" viewBox="0 0 '+w+' '+h+'" fill="currentColor" shape-rendering="crispEdges">'+r+'</svg>'; }
+function initials(nm){ return (nm||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?'; }
+function chip(cls,txt){ return '<span class="chip '+cls+'"><span class="dot"></span>'+txt+'</span>'; }
+function brow(icon,k,val){ return '<div class="brow'+(val?'':' off')+'"><div class="bi">'+pxIcon(icon)+'</div><div class="bmeta"><div class="bk">'+k+'</div><div class="bv">'+(val||'Sin bono activo')+'</div></div></div>'; }
+function reqRow(label, chk){ return '<div class="row"><span class="k">'+label+'</span><span class="v">'+badge(chk.ok?'cumple':'falta', chk.ok?'ok':'bad')+' <span class="reqd">'+chk.detalle+'</span></span></div>'; }
+function iprow(k, ip){ return '<div class="row"><span class="k">'+k+'</span><span class="v ipcopy" title="Clic para copiar" onclick="copyIp(\''+ip+'\')">'+ip+'</span></div>'; }
+function renderSalaPanel(sa, p){
+  const equipos=[].concat(sa.pos||[], sa.galgos||[], sa.maquinas||[]);
+  const ipsHtml=equipos.map(e=>iprow(e.nombre, e.ip)).join('');
+  const cmds='<div class="blk"><div class="blk-h">'+pxIcon('target')+'Comandos rápidos</div>'+
+    row('Probar conexión','ping '+sa.ip_sala)+
+    row('Abrir POS (SSH)','putty -ssh '+sa.user_root+'@'+(sa.pos[0]?sa.pos[0].ip:sa.ip_sala))+
+    row('Ver pantalla (VNC)','vncviewer '+(sa.galgos[0]?sa.galgos[0].ip:sa.ip_sala)+':5900')+
+    row('Reiniciar POS','systemctl restart pos-service')+'</div>';
+  p.innerHTML='<div class="pnl">'+
+    '<div class="chero"><div class="ch-top"><div class="avt">'+pxIcon('list')+'</div>'+
+      '<div><div class="nm">'+sa.nombre+'</div><div class="us">Sala #'+sa.numero+' · '+sa.ciudad+' · Panamá</div></div></div></div>'+
+    '<div class="tiles"><div class="tile accent"><div class="tl">Código de sala</div><div class="tv">'+sa.numero+'</div></div>'+
+      '<div class="tile"><div class="tl">Equipos</div><div class="tv sm">'+sa.pos.length+' POS · '+sa.galgos.length+' galgos · '+(sa.maquinas?sa.maquinas.length:0)+' máq.</div></div></div>'+
+    '<div class="blk"><div class="blk-h">'+pxIcon('check')+'Acceso (VNC / PuTTY)</div>'+
+      iprow('IP de la sala', sa.ip_sala)+
+      row('Usuario root', '<b>'+sa.user_root+'</b>')+
+      row('Usuario N1', '<b>'+sa.user_n1+'</b>')+
+      '<div class="row"><span class="reqd">Usa <b>root</b> para administración total; <b>n1</b> para soporte de primer nivel. La contraseña está en el manual.</span></div>'+
+    '</div>'+
+    '<div class="blk"><div class="blk-h">'+pxIcon('dice')+'Equipos y sus IPs</div>'+ipsHtml+'</div>'+
+    cmds+
+  '</div>';
+}
+function renderPanel(){
+  const A=activeS(); const p=$('panelData');
+  if(A && A.sala){ renderSalaPanel(A.sala, p); return; }
+  const c=A.cliente;
+  if(!c){ p.innerHTML='<div class="side-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 20.5c0-3.6 3.6-6.5 8-6.5s8 2.9 8 6.5"/></svg>Busca un cliente o una sala para ver aquí sus datos.</div>'; return; }
+  const a=analizar(c);
+
+  let chips=chip(a.kyc.ok?'ok':'warn', a.kyc.ok?'KYC verificada':'KYC pendiente');
+  chips+=chip(a.blocked?'bad':'ok', a.blocked?'Cuenta bloqueada':'Sin bloqueo');
+  if(a.acceso.clase==='bad' && !a.blocked) chips+=chip('bad','Acceso restringido');
+  if((c.logins_fallidos||0)>0) chips+=chip('warn', c.logins_fallidos+' logins fallidos');
+  if(a.bono) chips+=chip(a.cumpleTodo?'ok':'warn', a.cumpleTodo?'Cumple requisitos':'Requisitos incompletos');
+  if(a.autoexcluido) chips+=chip('bad','Autoexcluido');
+  if(a.multicuenta.hay) chips+=chip('bad','Multicuenta');
+
+  // Alertas (cajas rojas)
+  let alertas='';
+  if(a.escalar.debe) alertas+=alertBox('Escalar a '+a.escalar.depto, 'Cumplió todos los requisitos pero el bono no se acreditó (posible error de sistema). Evidencias: '+a.escalar.evidencias.join('; ')+'.');
+  if(a.multicuenta.hay) alertas+=alertBox('Posible multicuenta', 'Misma IP ('+c.ip+') que: '+a.multicuenta.cuentas.join(', ')+'. Revisar antes de pagar bonos o retiros.');
+  if(a.autoexcluido) alertas+=alertBox('Cuenta autoexcluida', 'El cliente solicitó autoexclusión: no ofrecer bonos ni reactivar sin el proceso del manual.');
+  if(a.retiro && a.retiro.bloqueado) alertas+=alertBox('Retiro bloqueado', a.retiro.motivos.join(' · '));
+
+  let bonoBlk='';
+  if(a.bono){
+    const ch=a.checks;
+    const estadoCorto = c.bono_acreditado ? (a.rollover.pct>=100?'Liberado':'Activo') : (a.cumpleTodo?'No acreditado (error)':'No otorgado');
+    const roll = (a.rollover&&a.rollover.objetivo) ? row('Rollover', a.rollover.pct+'% · faltan '+fmtMon(a.rollover.falta,c.pais)+' (x'+a.rollover.factor+' sobre '+a.rollover.base+')') : '';
+    bonoBlk='<div class="blk"><div class="blk-h">'+pxIcon('target')+'Bono reclamado</div>'+
+      '<div class="row"><span class="k">'+a.bono.nombre+'</span><span class="v">'+badge(estadoCorto, a.estadoClase||'warn')+'</span></div>'+
+      reqRow('Depósito', ch.deposito)+reqRow('Código', ch.codigo)+reqRow('Vigencia', ch.vigencia)+roll+
+      reqRow('KYC (para retirar)', ch.kyc)+'</div>';
+  } else {
+    bonoBlk='<div class="blk"><div class="blk-h">'+pxIcon('target')+'Bono reclamado</div>'+row('Estado','Sin bono reclamado')+'</div>';
+  }
+
+  const dep=(c.depositos&&c.depositos[0]);
+  const detalle='<div class="blk"><div class="blk-h">'+pxIcon('list')+'Detalle de la cuenta</div>'+
+    row('Celular',c.celular)+row('Email',c.email)+row('Cédula',c.cedula)+row('Registro',c.registro)+
+    row('Primer depósito', dep?(fmtMon(dep.monto,c.pais)+' · '+dep.fecha+' · '+dep.metodo):'sin depósito')+
+    row('Código aplicado', c.codigo_ingresado||'ninguno')+
+    row('Acceso', a.acceso.estado)+
+    '</div>';
+
+  // Bloque solo para ADMIN (datos sensibles)
+  let adminBlk='';
+  if(isAdmin()){
+    const retiros=(c.retiros&&c.retiros.length)?c.retiros.map(r=>fmtMon(r.monto,c.pais)+' '+r.estado+' ('+r.fecha+')').join(' · '):'sin retiros';
+    adminBlk='<div class="blk admin-blk"><div class="blk-h">'+pxIcon('target')+'Datos internos (admin)</div>'+
+      row('IP dispositivo', c.ip||'-')+row('Dispositivo', c.dispositivo||'-')+
+      row('Multicuenta', a.multicuenta.hay?('Sí · '+a.multicuenta.cuentas.join(', ')):'No detectada')+
+      row('Retiros', retiros)+
+      row('Autoexclusión', a.autoexcluido?'Sí':'No')+
+      row('Puede retirar', (a.retiro&&a.retiro.bloqueado)?('No — '+a.retiro.motivos.join(', ')):'Sí')+'</div>';
+  }
+
+  p.innerHTML='<div class="pnl">'+
+    '<div class="chero"><div class="ch-top"><div class="avt">'+initials(c.nombre)+'</div>'+
+      '<div><div class="nm">'+c.nombre+'</div><div class="us">'+flagHTML(c.pais)+'@'+c.usuario+' · '+PAISN[c.pais]+'</div></div></div></div>'+
+    '<div class="tiles"><div class="tile accent"><div class="tl">Saldo disponible</div><div class="tv">'+a.saldoTxt+'</div></div>'+
+      '<div class="tile"><div class="tl">Verificación</div><div class="tv sm" style="color:'+(a.kyc.ok?'var(--ok)':'var(--warn)')+'">'+pxIcon(a.kyc.ok?'check':'clock')+(a.kyc.ok?'Verificada':'Pendiente')+'</div></div></div>'+
+    '<div class="chips">'+chips+'</div>'+
+    alertas+ bonoBlk+ detalle+ adminBlk+
+  '</div>';
+}
+function alertBox(titulo, texto){ return '<div class="escbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg><div><b>'+titulo+'</b>'+texto+'</div></div>'; }
+function row(k,v){ return '<div class="row"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function imgTag(src){return '<img src="'+src+'" alt="">';}
+function renderContent(text){ let t=esc(text);
+  t=t.replace(/\[IMG:([^\]]+)\]/g,(m,n)=>{const k=n.trim();return imageMap[k]?imgTag(imageMap[k]):'[imagen: '+k+']';});
+  t=t.replace(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g,(m,u)=>imgTag(u));
+  t=t.replace(/(?<!["(=])(https?:\/\/[^\s<"]+(?:\.(?:png|jpe?g|gif|webp)|pollinations\.ai\/prompt\/[^\s<"]+))/gi,(m,u)=>imgTag(u));
+  // resaltado: **negrita** -> destacado pixel (sin mostrar asteriscos)
+  t=t.replace(/\*\*([^*]+)\*\*/g,'<strong class="hl">$1</strong>');
+  // encabezados de los 3 bloques -> etiqueta con icono pixel-art
+  t=t.replace(/(^|\n)(Para ti \(interno\):|Verificar en el CRM:|Respuesta sugerida al cliente:)/g,(m,br,h)=>br+'<span class="blocklbl">'+pxIcon('check')+h+'</span>');
+  return t.replace(/\n/g,'<br>'); }
+function renderChat(){
+  const c=$('chat'); c.querySelectorAll('.msg').forEach(e=>e.remove());
+  activeS().mensajes.forEach(m=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); d.innerHTML=h; c.appendChild(d); });
+  c.appendChild($('typing')); c.scrollTop=c.scrollHeight;
+}
+function renderAll(){ renderTabs(); renderPanel(); renderChat(); }
+
+/* ---- autocompletar buscador ---- */
+const search=$('search'), acbox=$('acbox');
+function openRetailToSala(num){ openRetail(); const ss=$('salaSearch'); if(ss){ ss.value=num; renderSalas(num); } }
+search.addEventListener('input',()=>{
+  const q=search.value.trim().toLowerCase(); if(!q){ acbox.classList.remove('on'); return; }
+  const sn=norm(q);
+  const cm=CLIENTES.filter(c=>c.usuario.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)||c.nombre.toLowerCase().includes(q)||(sn.length>2&&norm(c.cedula).includes(sn))).slice(0,5);
+  const sm=SALAS.filter(s=>s.numero.includes(q)||s.ciudad.toLowerCase().includes(q)).slice(0,4);
+  if(!cm.length && !sm.length){ acbox.classList.remove('on'); return; }
+  let html=cm.map(c=>'<div class="acitem" data-u="'+c.usuario+'">'+flagHTML(c.pais)+'<div><div>'+c.nombre+' · @'+c.usuario+'</div><small>'+c.email+' · '+c.cedula+'</small></div></div>').join('');
+  html+=sm.map(s=>'<div class="acitem acsala" data-sala="'+s.numero+'"><span class="acico">'+pxIcon('list')+'</span><div><div>Sala '+s.numero+' · '+s.ciudad+'</div><small>IP '+s.ip_sala+' · '+s.pos.length+' POS · '+s.galgos.length+' galgos</small></div></div>').join('');
+  acbox.innerHTML=html;
+  acbox.classList.add('on');
+  acbox.querySelectorAll('.acitem').forEach(it=>it.onclick=()=>{
+    if(it.dataset.sala){ const sa=SALAS.find(x=>x.numero===it.dataset.sala); if(sa) openSala(sa); }
+    else { openCliente(findCliente(it.dataset.u)); }
+    $('input').focus(); search.value=''; acbox.classList.remove('on');
+  });
+});
+search.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); const c=findCliente(search.value); if(c){ openCliente(c); search.value=''; acbox.classList.remove('on'); }
+  else { const q=search.value.trim().toLowerCase(); const s=SALAS.find(x=>x.numero===search.value.trim())||SALAS.find(x=>x.numero.includes(q)||x.ciudad.toLowerCase().includes(q)); if(s){ openSala(s); search.value=''; acbox.classList.remove('on'); } } } });
+document.addEventListener('click',e=>{ if(!e.target.closest('.searchwrap')) acbox.classList.remove('on'); });
+
+/* ---- tema ---- */
+function applyTheme(t){ document.documentElement.setAttribute('data-theme',t); $('iM').style.display=t==='light'?'block':'none'; $('iS').style.display=t==='dark'?'block':'none'; lsSet('sptm-theme',t); }
+function toggleTheme(){ applyTheme(document.documentElement.getAttribute('data-theme')==='light'?'dark':'light'); }
+applyTheme(lsGet('sptm-theme')||'light');
+
+/* ============================================================
+   MEDIDOR DE CUPO DE IA  — muestra el % que queda del modelo actual
+   antes de que el sistema pase SOLO al siguiente (cambio automático).
+   ============================================================ */
+const IA_CAPS={'llama-3.3-70b-versatile':100000,'llama-3.1-8b-instant':500000,'openai/gpt-oss-20b':200000,'meta-llama/llama-4-scout-17b-16e-instruct':100000};
+const IA_SHORT={'llama-3.3-70b-versatile':'IA Pro (70B)','llama-3.1-8b-instant':'IA Rápida (8B)','openai/gpt-oss-20b':'IA Respaldo','meta-llama/llama-4-scout-17b-16e-instruct':'IA Visión'};
+const IA_ORDEN=['llama-3.3-70b-versatile','llama-3.1-8b-instant','openai/gpt-oss-20b'];
+function iaToday(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+let iaUsage={date:iaToday(),used:{},last:''};
+function loadUsage(){ try{ const u=JSON.parse(lsGet('sptm-usage')||'{}'); if(u&&u.date===iaToday()) iaUsage=u; }catch(e){} renderMeter(); }
+function trackUsage(model,tokens){ if(!model)return; if(iaUsage.date!==iaToday()) iaUsage={date:iaToday(),used:{},last:''}; iaUsage.used[model]=(iaUsage.used[model]||0)+(Number(tokens)||0); iaUsage.last=model; lsSet('sptm-usage',JSON.stringify(iaUsage)); renderMeter(); }
+function renderMeter(){ const el=$('useMeter'); if(!el)return; const m=iaUsage.last||'llama-3.3-70b-versatile'; const cap=IA_CAPS[m]||100000; const used=iaUsage.used[m]||0; const rem=Math.max(0,Math.min(100,Math.round((1-used/cap)*100))); const col=rem>40?'#1a9e5f':(rem>15?'#d98a00':'#c0392b'); const idx=IA_ORDEN.indexOf(m); const sig=(idx>=0&&idx<IA_ORDEN.length-1)?IA_SHORT[IA_ORDEN[idx+1]]:'modo básico'; el.style.display=''; el.innerHTML='<span style="width:8px;height:8px;border-radius:50%;background:'+col+';display:inline-block;margin-right:5px;vertical-align:middle"></span><span class="m-name">'+(IA_SHORT[m]||m)+' · </span>'+rem+'%'; el.title=(IA_SHORT[m]||m)+': queda '+rem+'% del cupo diario ('+used.toLocaleString('es-MX')+' / '+cap.toLocaleString('es-MX')+' tokens usados hoy). Al llegar a 0% pasa AUTOMÁTICAMENTE a '+sig+'. El cupo se reinicia cada día.'; }
+
+/* ---- auto-copiar ---- */
+let autocopy=lsGet('sptm-autocopy')==='1';
+function applyAutocopy(){ $('copyToggle').classList.toggle('on',autocopy); $('copyToggle').title=autocopy?'Auto-copiar: ACTIVADO':'Auto-copiar: desactivado'; }
+function toggleAutocopy(){ autocopy=!autocopy; lsSet('sptm-autocopy',autocopy?'1':'0'); applyAutocopy(); }
+function extraerSugerida(t){ const m=(t||'').match(/Respuesta sugerida al cliente:\s*([\s\S]*?)(?:\n\s*Para ti|\n\s*Verificar|$)/i); return (m?m[1]:(t||'')).trim(); }
+applyAutocopy();
+
+/* ---- base de conocimientos (persistente en Supabase) ---- */
+if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let KB=[], imageMap={}, IDX=[], procesando=[];   // KB/imageMap = imágenes; IDX = documentos REALMENTE indexados en la base
+const readText=f=>new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.result);x.onerror=j;x.readAsText(f);});
+const readURL=f=>new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.result);x.onerror=j;x.readAsDataURL(f);});
+async function extractPdf(f){const b=await f.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:b}).promise;let t='';for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const c=await pg.getTextContent();t+=c.items.map(it=>it.str).join(' ')+'\n';}return t;}
+function kbStatus(t,kind){ const el=$('kbStatus'); if(!el)return; el.textContent=t||''; el.style.color=kind==='err'?'#c0392b':(kind==='ok'?'var(--ok)':'var(--txt-2)'); }
+/* indexar texto pegado/escrito directo (sin depender de leer un archivo) */
+async function indexNote(){
+  if(!isAdmin())return;
+  const name=($('kbNoteName').value.trim()||'Nota '+new Date().toLocaleDateString('es-MX'));
+  const text=$('kbNoteText').value.trim();
+  if(!text){ kbStatus('Escribe o pega el texto de la nota primero.','err'); return; }
+  $('kbNoteBtn').disabled=true; procesando.push(name); renderKB(); kbStatus('Enviando e indexando "'+name+'"…');
+  try{
+    const [n,clas]=await Promise.all([ ingestKB(name,text), classifyKB(name,text) ]);
+    procesando=procesando.filter(p=>p!==name); await loadIndexed();
+    const real=IDX.find(d=>d.name===name);
+    if(real&&real.chunks>0){ kbStatus('✅ "'+name+'": '+real.chunks+' trozos en la base'+(clas?' · repartido por país':'')+'. Sin duplicar.','ok'); $('kbNoteText').value=''; $('kbNoteName').value=''; }
+    else kbStatus('⚠️ No quedó en la base (posible cupo de embeddings). Intenta de nuevo.','err');
+  }catch(e){ procesando=procesando.filter(p=>p!==name); kbStatus('Error: '+(e.message||e),'err'); }
+  finally{ $('kbNoteBtn').disabled=false; }
+}
+async function addFiles(files){
+  for(const f of files){ const l=f.name.toLowerCase(); const isImg=/\.(png|jpe?g|gif|webp)$/.test(l)||(f.type&&f.type.startsWith('image/'));
+   try{
+    if(isImg){
+      const content=await readURL(f); const key=f.name.replace(/\.[^.]+$/,''); imageMap[key]=content; KB.push({name:f.name,img:true,key,content});
+      if(sb&&isAdmin()){ const {data}=await sb.from('kb_files').insert({name:f.name,content,mime:'image/'+(l.split('.').pop()),size_kb:+(f.size/1024).toFixed(1),uploaded_by:me.id}).select('id').single(); if(data) KB[KB.length-1].id=data.id; }
+      renderKB();
+    } else {
+      const text=((l.endsWith('.pdf')?await extractPdf(f):await readText(f))||'').trim();
+      if(!text){ kbStatus(l.endsWith('.pdf')?('"'+f.name+'" parece un PDF escaneado (imagen, sin texto seleccionable). Pega el texto en el recuadro de abajo y dale Indexar.'):('"'+f.name+'": no se pudo leer texto. Súbelo como TXT/MD o pega el texto abajo.'),'err'); continue; }
+      // SOLO se envía a la base (se indexa) + se reparte por país. NO se guarda el documento en la página.
+      procesando.push(f.name); renderKB(); kbStatus('Enviando e indexando "'+f.name+'"…');
+      const [n,clas]=await Promise.all([ ingestKB(f.name,text), classifyKB(f.name,text) ]);
+      procesando=procesando.filter(p=>p!==f.name);
+      await loadIndexed();   // <- lee el estado REAL de la base (kb_chunks)
+      const real=IDX.find(d=>d.name===f.name);
+      if(real&&real.chunks>0) kbStatus('✅ "'+f.name+'": '+real.chunks+' trozos guardados en la base'+(clas?' · repartido por país':'')+'. Sin duplicar.','ok');
+      else kbStatus('⚠️ "'+f.name+'" NO quedó en la base (posible cupo de embeddings agotado). Intenta más tarde.','err');
+    }
+   }catch(e){ procesando=procesando.filter(p=>p!==f.name); kbStatus('Error con "'+f.name+'": '+(e.message||e),'err'); renderKB(); }
+  }
+  logAudit('upload_kb',{n:files.length});
+}
+/* RAG: manda el documento al backend para trocearlo + indexarlo (embeddings en Supabase) */
+async function ingestKB(name,text){
+  try{ const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(INGEST_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
+      body:JSON.stringify({tenant:CONFIG.tenant,doc_name:name,text})});
+    const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
+    return (d&&d.chunks)||0;
+  }catch(e){ return 0; }
+}
+/* CLASIFICAR: una IA lee el documento y reparte su info por país×vertiente en el contexto */
+async function classifyKB(name,text){
+  try{ const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(CLASSIFY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
+      body:JSON.stringify({tenant:CONFIG.tenant,text})});
+    const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
+    if(d&&d.ok&&d.paises&&typeof d.paises==='object'){ mergeDocIntoPaises(name,d.paises); await persistContext(); fillCtxFields(); if(d.comandos) mergeComandos(d.comandos); return true; }
+  }catch(e){}
+  return false;
+}
+function _reEsc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function mergeDocIntoPaises(docName,ai){
+  if(!ctxCache.paises) ctxCache.paises=emptyPaises();
+  const tag='=== 📄 '+docName+' ===', endTag='=== fin '+docName+' ===';
+  Object.keys(ctxCache.paises).forEach(pc=>{ Object.keys(ctxCache.paises[pc]).forEach(vc=>{
+    let cur=(ctxCache.paises[pc][vc]||'');
+    cur=cur.replace(new RegExp('\\n*'+_reEsc(tag)+'[\\s\\S]*?'+_reEsc(endTag),'g'),'').trim();
+    const add=(((ai[pc]||{})[vc])||'').trim();
+    if(add) cur=(cur?cur+'\n\n':'')+tag+'\n'+add+'\n'+endTag;
+    ctxCache.paises[pc][vc]=cur;
+  }); });
+}
+/* guarda ctxCache TAL CUAL (sin leer los textareas) en localStorage + Supabase */
+async function persistContext(){
+  ctxCache.paises=normPaises(ctxCache.paises);
+  const paisesJSON=JSON.stringify(ctxCache.paises);
+  try{ localStorage.setItem('jobany-ctx', JSON.stringify({system_prompt:ctxCache.system_prompt,bonos_notes:ctxCache.bonos_notes,reglas_calculo:ctxCache.reglas_calculo,paises:ctxCache.paises})); }catch(e){}
+  if(sb){ try{ let r=await sb.from('ai_context').update({system_prompt:ctxCache.system_prompt,bonos_notes:paisesJSON,reglas_calculo:ctxCache.reglas_calculo,updated_at:new Date().toISOString(),updated_by:me.id}).eq('id',1); if(r.error) await sb.from('ai_context').update({system_prompt:ctxCache.system_prompt,bonos_notes:paisesJSON}).eq('id',1); }catch(e){} }
+}
+async function loadKB(){
+  if(!sb)return;
+  try{ const {data}=await sb.from('kb_files').select('*').order('created_at');
+    KB=[]; imageMap={};
+    (data||[]).forEach(f=>{ if((f.mime||'').startsWith('image')){ const key=f.name.replace(/\.[^.]+$/,''); imageMap[key]=f.content; KB.push({name:f.name,img:true,key,content:f.content,id:f.id}); } });
+  }catch(e){}
+  await loadIndexed();
+}
+/* INDICADOR REAL: lee kb_chunks de la base y agrupa por documento (cuántos trozos, sin duplicar) */
+async function loadIndexed(){
+  if(!sb){ IDX=[]; renderKB(); return; }
+  try{ const {data}=await sb.from('kb_chunks').select('doc_name').eq('tenant',CONFIG.tenant);
+    const m={}; (data||[]).forEach(r=>{ const n=r.doc_name||'(sin nombre)'; m[n]=(m[n]||0)+1; });
+    IDX=Object.keys(m).map(n=>({name:n,chunks:m[n]})).sort((a,b)=>a.name.localeCompare(b.name));
+  }catch(e){ IDX=[]; }
+  renderKB();
+}
+function _q(s){ return (s||'').replace(/'/g,"\\'"); }
+function renderKB(){ const L=$('kbList'); if(!L)return; let h='';
+  procesando.forEach(n=>{ h+='<div class="file"><span class="nm">'+n+'</span><span style="color:var(--warn)">procesando…</span></div>'; });
+  IDX.forEach(d=>{ h+='<div class="file"><span class="nm">'+d.name+'</span><span style="color:var(--ok)">✓ '+d.chunks+' trozos en la base</span><span class="rm" onclick="deleteIndexed(\''+_q(d.name)+'\')">×</span></div>'; });
+  KB.filter(f=>f.img).forEach(f=>{ h+='<div class="file"><span class="nm">'+f.name+'</span><span>imagen</span><span class="rm" onclick="rmImg(\''+_q(f.key)+'\')">×</span></div>'; });
+  L.innerHTML=h||'<small style="color:var(--txt-2)">Nada indexado todavía. Sube un documento.</small>';
+}
+/* quitar un documento de la base (borra sus trozos en kb_chunks via backend) */
+async function deleteIndexed(name){
+  if(!isAdmin())return; if(!confirm('¿Quitar "'+name+'" de la base? La IA dejará de usar ese documento.'))return;
+  kbStatus('Quitando "'+name+'" de la base…');
+  try{ const {data:{session}}=await sb.auth.getSession();
+    await fetch(INGEST_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({tenant:CONFIG.tenant,doc_name:name,borrar:true})});
+  }catch(e){}
+  await loadIndexed(); kbStatus('"'+name+'" quitado de la base.','ok');
+}
+function rmImg(key){ delete imageMap[key]; const f=KB.find(x=>x.key===key); if(sb&&f&&f.id&&isAdmin()) sb.from('kb_files').delete().eq('id',f.id); KB=KB.filter(x=>x.key!==key); renderKB(); }
+function getBase(){ return ''; }   /* los documentos ya no viajan en cada mensaje: el RAG trae lo relevante */
+function getImagenes(){ return Object.keys(imageMap); }
+$('drop').onclick=()=>$('kbFile').click(); $('kbFile').onchange=e=>{ addFiles(e.target.files); e.target.value=''; };
+if($('kbNoteBtn')) $('kbNoteBtn').onclick=indexNote;
+['dragover','dragenter'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();}));
+$('drop').addEventListener('drop',e=>{e.preventDefault(); if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);});
+function openPanel(){ if(!isAdmin())return; $('overlay').classList.add('on');$('cpanel').classList.add('on'); loadUsers(); }
+function closePanel(){$('overlay').classList.remove('on');$('cpanel').classList.remove('on')}
+
+/* ---- Salas Retail (terminal) ---- */
+function copyIp(ip){ try{ navigator.clipboard.writeText(ip); }catch(e){} }
+function editNota(num){ if(!isAdmin())return; const s=SALAS.find(x=>x.numero===num); if(!s)return; const v=prompt('Nota para Sala '+num+':', s.notas||''); if(v===null)return; s.notas=v; try{ localStorage.setItem('sala-nota-'+num, v); }catch(e){} renderSalas($('salaSearch').value); }
+function renderSalas(q){
+  q=(q||'').toLowerCase().trim();
+  const m = !q ? SALAS.slice(0,8) : SALAS.filter(s=>s.numero.includes(q)||s.ciudad.toLowerCase().includes(q)||s.nombre.toLowerCase().includes(q)).slice(0,14);
+  const el=$('salaResults'); if(!el)return;
+  if(!m.length){ el.innerHTML='<span class="cmd-d">Sin resultados para "'+q+'".</span>'; return; }
+  el.innerHTML=m.map(s=>{
+    const chips=arr=>arr.map(x=>'<span class="ipchip" onclick="copyIp(\''+x.ip+'\')">'+x.nombre+' '+x.ip+'</span>').join('');
+    const editar=isAdmin()?' <span class="ipchip" onclick="editNota(\''+s.numero+'\')">✎ nota</span>':'';
+    return '<div class="sala-card"><div class="sn">Sala '+s.numero+' · '+s.ciudad+editar+'</div>'+
+      '<div class="ln">IP sala: <span class="ipchip" onclick="copyIp(\''+s.ip_sala+'\')">'+s.ip_sala+'</span> · root: '+s.user_root+' · n1: '+s.user_n1+'</div>'+
+      '<div class="ln">POS: '+chips(s.pos)+'</div>'+
+      '<div class="ln">Galgos: '+chips(s.galgos)+'</div>'+
+      '<div class="ln">Máquinas: '+chips(s.maquinas||[])+'</div>'+
+      (s.notas?'<div class="cmd-d">Nota: '+s.notas+'</div>':'')+'</div>';
+  }).join('');
+}
+/* comandos extra (detectados por la IA en documentos): persisten y se muestran con el mismo diseño */
+function loadComandosExtra(){ try{ const e=JSON.parse(lsGet('sptm-comandos')||'[]'); if(Array.isArray(e)&&e.length){ const ex=e.map(c=>({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',nuevo:true})); const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase())); ex.forEach(c=>{ if(c.cmd&&!have.has(c.cmd.trim().toLowerCase())){ COMANDOS.push(c); have.add(c.cmd.trim().toLowerCase()); } }); } }catch(e){} }
+function mergeComandos(arr){ if(!Array.isArray(arr)||!arr.length)return 0; let add=0; const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase())); const store=[]; try{ store.push(...JSON.parse(lsGet('sptm-comandos')||'[]')); }catch(e){}
+  arr.forEach(c=>{ const cmd=(c&&c.cmd||'').trim(); if(!cmd)return; const k=cmd.toLowerCase(); if(have.has(k))return; have.add(k); const obj={cmd,desc:c.desc||'',salida:c.salida||'(sin salida de ejemplo)',nuevo:true}; COMANDOS.push(obj); store.push({cmd,desc:obj.desc,salida:obj.salida}); add++; });
+  if(add){ lsSet('sptm-comandos',JSON.stringify(store)); renderComandos(); }
+  return add;
+}
+function renderComandos(q){ const el=$('cmdList'); if(!el)return; q=(q||'').trim().toLowerCase(); const list=q?COMANDOS.filter(c=>((c.cmd||'')+' '+(c.desc||'')).toLowerCase().includes(q)):COMANDOS; el.innerHTML=(list.length?list:[]).map(c=>'<div class="cmd" onclick="this.classList.toggle(\'on\')"><div class="cmd-l">$ '+c.cmd+(c.nuevo?' <span style="color:var(--accent);font-size:10px">● nuevo</span>':'')+'</div><div class="cmd-d">'+c.desc+'</div><div class="cmd-out">'+(c.salida||'').replace(/\\n/g,String.fromCharCode(10))+'</div></div>').join('')||'<div class="cmd-d" style="padding:8px 0">Sin comandos para "'+q+'".</div>'; }
+function openRetail(){ if(!me){ gateShow(); return; } $('retailOverlay').classList.add('on'); $('retailPanel').classList.add('on'); $('retailRole').textContent=isAdmin()?'(admin · puedes editar notas)':'(solo lectura)'; renderSalas(''); renderComandos(); const ss=$('salaSearch'); if(ss){ ss.value=''; ss.focus(); ss.oninput=()=>renderSalas(ss.value); } const cs=$('cmdSearch'); if(cs){ cs.value=''; cs.oninput=()=>renderComandos(cs.value); } }
+function closeRetail(){ $('retailOverlay').classList.remove('on'); $('retailPanel').classList.remove('on'); }
+$('ctxSave').onclick=saveContext;
+if($('ctxPais')) $('ctxPais').onchange=onSlotChange;
+if($('ctxVert')) $('ctxVert').onchange=onSlotChange;
+$('userCreate').onclick=createUser;
+
+/* ---- adjuntar / pegar imágenes en el chat (para análisis con visión) ---- */
+let pendingImgs=[];
+function renderPending(){ const a=$('attach'); if(!a)return; a.innerHTML=pendingImgs.map((d,i)=>'<div class="athumb"><img src="'+d+'"><span class="rm" onclick="rmPending('+i+')">×</span></div>').join(''); }
+function rmPending(i){ pendingImgs.splice(i,1); renderPending(); }
+function addPendingFiles(files){ for(const f of files){ if(f.type&&f.type.indexOf('image')===0){ const rd=new FileReader(); rd.onload=()=>{ pendingImgs.push(rd.result); renderPending(); }; rd.readAsDataURL(f); } } }
+$('attBtn').onclick=()=>$('attFile').click();
+$('attFile').onchange=e=>{ addPendingFiles(e.target.files); e.target.value=''; };
+$('input').addEventListener('paste',e=>{ const items=(e.clipboardData&&e.clipboardData.items)||[]; let got=false; for(const it of items){ if(it.type&&it.type.indexOf('image')===0){ const f=it.getAsFile(); if(f){ addPendingFiles([f]); got=true; } } } if(got) e.preventDefault(); });
+['dragover','dragenter'].forEach(ev=>$('input').addEventListener(ev,e=>e.preventDefault()));
+$('input').addEventListener('drop',e=>{ if(e.dataTransfer&&e.dataTransfer.files.length){ e.preventDefault(); addPendingFiles(e.dataTransfer.files); } });
+
+/* ---- enviar ---- */
+async function sendMsg(){
+  const t=$('input').value.trim(); const imgs=pendingImgs.slice();
+  if(!t && !imgs.length)return;
+  if(!me){ authMsg('Inicia sesión primero.',true); gateShow(); return; }
+  if(t && !activeS().sala && !(CONFIG.soloChatAgentes && !isAdmin())){ const det=detectCliente(t); if(det && activeId!==det.usuario) openCliente(det); }
+  const s=activeS();
+  $('input').value=''; $('input').style.height='auto'; pendingImgs=[]; renderPending();
+  s.mensajes.push({role:'user',content:t||'(imagen adjunta)', imgs}); renderChat();
+  $('send').disabled=true; $('typing').classList.add('on'); $('chat').scrollTop=$('chat').scrollHeight;
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
+      body:JSON.stringify({cliente_id:s.cliente?s.cliente.usuario:'', cliente:s.cliente||null, analisis:s.cliente?analizar(s.cliente):null, catalogo:s.cliente?BONOS[s.cliente.pais]:null, sala:s.sala||null, comandos:s.sala?COMANDOS:null, pais:s.cliente?s.cliente.pais:(s.sala?'PA':''), tenant:CONFIG.tenant, imagenes:getImagenes(), empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, base:getBase(), mensajes:s.mensajes.map(m=>({role:m.role,content:m.content})), adjuntos:imgs, agente:me.email})});
+    if(!res.ok)throw new Error('Servidor '+res.status);
+    const raw=(await res.text()||'').trim();
+    if(!raw) throw new Error('el workflow de n8n respondió vacío. En n8n, el webhook "sportium-chat" debe terminar en un nodo «Respond to Webhook» que devuelva {"respuesta":"…"}.');
+    let data; try{ data=JSON.parse(raw); }catch(_){ data={respuesta:raw}; }
+    const d=Array.isArray(data)?data[0]:data;
+    const r=(d&&(d.respuesta||d.output||d.text||d.message))||'…';
+    if(d&&d.modelo) trackUsage(d.modelo, d.tokens);
+    s.mensajes.push({role:'assistant',content:r});
+    if(autocopy){ const sug=extraerSugerida(r); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); }
+  }catch(e){ s.mensajes.push({role:'assistant',content:'(No pude responder: '+e.message+')'}); }
+  finally{ $('typing').classList.remove('on'); $('send').disabled=false; renderChat(); }
+}
+$('send').onclick=sendMsg;
+$('input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
+$('input').addEventListener('input',()=>{const i=$('input');i.style.height='auto';i.style.height=Math.min(i.scrollHeight,110)+'px';});
+
+/* Atajos: Alt + numero para cambiar de globito */
+document.addEventListener('keydown',e=>{
+  if(e.altKey && !e.ctrlKey && !e.metaKey && /^[1-9]$/.test(e.key)){
+    const idx=parseInt(e.key,10)-1;
+    if(sessions[idx]){ e.preventDefault(); switchTo(sessions[idx].id); $('input').focus(); }
+  }
+});
+
+/* ---- aplicar marca (CONFIG) ---- */
+function applyBrand(){
+  try{
+    document.title = CONFIG.cliente + ' — Consola de soporte';
+    document.querySelectorAll('.brandname').forEach(el=>el.textContent=CONFIG.cliente);
+    if(CONFIG.acento) document.documentElement.style.setProperty('--accent', CONFIG.acento);
+    const ab=$('authBrand'); if(ab) ab.textContent=CONFIG.plataforma;
+    const at=$('authTag'); if(at) at.textContent=CONFIG.cliente+' · acceso restringido';
+    const by=$('authBy'); if(by) by.innerHTML='Plataforma de soporte · <b>'+CONFIG.plataforma+'</b>';
+  }catch(e){}
+}
+/* ============================================================
+   CHAT DE EQUIPO (privado, en vivo via Supabase Realtime)
+   ============================================================ */
+let tcMsgsArr=[], tcPending=[], tcChan=null, tcOpen=false;
+function openTeam(){ if(!me){ authMsg&&authMsg('Inicia sesión primero.',true); return; } tcOpen=true; $('teamOverlay').classList.add('on'); $('teampanel').classList.add('on'); $('teamDot').style.display='none'; renderTeam(); setTimeout(()=>{const m=$('tcMsgs'); if(m)m.scrollTop=m.scrollHeight;},60); }
+function closeTeam(){ tcOpen=false; $('teamOverlay').classList.remove('on'); $('teampanel').classList.remove('on'); }
+function tcEsc(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function renderTeam(){ const L=$('tcMsgs'); if(!L)return; L.innerHTML=tcMsgsArr.map(m=>{ const mine=me&&m.from_id===me.id; const img=m.image_url?'<img src="'+m.image_url+'" onclick="window.open(this.src)">':''; const who=mine?'':'<div class="who">'+tcEsc(m.from_name||'agente')+'</div>'; return '<div class="tcm '+(mine?'mine':'their')+'">'+who+tcEsc(m.body||'')+img+'</div>'; }).join(''); L.scrollTop=L.scrollHeight; }
+async function loadTeam(){ if(!sb)return; try{ const {data}=await sb.from('team_messages').select('*').eq('tenant',CONFIG.tenant).order('created_at',{ascending:true}).limit(200); tcMsgsArr=data||[]; renderTeam(); }catch(e){} }
+function subTeam(){ if(!sb||tcChan)return; tcChan=sb.channel('team-'+CONFIG.tenant).on('postgres_changes',{event:'INSERT',schema:'public',table:'team_messages',filter:'tenant=eq.'+CONFIG.tenant},payload=>{ const m=payload.new; if(tcMsgsArr.some(x=>x.id===m.id))return; tcMsgsArr.push(m); if(tcOpen) renderTeam(); else if(!me||m.from_id!==me.id) $('teamDot').style.display='block'; }).subscribe(); }
+async function initTeam(){ await loadTeam(); subTeam(); }
+function tcDownscale(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=1280; let w=img.width,h=img.height; if(w>max||h>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);} const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); res(c.toDataURL('image/jpeg',0.6)); }; img.onerror=()=>res(null); img.src=r.result; }; r.onerror=()=>res(null); r.readAsDataURL(file); }); }
+async function tcAddFiles(files){ for(const f of files){ if(f.type&&f.type.startsWith('image/')){ const d=await tcDownscale(f); if(d) tcPending.push(d); } } tcRenderAtt(); }
+function tcRenderAtt(){ const a=$('tcAtt'); if(!a)return; a.innerHTML=tcPending.map((d,i)=>'<img src="'+d+'" onclick="tcRmAtt('+i+')" title="Quitar">').join(''); }
+function tcRmAtt(i){ tcPending.splice(i,1); tcRenderAtt(); }
+async function sendTeam(){ if(!me||!sb)return; const t=$('tcInput').value.trim(); const imgs=tcPending.slice(); if(!t&&!imgs.length)return; $('tcInput').value=''; $('tcInput').style.height='auto'; tcPending=[]; tcRenderAtt(); const name=(myProfile&&myProfile.full_name)||me.email; const rows = imgs.length ? imgs.map((d,i)=>({tenant:CONFIG.tenant,from_id:me.id,from_name:name,body:i===0?t:'',image_url:d})) : [{tenant:CONFIG.tenant,from_id:me.id,from_name:name,body:t,image_url:null}]; try{ const {data,error}=await sb.from('team_messages').insert(rows).select(); if(error)throw error; (data||[]).forEach(m=>{ if(!tcMsgsArr.some(x=>x.id===m.id)) tcMsgsArr.push(m); }); renderTeam(); }catch(e){ tcMsgsArr.push({from_id:me.id,from_name:name,body:'(no se pudo enviar: '+(e.message||e)+')'}); renderTeam(); } }
+if($('tcAttBtn')){ $('tcAttBtn').onclick=()=>$('tcFile').click(); $('tcFile').onchange=e=>{ tcAddFiles(e.target.files); e.target.value=''; }; $('tcInput').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendTeam(); } }); $('tcInput').addEventListener('input',()=>{ const i=$('tcInput'); i.style.height='auto'; i.style.height=Math.min(i.scrollHeight,90)+'px'; }); $('tcInput').addEventListener('paste',e=>{ const items=(e.clipboardData&&e.clipboardData.items)||[]; let got=false; for(const it of items){ if(it.type&&it.type.startsWith('image/')){ const f=it.getAsFile(); if(f){ tcAddFiles([f]); got=true; } } } if(got)e.preventDefault(); }); }
+
+applyBrand();
+loadComandosExtra();
+loadUsage();
+
+renderAll();
+initAuth();
+</script>
+</body>
+</html>

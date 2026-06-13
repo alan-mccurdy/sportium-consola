@@ -1118,9 +1118,21 @@ async function classifyKB(name,text){
     const r=await fetch(CLASSIFY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
       body:JSON.stringify({tenant:CONFIG.tenant,text})});
     const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
-    if(d&&d.ok&&d.paises&&typeof d.paises==='object'){ mergeDocIntoPaises(name,d.paises); await persistContext(); fillCtxFields(); if(d.comandos) mergeComandos(d.comandos); return true; }
+    if(d&&d.ok&&d.paises&&typeof d.paises==='object'){ mergeDocIntoPaises(name,d.paises); await persistContext(); fillCtxFields(); if(d.comandos) mergeComandos(d.comandos); if(d.faqs) await saveFaqsFromDoc(d.faqs); return true; }
   }catch(e){}
   return false;
+}
+/* guarda automáticamente las FAQ que la IA sacó del documento (sin duplicar) */
+async function saveFaqsFromDoc(faqs){
+  if(!isAdmin()||!Array.isArray(faqs)||!faqs.length)return;
+  const exist=new Set(FAQS.map(f=>normFaq(f.disparador)));
+  try{ const {data:{session}}=await sb.auth.getSession();
+    for(const f of faqs){ const disp=(f.disparador||'').trim(), resp=(f.respuesta||'').trim();
+      if(!disp||!resp||exist.has(normFaq(disp)))continue; exist.add(normFaq(disp));
+      try{ await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador:disp,respuesta:resp})}); }catch(e){}
+    }
+    await loadFaqs();
+  }catch(e){}
 }
 function _reEsc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
 function mergeDocIntoPaises(docName,ai){

@@ -1086,7 +1086,9 @@ async function indexFromUrl(){
     const [n,clas]=await Promise.all([ ingestKB(name,d.text), classifyKB(name,d.text) ]);
     procesando=procesando.filter(p=>p!==name); await loadIndexed();
     const real=IDX.find(x=>x.name===name);
-    if(real&&real.chunks>0){ kbStatus('✅ "'+name+'": '+real.chunks+' trozos en la base'+(clas?' · país y FAQs actualizados':'')+'.','ok'); $('kbUrl').value=''; }
+    if(real&&real.chunks>0){ kbStatus('✅ "'+name+'": '+real.chunks+' trozos en la base'+(clas?' · país y FAQs actualizados':'')+'. Se re-leerá cada día.','ok'); $('kbUrl').value='';
+      try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'source_save',tenant:CONFIG.tenant,url,doc_name:name})}); }catch(e){}
+    }
     else kbStatus('⚠️ No quedó en la base (posible cupo de embeddings).','err');
   }catch(e){ procesando=procesando.filter(p=>p!==name); kbStatus('Error: '+(e.message||e),'err'); }
   finally{ $('kbUrlBtn').disabled=false; }
@@ -1145,18 +1147,18 @@ async function classifyKB(name,text){
     const r=await fetch(CLASSIFY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
       body:JSON.stringify({tenant:CONFIG.tenant,text})});
     const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
-    if(d&&d.ok&&d.paises&&typeof d.paises==='object'){ mergeDocIntoPaises(name,d.paises); await persistContext(); fillCtxFields(); if(d.comandos) mergeComandos(d.comandos); if(d.faqs) await saveFaqsFromDoc(d.faqs); return true; }
+    if(d&&d.ok&&d.paises&&typeof d.paises==='object'){ mergeDocIntoPaises(name,d.paises); await persistContext(); fillCtxFields(); if(d.comandos) mergeComandos(d.comandos); if(d.faqs) await saveFaqsFromDoc(d.faqs,name); return true; }
   }catch(e){}
   return false;
 }
-/* guarda automáticamente las FAQ que la IA sacó del documento (sin duplicar) */
-async function saveFaqsFromDoc(faqs){
+/* guarda automáticamente las FAQ que la IA sacó del documento (sin duplicar); fuente = nombre del doc/URL */
+async function saveFaqsFromDoc(faqs,fuente){
   if(!isAdmin()||!Array.isArray(faqs)||!faqs.length)return;
   const exist=new Set(FAQS.map(f=>normFaq(f.disparador)));
   try{ const {data:{session}}=await sb.auth.getSession();
     for(const f of faqs){ const disp=(f.disparador||'').trim(), resp=(f.respuesta||'').trim();
       if(!disp||!resp||exist.has(normFaq(disp)))continue; exist.add(normFaq(disp));
-      try{ await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador:disp,respuesta:resp})}); }catch(e){}
+      try{ await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador:disp,respuesta:resp,fuente:fuente||''})}); }catch(e){}
     }
     await loadFaqs();
   }catch(e){}

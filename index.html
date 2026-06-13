@@ -369,6 +369,16 @@
     <div class="fld" style="margin-top:10px">Indexado en la base de datos</div>
     <div class="files" id="kbList"></div>
   </div>
+
+  <!-- Respuestas rápidas (FAQ) -->
+  <div class="sec">
+    <h4>⚡ Respuestas rápidas (ahorran tokens)</h4>
+    <div class="hint">Si la pregunta del agente contiene TODAS las palabras del disparador, la consola responde al instante con tu texto, <b>sin gastar IA</b>. Ideal para las dudas más repetidas.</div>
+    <input class="in" id="faqTrigger" placeholder="disparador (palabras clave, ej. bono bienvenida colombia)" style="margin-bottom:6px">
+    <textarea class="ta" id="faqAnswer" placeholder="respuesta lista que verá el agente…"></textarea>
+    <div class="btnrow"><button class="btn" id="faqAdd">Agregar respuesta rápida</button><span class="savemsg" id="faqMsg"></span></div>
+    <div class="ulist" id="faqList"></div>
+  </div>
 </div></aside>
 
 <!-- ===== SALAS RETAIL (terminal) ===== -->
@@ -480,6 +490,7 @@ async function handleSession(session){
   $('who').innerHTML=(me.email||'')+(isAdmin()?' · <b>admin</b>':'');
   await loadContext();
   await loadKB();
+  loadFaqs();
   initTeam();
   logAudit('login',{});
 }
@@ -1166,6 +1177,28 @@ async function deleteIndexed(name){
 function rmImg(key){ delete imageMap[key]; const f=KB.find(x=>x.key===key); if(sb&&f&&f.id&&isAdmin()) sb.from('kb_files').delete().eq('id',f.id); KB=KB.filter(x=>x.key!==key); renderKB(); }
 function getBase(){ return ''; }   /* los documentos ya no viajan en cada mensaje: el RAG trae lo relevante */
 function getImagenes(){ return Object.keys(imageMap); }
+
+/* ============================================================
+   RESPUESTAS RÁPIDAS (FAQ) — responden al instante, 0 tokens de IA
+   ============================================================ */
+let FAQS=[];
+function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function normFaq(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9ñ ]/g,' ').replace(/\s+/g,' ').trim(); }
+async function loadFaqs(){ if(!sb)return; try{ const {data}=await sb.from('faqs').select('id,disparador,respuesta,activo').eq('tenant',CONFIG.tenant); FAQS=(data||[]).filter(f=>f.activo!==false); }catch(e){ FAQS=[]; } renderFaqs(); }
+function matchFaq(text){ const t=normFaq(text); if(!t)return null; for(const f of FAQS){ const words=normFaq(f.disparador).split(' ').filter(w=>w.length>=3); if(words.length && words.every(w=>t.includes(w))) return f; } return null; }
+function renderFaqs(){ const L=$('faqList'); if(!L)return; L.innerHTML=FAQS.map(f=>'<div class="uitem"><div style="flex:1;min-width:0"><div class="nm">'+escapeHtml(f.disparador)+'</div><small style="color:var(--txt-2)">'+escapeHtml((f.respuesta||'').slice(0,70))+'…</small></div><button class="ubtn" onclick="delFaq('+f.id+')">Quitar</button></div>').join('')||'<small style="color:var(--txt-2)">Aún no hay respuestas rápidas.</small>'; }
+async function addFaq(){
+  if(!isAdmin())return; const disparador=$('faqTrigger').value.trim(); const respuesta=$('faqAnswer').value.trim();
+  if(!disparador||!respuesta){ $('faqMsg').textContent='Escribe disparador y respuesta'; return; }
+  $('faqAdd').disabled=true; $('faqMsg').textContent='Guardando…';
+  try{ const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador,respuesta})});
+    const j=await r.json().catch(()=>({})); if(j&&j.ok===false)throw new Error(j.error||'falló');
+    $('faqTrigger').value=''; $('faqAnswer').value=''; $('faqMsg').textContent='✅ Agregada'; await loadFaqs();
+  }catch(e){ $('faqMsg').textContent='Error: '+(e.message||e); }
+  finally{ $('faqAdd').disabled=false; setTimeout(()=>$('faqMsg').textContent='',3000); }
+}
+async function delFaq(id){ if(!isAdmin())return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_delete',id})}); await loadFaqs(); }catch(e){} }
 $('drop').onclick=()=>$('kbFile').click(); $('kbFile').onchange=e=>{ addFiles(e.target.files); e.target.value=''; };
 if($('kbNoteBtn')) $('kbNoteBtn').onclick=indexNote;
 ['dragover','dragenter'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();}));
@@ -1206,6 +1239,7 @@ $('ctxSave').onclick=saveContext;
 if($('ctxPais')) $('ctxPais').onchange=onSlotChange;
 if($('ctxVert')) $('ctxVert').onchange=onSlotChange;
 $('userCreate').onclick=createUser;
+if($('faqAdd')) $('faqAdd').onclick=addFaq;
 
 /* ---- adjuntar / pegar imágenes en el chat (para análisis con visión) ---- */
 let pendingImgs=[];
@@ -1227,6 +1261,8 @@ async function sendMsg(){
   const s=activeS();
   $('input').value=''; $('input').style.height='auto'; pendingImgs=[]; renderPending();
   s.mensajes.push({role:'user',content:t||'(imagen adjunta)', imgs}); renderChat();
+  // RESPUESTA RÁPIDA: si la pregunta coincide con una FAQ, responde al instante SIN gastar IA
+  if(t && !imgs.length){ const faq=matchFaq(t); if(faq){ s.mensajes.push({role:'assistant',content:faq.respuesta}); renderChat(); if(autocopy){ const sug=extraerSugerida(faq.respuesta); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); } return; } }
   $('send').disabled=true; $('typing').classList.add('on'); $('chat').scrollTop=$('chat').scrollHeight;
   try{
     const {data:{session}}=await sb.auth.getSession();

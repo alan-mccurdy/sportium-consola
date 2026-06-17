@@ -949,9 +949,9 @@ function renderSalaPanel(sa, p){
       '<div class="tile"><div class="tl">Equipos</div><div class="tv sm">'+sa.pos.length+' POS · '+sa.galgos.length+' galgos · '+(sa.maquinas?sa.maquinas.length:0)+' máq.</div></div></div>'+
     '<div class="blk"><div class="blk-h">'+pxIcon('check')+'Acceso (VNC / PuTTY)</div>'+
       iprow('IP de la sala', sa.ip_sala)+
-      row('Usuario root', '<b>'+sa.user_root+'</b> <span class="cmd-tag amb">POS + total</span>')+
+      row('Usuario root', '<b>'+sa.user_root+'</b> <span class="cmd-tag pos">solo POS</span>')+
       row('Usuario N1', '<b>'+sa.user_n1+'</b> <span class="cmd-tag ssbt">solo SSBT</span>')+
-      '<div class="row"><span class="reqd"><b>root</b>: administración total y POS. <b>n1</b>: solo para los SSBT (terminales de autoservicio). La contraseña está en el manual.</span></div>'+
+      '<div class="row"><span class="reqd"><b>root</b>: solo para los POS. <b>n1</b>: solo para los SSBT (terminales de autoservicio). La contraseña está en el manual.</span></div>'+
     '</div>'+
     '<div class="blk"><div class="blk-h">'+pxIcon('dice')+'Equipos y sus IPs</div>'+ipsHtml+'</div>'+
     cmds+

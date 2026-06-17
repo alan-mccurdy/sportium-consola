@@ -850,19 +850,20 @@ const SALAS=(function(){
 /* Comandos frecuentes (VNC / PuTTY) — base de conocimiento simulable */
 let COMANDOS=[
  // --- Compartidos (sirven en POS y SSBT) ---
- {cmd:'ping <ip_sala>', tipo:'ambos', desc:'Verifica si el equipo responde en red antes de conectar.', salida:'Reply from 10.60.x.1: bytes=32 time=12ms TTL=64\\nReply from 10.60.x.1: bytes=32 time=11ms TTL=64'},
- {cmd:'putty -ssh <user_root>@<ip_equipo>', tipo:'ambos', desc:'Abre sesion SSH al equipo (POS o SSBT) via PuTTY.', salida:'login as: root\\npassword: ********\\nLast login: Wed Jun 17 09:14'},
- {cmd:'vncviewer <ip_equipo>:5900', tipo:'ambos', desc:'Abre el escritorio remoto (VNC) del equipo.', salida:'Connected to 10.60.x.21 (VNC) - 1280x1024'},
- {cmd:'df -h', tipo:'ambos', desc:'Revisa espacio en disco (si esta lleno no imprime tickets ni carga la app).', salida:'/dev/sda1  20G  14G  6.0G  70% /'},
- {cmd:'sportium-sync.sh', tipo:'ambos', desc:'Re-sincroniza configuracion/cuotas/catalogo del equipo con el central.', salida:'Sync iniciado... cuotas OK, catalogo OK, terminado en 8s'},
- {cmd:'reboot', tipo:'ambos', desc:'Reinicia el equipo (ultimo recurso; avisar a la sala).', salida:'Broadcast: The system is going down for reboot NOW'},
- {cmd:'escalar-SAT <n_sala> <equipo> <falla>', tipo:'ambos', desc:'Si tras reiniciar persiste la falla, escala al SAT indicando sala, equipo (POS/SSBT) y que intentaste.', salida:'Ticket SAT creado #SAT-2041. Respuesta estimada: 2-4 h.'},
+ {cmd:'ping <ip_sala>', tipo:'pos', desc:'Verifica si el equipo responde en red antes de conectar.', salida:'Reply from 10.60.x.1: bytes=32 time=12ms TTL=64\\nReply from 10.60.x.1: bytes=32 time=11ms TTL=64'},
+ {cmd:'putty -ssh <user_root>@<ip_equipo>', tipo:'pos', desc:'Abre sesion SSH al equipo (POS o SSBT) via PuTTY.', salida:'login as: root\\npassword: ********\\nLast login: Wed Jun 17 09:14'},
+ {cmd:'vncviewer <ip_equipo>:5900', tipo:'pos', desc:'Abre el escritorio remoto (VNC) del equipo.', salida:'Connected to 10.60.x.21 (VNC) - 1280x1024'},
+ {cmd:'df -h', tipo:'pos', desc:'Revisa espacio en disco (si esta lleno no imprime tickets ni carga la app).', salida:'/dev/sda1  20G  14G  6.0G  70% /'},
+ {cmd:'sportium-sync.sh', tipo:'pos', desc:'Re-sincroniza configuracion/cuotas/catalogo del equipo con el central.', salida:'Sync iniciado... cuotas OK, catalogo OK, terminado en 8s'},
+ {cmd:'reboot', tipo:'pos', desc:'Reinicia el equipo (ultimo recurso; avisar a la sala).', salida:'Broadcast: The system is going down for reboot NOW'},
+ {cmd:'escalar-SAT <n_sala> <equipo> <falla>', tipo:'pos', desc:'Si tras reiniciar persiste la falla, escala al SAT indicando sala, equipo (POS/SSBT) y que intentaste.', salida:'Ticket SAT creado #SAT-2041. Respuesta estimada: 2-4 h.'},
  // --- POS (punto de venta / cajero) ---
  {cmd:'systemctl status pos-service', tipo:'pos', desc:'Revisa si el servicio del POS esta activo.', salida:'pos-service - Punto de venta\\n   Active: active (running) since 08:02'},
  {cmd:'systemctl restart pos-service', tipo:'pos', desc:'Reinicia el POS si esta caido o no procesa tickets.', salida:'pos-service: stopping... started OK (running)'},
  {cmd:'tail -f /var/log/pos/transacciones.log', tipo:'pos', desc:'Ver en vivo las transacciones/tickets del POS.', salida:'[12:30:11] TICKET #4821 PAGO OK $5.00\\n[12:31:02] TICKET #4822 ANULADO'},
  {cmd:'lpstat -p && systemctl restart cups', tipo:'pos', desc:'Revisa/reinicia la impresora de tickets del POS.', salida:'printer ticket-pos idle. enabled\\ncups restarted OK'},
- // --- SSBT (terminal de autoservicio / pantallas) ---
+ // --- SSBT (terminal de autoservicio / pantallas) — se accede con el usuario n1 ---
+ {cmd:'putty -ssh n1@<ip_ssbt>', tipo:'ssbt', desc:'Acceso SSH al SSBT. Los SSBT SOLO se conectan con el usuario n1 (root no entra a los SSBT).', salida:'login as: n1\\npassword: ********\\nLast login on ssbt-term'},
  {cmd:'systemctl status ssbt-service', tipo:'ssbt', desc:'Revisa si el servicio del terminal de autoservicio (SSBT) esta activo.', salida:'ssbt-service - Self Service Betting Terminal\\n   Active: active (running)'},
  {cmd:'systemctl restart ssbt-service', tipo:'ssbt', desc:'Reinicia el SSBT si quedo congelado o no acepta apuestas.', salida:'ssbt-service: stopping... started OK'},
  {cmd:'systemctl restart galgos-display', tipo:'ssbt', desc:'Reinicia la pantalla de galgos/eventos si se congelo.', salida:'galgos-display: stopping... started OK'},
@@ -1344,14 +1345,16 @@ function renderSalas(q){
 function esComandoReal(cmd){ cmd=(cmd||'').trim(); if(!cmd) return false; if(cmd.endsWith(':')) return false; if(/^[A-ZÁÉÍÓÚÑ][^\s]*$/.test(cmd)) return false; return true; }
 // "alias nombre='comando real'" -> muestra solo "nombre" (lo que el tecnico teclea) y deja el comando real en la descripcion
 function desalias(c){ const m=(c.cmd||'').trim().match(/^alias\s+([^\s=]+)\s*=\s*['"]?(.+?)['"]?\s*$/i); if(m){ const real=(m[2]||'').trim(); c.cmd=m[1].trim(); if(real && (c.desc||'').indexOf(real)<0) c.desc=(c.desc?c.desc+' ':'')+'→ '+real; } return c; }
+// Regla del negocio: un comando es de SSBT SOLO si usa el usuario/acceso n1; si no, es de POS.
+function tipoCmd(cmd,desc){ return /\bn1\b/i.test((cmd||'')+' '+(desc||'')) ? 'ssbt' : 'pos'; }
 function loadComandosExtra(){ try{ let e=JSON.parse(lsGet('sptm-comandos')||'[]'); if(!Array.isArray(e))return;
   const limpio=e.filter(c=>c&&c.cmd).map(c=>desalias({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',tipo:c.tipo})).filter(c=>esComandoReal(c.cmd));
   if(JSON.stringify(limpio)!==JSON.stringify(e)){ lsSet('sptm-comandos',JSON.stringify(limpio)); }   // limpia "alias..." y titulos guardados antes
   const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase()));
-  limpio.forEach(c=>{ const k=(c.cmd||'').trim().toLowerCase(); if(k&&!have.has(k)){ COMANDOS.push({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',tipo:(c.tipo==='pos'||c.tipo==='ssbt')?c.tipo:'ambos',nuevo:true}); have.add(k); } });
+  limpio.forEach(c=>{ const k=(c.cmd||'').trim().toLowerCase(); if(k&&!have.has(k)){ COMANDOS.push({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',tipo:tipoCmd(c.cmd,c.desc),nuevo:true}); have.add(k); } });
 }catch(e){} }
 function mergeComandos(arr){ if(!Array.isArray(arr)||!arr.length)return 0; let add=0; const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase())); const store=[]; try{ store.push(...JSON.parse(lsGet('sptm-comandos')||'[]')); }catch(e){}
-  arr.forEach(c0=>{ const c=desalias({cmd:(c0&&c0.cmd||''),desc:(c0&&c0.desc||''),salida:(c0&&c0.salida||''),tipo:c0&&c0.tipo}); const cmd=(c.cmd||'').trim(); if(!cmd||!esComandoReal(cmd))return; const k=cmd.toLowerCase(); if(have.has(k))return; have.add(k); const tipo=(c.tipo==='pos'||c.tipo==='ssbt')?c.tipo:'ambos'; const obj={cmd,desc:c.desc||'',salida:c.salida||'(sin salida de ejemplo)',tipo,nuevo:true}; COMANDOS.push(obj); store.push({cmd,desc:obj.desc,salida:obj.salida,tipo}); add++; });
+  arr.forEach(c0=>{ const c=desalias({cmd:(c0&&c0.cmd||''),desc:(c0&&c0.desc||''),salida:(c0&&c0.salida||''),tipo:c0&&c0.tipo}); const cmd=(c.cmd||'').trim(); if(!cmd||!esComandoReal(cmd))return; const k=cmd.toLowerCase(); if(have.has(k))return; have.add(k); const tipo=tipoCmd(c.cmd,c.desc); const obj={cmd,desc:c.desc||'',salida:c.salida||'(sin salida de ejemplo)',tipo,nuevo:true}; COMANDOS.push(obj); store.push({cmd,desc:obj.desc,salida:obj.salida,tipo}); add++; });
   if(add){ lsSet('sptm-comandos',JSON.stringify(store)); renderComandos(); }
   return add;
 }
@@ -1359,11 +1362,11 @@ function renderComandos(q){
   const el=$('cmdList'); if(!el)return; q=(q||'').trim().toLowerCase();
   const match=c=>!q||(((c.cmd||'')+' '+(c.desc||'')+' '+(c.tipo||'')).toLowerCase().includes(q));
   const tagOf=t=> t==='pos'?'<span class="cmd-tag pos">POS</span>' : t==='ssbt'?'<span class="cmd-tag ssbt">SSBT</span>' : '<span class="cmd-tag amb">POS+SSBT</span>';
-  const cmdHtml=c=>'<div class="cmd" onclick="this.classList.toggle(\'on\')"><div class="cmd-l">$ '+c.cmd+' '+tagOf(c.tipo||'ambos')+(c.nuevo?' <span style="color:var(--accent);font-size:10px">● nuevo</span>':'')+'</div><div class="cmd-d">'+c.desc+'</div><div class="cmd-out">'+(c.salida||'').replace(/\\n/g,String.fromCharCode(10))+'</div></div>';
+  const cmdHtml=c=>'<div class="cmd" onclick="this.classList.toggle(\'on\')"><div class="cmd-l">$ '+c.cmd+' '+tagOf(c.tipo||'pos')+(c.nuevo?' <span style="color:var(--accent);font-size:10px">● nuevo</span>':'')+'</div><div class="cmd-d">'+c.desc+'</div><div class="cmd-out">'+(c.salida||'').replace(/\\n/g,String.fromCharCode(10))+'</div></div>';
   const GRUPOS=[['ambos','Compartidos (POS y SSBT)'],['pos','POS · Punto de venta'],['ssbt','SSBT · Autoservicio']];
   let html='';
-  GRUPOS.forEach(g=>{ const t=g[0]; const items=COMANDOS.filter(c=>(c.tipo||'ambos')===t && match(c)); if(items.length){ html+='<div class="cmd-grp">'+g[1]+'</div>'+items.map(cmdHtml).join(''); } });
-  const otros=COMANDOS.filter(c=>['ambos','pos','ssbt'].indexOf(c.tipo||'ambos')<0 && match(c)); if(otros.length){ html+='<div class="cmd-grp">Otros</div>'+otros.map(cmdHtml).join(''); }
+  GRUPOS.forEach(g=>{ const t=g[0]; const items=COMANDOS.filter(c=>(c.tipo||'pos')===t && match(c)); if(items.length){ html+='<div class="cmd-grp">'+g[1]+'</div>'+items.map(cmdHtml).join(''); } });
+  const otros=COMANDOS.filter(c=>['ambos','pos','ssbt'].indexOf(c.tipo||'pos')<0 && match(c)); if(otros.length){ html+='<div class="cmd-grp">Otros</div>'+otros.map(cmdHtml).join(''); }
   el.innerHTML=html||'<div class="cmd-d" style="padding:8px 0">Sin comandos para "'+q+'".</div>';
 }
 function openRetail(){ if(!me){ gateShow(); return; } $('retailOverlay').classList.add('on'); $('retailPanel').classList.add('on'); $('retailRole').textContent=isAdmin()?'(admin · puedes editar notas)':'(solo lectura)'; renderSalas(''); renderComandos(); const ss=$('salaSearch'); if(ss){ ss.value=''; ss.focus(); ss.oninput=()=>renderSalas(ss.value); } const cs=$('cmdSearch'); if(cs){ cs.value=''; cs.oninput=()=>renderComandos(cs.value); } }

@@ -188,6 +188,9 @@
   .term-search:focus{outline:none;border-color:#5be07a}
   .term{background:#0c1117;border:1px solid #1b2531;border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.55;overflow-y:auto}
   #salaResults{flex:1;min-height:80px} #cmdList{flex:1.3;min-height:140px}
+  .cmd-grp{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--txt-2);margin:11px 0 4px;font-weight:700;opacity:.85}
+  .cmd-tag{font-size:9px;padding:1px 5px;border-radius:6px;vertical-align:middle;font-weight:700;margin-left:5px}
+  .cmd-tag.pos{background:rgba(31,111,235,.16);color:#3b82f6} .cmd-tag.ssbt{background:rgba(192,57,43,.16);color:#e05a4a} .cmd-tag.amb{background:rgba(140,140,140,.16);color:var(--txt-2)}
   .term-h{font-size:10.5px;color:#6b7a86;text-transform:uppercase;letter-spacing:1px}
   .sala-card{border-bottom:1px solid #1b2531;padding:8px 0}.sala-card:last-child{border-bottom:none}
   .sala-card .sn{color:#5be07a;font-weight:700}.sala-card .ln{color:#9fb4c2;margin-top:2px}
@@ -846,14 +849,25 @@ const SALAS=(function(){
 
 /* Comandos frecuentes (VNC / PuTTY) — base de conocimiento simulable */
 let COMANDOS=[
- {cmd:'ping <ip_sala>', desc:'Verifica si la sala responde en red antes de conectar.', salida:'Reply from 10.60.x.1: bytes=32 time=12ms TTL=64\\nReply from 10.60.x.1: bytes=32 time=11ms TTL=64'},
- {cmd:'putty -ssh soporte_sala@<ip_pos>', desc:'Abre sesion SSH al POS de la sala via PuTTY (usuario compartido).', salida:'login as: soporte_sala\\npassword: ********\\nLast login: Wed Jun 11 09:14'},
- {cmd:'vncviewer <ip_pos>:5900', desc:'Abre el escritorio remoto (VNC) del POS o de la pantalla de galgos.', salida:'Connected to 10.60.x.21 (VNC) - 1280x1024'},
- {cmd:'systemctl status pos-service', desc:'Revisa si el servicio del POS esta activo.', salida:'pos-service - Punto de venta\\n   Active: active (running) since 08:02'},
- {cmd:'systemctl restart galgos-display', desc:'Reinicia la pantalla de galgos si se congelo.', salida:'galgos-display: stopping... started OK'},
- {cmd:'tail -f /var/log/pos/transacciones.log', desc:'Ver en vivo las transacciones del POS.', salida:'[12:30:11] TICKET #4821 PAGO OK $5.00\\n[12:31:02] TICKET #4822 ANULADO'},
- {cmd:'df -h', desc:'Revisa espacio en disco del POS (tickets no imprimen si esta lleno).', salida:'/dev/sda1  20G  14G  6.0G  70% /'},
- {cmd:'reboot', desc:'Reinicia el equipo de la sala (ultimo recurso, avisar a la sala).', salida:'Broadcast: The system is going down for reboot NOW'}
+ // --- Compartidos (sirven en POS y SSBT) ---
+ {cmd:'ping <ip_sala>', tipo:'ambos', desc:'Verifica si el equipo responde en red antes de conectar.', salida:'Reply from 10.60.x.1: bytes=32 time=12ms TTL=64\\nReply from 10.60.x.1: bytes=32 time=11ms TTL=64'},
+ {cmd:'putty -ssh <user_root>@<ip_equipo>', tipo:'ambos', desc:'Abre sesion SSH al equipo (POS o SSBT) via PuTTY.', salida:'login as: root\\npassword: ********\\nLast login: Wed Jun 17 09:14'},
+ {cmd:'vncviewer <ip_equipo>:5900', tipo:'ambos', desc:'Abre el escritorio remoto (VNC) del equipo.', salida:'Connected to 10.60.x.21 (VNC) - 1280x1024'},
+ {cmd:'df -h', tipo:'ambos', desc:'Revisa espacio en disco (si esta lleno no imprime tickets ni carga la app).', salida:'/dev/sda1  20G  14G  6.0G  70% /'},
+ {cmd:'sportium-sync.sh', tipo:'ambos', desc:'Re-sincroniza configuracion/cuotas/catalogo del equipo con el central.', salida:'Sync iniciado... cuotas OK, catalogo OK, terminado en 8s'},
+ {cmd:'reboot', tipo:'ambos', desc:'Reinicia el equipo (ultimo recurso; avisar a la sala).', salida:'Broadcast: The system is going down for reboot NOW'},
+ {cmd:'escalar-SAT <n_sala> <equipo> <falla>', tipo:'ambos', desc:'Si tras reiniciar persiste la falla, escala al SAT indicando sala, equipo (POS/SSBT) y que intentaste.', salida:'Ticket SAT creado #SAT-2041. Respuesta estimada: 2-4 h.'},
+ // --- POS (punto de venta / cajero) ---
+ {cmd:'systemctl status pos-service', tipo:'pos', desc:'Revisa si el servicio del POS esta activo.', salida:'pos-service - Punto de venta\\n   Active: active (running) since 08:02'},
+ {cmd:'systemctl restart pos-service', tipo:'pos', desc:'Reinicia el POS si esta caido o no procesa tickets.', salida:'pos-service: stopping... started OK (running)'},
+ {cmd:'tail -f /var/log/pos/transacciones.log', tipo:'pos', desc:'Ver en vivo las transacciones/tickets del POS.', salida:'[12:30:11] TICKET #4821 PAGO OK $5.00\\n[12:31:02] TICKET #4822 ANULADO'},
+ {cmd:'lpstat -p && systemctl restart cups', tipo:'pos', desc:'Revisa/reinicia la impresora de tickets del POS.', salida:'printer ticket-pos idle. enabled\\ncups restarted OK'},
+ // --- SSBT (terminal de autoservicio / pantallas) ---
+ {cmd:'systemctl status ssbt-service', tipo:'ssbt', desc:'Revisa si el servicio del terminal de autoservicio (SSBT) esta activo.', salida:'ssbt-service - Self Service Betting Terminal\\n   Active: active (running)'},
+ {cmd:'systemctl restart ssbt-service', tipo:'ssbt', desc:'Reinicia el SSBT si quedo congelado o no acepta apuestas.', salida:'ssbt-service: stopping... started OK'},
+ {cmd:'systemctl restart galgos-display', tipo:'ssbt', desc:'Reinicia la pantalla de galgos/eventos si se congelo.', salida:'galgos-display: stopping... started OK'},
+ {cmd:'reiniciar-app-raspberry', tipo:'ssbt', desc:'Reinicia la app del decodificador (Raspberry) que pinta cuotas/eventos.', salida:'Cerrando app... limpiando cache... app reiniciada, canal 92'},
+ {cmd:'reiniciar-decodificador (desconectar alimentacion 10s)', tipo:'ssbt', desc:'Si la pantalla no recibe senal: desconecta el cable de alimentacion 10s y reconecta. Verifica canal 92 y cables antena/HDMI.', salida:'Decodificador reiniciado. Senal OK. Canal 92 sintonizado.'}
 ];
 
 const norm=x=>((x||'')+'').toLowerCase().replace(/[^a-z0-9@.]/g,'');
@@ -1323,13 +1337,23 @@ function renderSalas(q){
   }).join('');
 }
 /* comandos extra (detectados por la IA en documentos): persisten y se muestran con el mismo diseño */
-function loadComandosExtra(){ try{ const e=JSON.parse(lsGet('sptm-comandos')||'[]'); if(Array.isArray(e)&&e.length){ const ex=e.map(c=>({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',nuevo:true})); const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase())); ex.forEach(c=>{ if(c.cmd&&!have.has(c.cmd.trim().toLowerCase())){ COMANDOS.push(c); have.add(c.cmd.trim().toLowerCase()); } }); } }catch(e){} }
+function loadComandosExtra(){ try{ const e=JSON.parse(lsGet('sptm-comandos')||'[]'); if(Array.isArray(e)&&e.length){ const ex=e.map(c=>({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',tipo:(c.tipo==='pos'||c.tipo==='ssbt')?c.tipo:'ambos',nuevo:true})); const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase())); ex.forEach(c=>{ if(c.cmd&&!have.has(c.cmd.trim().toLowerCase())){ COMANDOS.push(c); have.add(c.cmd.trim().toLowerCase()); } }); } }catch(e){} }
 function mergeComandos(arr){ if(!Array.isArray(arr)||!arr.length)return 0; let add=0; const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase())); const store=[]; try{ store.push(...JSON.parse(lsGet('sptm-comandos')||'[]')); }catch(e){}
-  arr.forEach(c=>{ const cmd=(c&&c.cmd||'').trim(); if(!cmd)return; const k=cmd.toLowerCase(); if(have.has(k))return; have.add(k); const obj={cmd,desc:c.desc||'',salida:c.salida||'(sin salida de ejemplo)',nuevo:true}; COMANDOS.push(obj); store.push({cmd,desc:obj.desc,salida:obj.salida}); add++; });
+  arr.forEach(c=>{ const cmd=(c&&c.cmd||'').trim(); if(!cmd)return; const k=cmd.toLowerCase(); if(have.has(k))return; have.add(k); const tipo=(c.tipo==='pos'||c.tipo==='ssbt')?c.tipo:'ambos'; const obj={cmd,desc:c.desc||'',salida:c.salida||'(sin salida de ejemplo)',tipo,nuevo:true}; COMANDOS.push(obj); store.push({cmd,desc:obj.desc,salida:obj.salida,tipo}); add++; });
   if(add){ lsSet('sptm-comandos',JSON.stringify(store)); renderComandos(); }
   return add;
 }
-function renderComandos(q){ const el=$('cmdList'); if(!el)return; q=(q||'').trim().toLowerCase(); const list=q?COMANDOS.filter(c=>((c.cmd||'')+' '+(c.desc||'')).toLowerCase().includes(q)):COMANDOS; el.innerHTML=(list.length?list:[]).map(c=>'<div class="cmd" onclick="this.classList.toggle(\'on\')"><div class="cmd-l">$ '+c.cmd+(c.nuevo?' <span style="color:var(--accent);font-size:10px">● nuevo</span>':'')+'</div><div class="cmd-d">'+c.desc+'</div><div class="cmd-out">'+(c.salida||'').replace(/\\n/g,String.fromCharCode(10))+'</div></div>').join('')||'<div class="cmd-d" style="padding:8px 0">Sin comandos para "'+q+'".</div>'; }
+function renderComandos(q){
+  const el=$('cmdList'); if(!el)return; q=(q||'').trim().toLowerCase();
+  const match=c=>!q||(((c.cmd||'')+' '+(c.desc||'')+' '+(c.tipo||'')).toLowerCase().includes(q));
+  const tagOf=t=> t==='pos'?'<span class="cmd-tag pos">POS</span>' : t==='ssbt'?'<span class="cmd-tag ssbt">SSBT</span>' : '<span class="cmd-tag amb">POS+SSBT</span>';
+  const cmdHtml=c=>'<div class="cmd" onclick="this.classList.toggle(\'on\')"><div class="cmd-l">$ '+c.cmd+' '+tagOf(c.tipo||'ambos')+(c.nuevo?' <span style="color:var(--accent);font-size:10px">● nuevo</span>':'')+'</div><div class="cmd-d">'+c.desc+'</div><div class="cmd-out">'+(c.salida||'').replace(/\\n/g,String.fromCharCode(10))+'</div></div>';
+  const GRUPOS=[['ambos','Compartidos (POS y SSBT)'],['pos','POS · Punto de venta'],['ssbt','SSBT · Autoservicio']];
+  let html='';
+  GRUPOS.forEach(g=>{ const t=g[0]; const items=COMANDOS.filter(c=>(c.tipo||'ambos')===t && match(c)); if(items.length){ html+='<div class="cmd-grp">'+g[1]+'</div>'+items.map(cmdHtml).join(''); } });
+  const otros=COMANDOS.filter(c=>['ambos','pos','ssbt'].indexOf(c.tipo||'ambos')<0 && match(c)); if(otros.length){ html+='<div class="cmd-grp">Otros</div>'+otros.map(cmdHtml).join(''); }
+  el.innerHTML=html||'<div class="cmd-d" style="padding:8px 0">Sin comandos para "'+q+'".</div>';
+}
 function openRetail(){ if(!me){ gateShow(); return; } $('retailOverlay').classList.add('on'); $('retailPanel').classList.add('on'); $('retailRole').textContent=isAdmin()?'(admin · puedes editar notas)':'(solo lectura)'; renderSalas(''); renderComandos(); const ss=$('salaSearch'); if(ss){ ss.value=''; ss.focus(); ss.oninput=()=>renderSalas(ss.value); } const cs=$('cmdSearch'); if(cs){ cs.value=''; cs.oninput=()=>renderComandos(cs.value); } }
 function closeRetail(){ $('retailOverlay').classList.remove('on'); $('retailPanel').classList.remove('on'); }
 $('ctxSave').onclick=saveContext;

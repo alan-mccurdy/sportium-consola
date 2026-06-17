@@ -79,6 +79,8 @@
   .msg{max-width:84%;padding:12px 15px;font-size:14.5px;line-height:1.5;border-radius:18px;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap;position:relative}
   .msgdel{position:absolute;top:-7px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--bad);font-size:13px;line-height:18px;text-align:center;cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow)}
   .msg:hover .msgdel{opacity:1} @media(hover:none){.msgdel{opacity:.55}}
+  .msgteach{position:absolute;top:-7px;right:18px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:1px solid var(--line);font-size:11px;line-height:18px;text-align:center;cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow)}
+  .msg:hover .msgteach{opacity:1} @media(hover:none){.msgteach{opacity:.55}}
   .msg.ai{align-self:flex-start;background:var(--bubble-ai);border-bottom-left-radius:5px}
   .msg.me{align-self:flex-end;background:var(--bubble-me);color:var(--bubble-me-txt);border-bottom-right-radius:5px}
   .msg img{max-width:240px;width:100%;border-radius:12px;margin:6px 0;display:block}
@@ -1016,11 +1018,35 @@ function renderContent(text){ let t=esc(text);
   return t.replace(/\n/g,'<br>'); }
 function renderChat(){
   const c=$('chat'); c.querySelectorAll('.msg').forEach(e=>e.remove());
-  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
+  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); if(m.role==='assistant'&&isAdmin()) h+='<span class="msgteach" title="Corregir / Enseñar a la IA" onclick="ensenar('+i+')">✏️</span>'; h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
   c.appendChild($('typing')); c.scrollTop=c.scrollHeight;
 }
 function delMsg(i){ const s=activeS(); if(!s||!s.mensajes[i])return; s.mensajes.splice(i,1); renderChat(); }
 function limpiarChat(){ const s=activeS(); if(!s||!s.mensajes.length)return; if(!confirm('¿Borrar toda la conversación de este chat?'))return; s.mensajes=[]; renderChat(); }
+/* ---- ENSEÑAR A LA IA: corregir una respuesta -> FAQ (0 tokens) + RAG ---- */
+async function ensenar(i){
+  if(!isAdmin())return;
+  const s=activeS(); if(!s||!s.mensajes[i])return;
+  // pregunta = el último mensaje del agente antes de esta respuesta
+  let pregunta=''; for(let k=i-1;k>=0;k--){ if(s.mensajes[k].role==='user'){ pregunta=(s.mensajes[k].content||'').trim(); break; } }
+  pregunta=prompt('¿A qué pregunta corresponde esta corrección? (palabras clave que escribiría el agente)', pregunta);
+  if(pregunta===null)return; pregunta=pregunta.trim(); if(!pregunta){ alert('Necesito la pregunta para reconocerla la próxima vez.'); return; }
+  const actual=(s.mensajes[i].content||'').trim();
+  const correcta=prompt('¿Cuál era la respuesta correcta? (esto le enseña a la IA para la próxima)', actual);
+  if(correcta===null)return; const resp=correcta.trim(); if(!resp){ alert('Escribe la respuesta correcta.'); return; }
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    // 1) guardar como FAQ (responde al instante, 0 tokens)
+    const r=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+      body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador:pregunta,respuesta:resp,fuente:'correccion'})});
+    const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
+    if(d&&d.ok===false) throw new Error(d.error||'no se pudo guardar');
+    // 2) indexar en la KB (para preguntas parecidas via RAG)
+    ingestKB('Correccion: '+pregunta.slice(0,60), 'Pregunta: '+pregunta+'\nRespuesta correcta: '+resp).catch(()=>{});
+    await loadFaqs();
+    alert('✅ Aprendido. La próxima vez que pregunten esto, responderá la versión correcta.');
+  }catch(e){ alert('No se pudo enseñar: '+(e.message||e)); }
+}
 function renderAll(){ renderTabs(); renderPanel(); renderChat(); }
 
 /* ---- autocompletar buscador ---- */

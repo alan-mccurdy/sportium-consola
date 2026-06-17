@@ -81,6 +81,8 @@
   .msg:hover .msgdel{opacity:1} @media(hover:none){.msgdel{opacity:.55}}
   .msgteach{position:absolute;top:-7px;right:18px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:1px solid var(--line);font-size:11px;line-height:18px;text-align:center;cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow)}
   .msg:hover .msgteach{opacity:1} @media(hover:none){.msgteach{opacity:.55}}
+  .msgrep{position:absolute;top:-7px;right:42px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:1px solid var(--line);font-size:10px;line-height:18px;text-align:center;cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow)}
+  .msg:hover .msgrep{opacity:1} @media(hover:none){.msgrep{opacity:.55}}
   .msg.ai{align-self:flex-start;background:var(--bubble-ai);border-bottom-left-radius:5px}
   .msg.me{align-self:flex-end;background:var(--bubble-me);color:var(--bubble-me-txt);border-bottom-right-radius:5px}
   .msg img{max-width:240px;width:100%;border-radius:12px;margin:6px 0;display:block}
@@ -190,7 +192,8 @@
   #salaResults{flex:1;min-height:80px} #cmdList{flex:1.3;min-height:140px}
   .cmd-grp{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--txt-2);margin:11px 0 4px;font-weight:700;opacity:.85}
   .cmd-tag{font-size:9px;padding:1px 5px;border-radius:6px;vertical-align:middle;font-weight:700;margin-left:5px}
-  .cmd-tag.pos{background:rgba(31,111,235,.16);color:#3b82f6} .cmd-tag.ssbt{background:rgba(192,57,43,.16);color:#e05a4a} .cmd-tag.amb{background:rgba(140,140,140,.16);color:var(--txt-2)}
+  .cmd-tag.pos{background:rgba(31,111,235,.16);color:#3b82f6} .cmd-tag.ssbt{background:rgba(192,57,43,.16);color:#e05a4a} .cmd-tag.amb,.cmd-tag.gen{background:rgba(140,140,140,.16);color:var(--txt-2)}
+  .cmd-sel{font-size:10px;margin-left:6px;background:var(--surface);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:1px 3px;cursor:pointer}
   .term-h{font-size:10.5px;color:#6b7a86;text-transform:uppercase;letter-spacing:1px}
   .sala-card{border-bottom:1px solid #1b2531;padding:8px 0}.sala-card:last-child{border-bottom:none}
   .sala-card .sn{color:#5be07a;font-weight:700}.sala-card .ln{color:#9fb4c2;margin-top:2px}
@@ -363,6 +366,14 @@
     <input class="in" id="newName" placeholder="nombre (opcional)">
     <div class="btnrow"><button class="btn" id="userCreate">Crear / invitar</button><span class="savemsg" id="userMsg"></span></div>
     <div class="ulist" id="userList"></div>
+  </div>
+
+  <!-- Respuestas reportadas -->
+  <div class="sec">
+    <h4>🔎 Respuestas reportadas (👎)</h4>
+    <div class="hint">Lo que los agentes marcan como incorrecto. Corrige una y la IA aprende (queda como FAQ, 0 tokens).</div>
+    <div class="btnrow"><button class="btn" id="repLoad">Cargar reportes</button><span class="savemsg" id="repMsg"></span></div>
+    <div class="ulist" id="repList"></div>
   </div>
 
   <!-- Base de conocimientos -->
@@ -850,7 +861,7 @@ const SALAS=(function(){
 /* Comandos frecuentes (VNC / PuTTY) — base de conocimiento simulable */
 let COMANDOS=[
  // --- Compartidos (sirven en POS y SSBT) ---
- {cmd:'ping <ip_sala>', tipo:'pos', desc:'Verifica si el equipo responde en red antes de conectar.', salida:'Reply from 10.60.x.1: bytes=32 time=12ms TTL=64\\nReply from 10.60.x.1: bytes=32 time=11ms TTL=64'},
+ {cmd:'ping <ip_sala>', tipo:'general', desc:'Comando general de red: verifica si el equipo/IP responde antes de conectar.', salida:'Reply from 10.60.x.1: bytes=32 time=12ms TTL=64\\nReply from 10.60.x.1: bytes=32 time=11ms TTL=64'},
  {cmd:'putty -ssh <user_root>@<ip_equipo>', tipo:'pos', desc:'Abre sesion SSH al equipo (POS o SSBT) via PuTTY.', salida:'login as: root\\npassword: ********\\nLast login: Wed Jun 17 09:14'},
  {cmd:'vncviewer <ip_equipo>:5900', tipo:'pos', desc:'Abre el escritorio remoto (VNC) del equipo.', salida:'Connected to 10.60.x.21 (VNC) - 1280x1024'},
  {cmd:'df -h', tipo:'pos', desc:'Revisa espacio en disco (si esta lleno no imprime tickets ni carga la app).', salida:'/dev/sda1  20G  14G  6.0G  70% /'},
@@ -1037,7 +1048,7 @@ function renderContent(text){ let t=esc(text);
   return t.replace(/\n/g,'<br>'); }
 function renderChat(){
   const c=$('chat'); c.querySelectorAll('.msg').forEach(e=>e.remove());
-  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); if(m.role==='assistant'&&isAdmin()) h+='<span class="msgteach" title="Corregir / Enseñar a la IA" onclick="ensenar('+i+')">✏️</span>'; h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
+  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); if(m.role==='assistant') h+='<span class="msgrep" title="Reportar respuesta incorrecta" onclick="reportarIA('+i+')">👎</span>'; if(m.role==='assistant'&&isAdmin()) h+='<span class="msgteach" title="Corregir / Enseñar a la IA" onclick="ensenar('+i+')">✏️</span>'; h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
   c.appendChild($('typing')); c.scrollTop=c.scrollHeight;
 }
 function delMsg(i){ const s=activeS(); if(!s||!s.mensajes[i])return; s.mensajes.splice(i,1); renderChat(); }
@@ -1065,6 +1076,31 @@ async function ensenar(i){
     await loadFaqs();
     alert('✅ Aprendido. La próxima vez que pregunten esto, responderá la versión correcta.');
   }catch(e){ alert('No se pudo enseñar: '+(e.message||e)); }
+}
+/* 👎 Reportar respuesta de la IA -> queda en audit_log para que el admin la revise/corrija */
+async function reportarIA(i){
+  const s=activeS(); if(!s||!s.mensajes[i])return;
+  let pregunta=''; for(let k=i-1;k>=0;k--){ if(s.mensajes[k].role==='user'){ pregunta=(s.mensajes[k].content||'').trim(); break; } }
+  const respuesta=(s.mensajes[i].content||'').trim();
+  try{ await logAudit('reporte_ia',{pregunta:pregunta.slice(0,500),respuesta:respuesta.slice(0,1000)}); alert('👎 Reportado. El admin lo revisará y corregirá. ¡Gracias!'); }
+  catch(e){ alert('No se pudo reportar: '+(e.message||e)); }
+}
+/* Admin: lista de respuestas reportadas (lee audit_log) para corregirlas */
+async function loadReportes(){ if(!sb||!isAdmin())return; const L=$('repList'); if(L)L.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
+  try{ const {data}=await sb.from('audit_log').select('detail,created_at').eq('action','reporte_ia').order('created_at',{ascending:false}).limit(30);
+    const rows=data||[]; if(!L)return; if(!rows.length){ L.innerHTML='<small style="color:var(--txt-2)">Sin reportes por ahora.</small>'; return; }
+    L.innerHTML=rows.map(r=>{ const d=r.detail||{}; const q=esc(d.pregunta||'(sin pregunta)'); const a=esc((d.respuesta||'').slice(0,180)); const qa=(d.pregunta||'').replace(/'/g,"\\'");
+      return '<div class="uitem" style="flex-direction:column;align-items:stretch;gap:5px"><div style="font-size:12px"><b>Preguntó:</b> '+q+'</div><div style="font-size:11px;color:var(--txt-2)"><b>Respondió:</b> '+a+'…</div><button class="btn" onclick="ensenarReporte(\''+qa+'\')">Corregir / Enseñar</button></div>'; }).join('');
+  }catch(e){ if(L)L.innerHTML='<small style="color:#c0392b">No se pudo cargar.</small>'; }
+}
+async function ensenarReporte(pregunta){ if(!isAdmin())return; pregunta=(pregunta||'').trim(); if(!pregunta)return;
+  const resp=prompt('Respuesta CORRECTA para: "'+pregunta+'"'); if(resp===null)return; const r=resp.trim(); if(!r){ alert('Escribe la respuesta correcta.'); return; }
+  try{ const {data:{session}}=await sb.auth.getSession();
+    const res=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador:pregunta,respuesta:r,fuente:'correccion'})});
+    const j=await res.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j; if(d&&d.ok===false)throw new Error(d.error||'no se pudo');
+    ingestKB('Correccion: '+pregunta.slice(0,60),'Pregunta: '+pregunta+'\nRespuesta correcta: '+r).catch(()=>{});
+    await loadFaqs(); alert('✅ Aprendido. La próxima vez responderá la versión correcta.');
+  }catch(e){ alert('No se pudo: '+(e.message||e)); }
 }
 function renderAll(){ renderTabs(); renderPanel(); renderChat(); }
 
@@ -1318,7 +1354,8 @@ if($('ctxAdd')) $('ctxAdd').onclick=agregarContexto;
 if($('kbUrlBtn')) $('kbUrlBtn').onclick=indexFromUrl;
 ['dragover','dragenter'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();}));
 $('drop').addEventListener('drop',e=>{e.preventDefault(); if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);});
-function openPanel(){ if(!isAdmin())return; $('overlay').classList.add('on');$('cpanel').classList.add('on'); loadUsers(); }
+function openPanel(){ if(!isAdmin())return; $('overlay').classList.add('on');$('cpanel').classList.add('on'); loadUsers(); loadReportes(); }
+if($('repLoad')) $('repLoad').onclick=loadReportes;
 function closePanel(){$('overlay').classList.remove('on');$('cpanel').classList.remove('on')}
 
 /* ---- Salas Retail (terminal) ---- */
@@ -1358,15 +1395,19 @@ function mergeComandos(arr){ if(!Array.isArray(arr)||!arr.length)return 0; let a
   if(add){ lsSet('sptm-comandos',JSON.stringify(store)); renderComandos(); }
   return add;
 }
+// overrides manuales (el admin reorganiza a mano): { "<cmd>": "pos"|"ssbt"|"general" }
+let CMD_OVR={}; try{ CMD_OVR=JSON.parse(lsGet('sptm-cmd-overrides')||'{}')||{}; }catch(e){ CMD_OVR={}; }
+function tipoEff(c){ const o=CMD_OVR[(c.cmd||'').trim().toLowerCase()]; return (o==='pos'||o==='ssbt'||o==='general')?o:(c.tipo||'pos'); }
+function setCmdTipo(cmd,tipo){ if(!isAdmin())return; CMD_OVR[(cmd||'').trim().toLowerCase()]=tipo; lsSet('sptm-cmd-overrides',JSON.stringify(CMD_OVR)); renderComandos($('cmdSearch')?$('cmdSearch').value:''); }
 function renderComandos(q){
   const el=$('cmdList'); if(!el)return; q=(q||'').trim().toLowerCase();
-  const match=c=>!q||(((c.cmd||'')+' '+(c.desc||'')+' '+(c.tipo||'')).toLowerCase().includes(q));
-  const tagOf=t=> t==='pos'?'<span class="cmd-tag pos">POS</span>' : t==='ssbt'?'<span class="cmd-tag ssbt">SSBT</span>' : '<span class="cmd-tag amb">POS+SSBT</span>';
-  const cmdHtml=c=>'<div class="cmd" onclick="this.classList.toggle(\'on\')"><div class="cmd-l">$ '+c.cmd+' '+tagOf(c.tipo||'pos')+(c.nuevo?' <span style="color:var(--accent);font-size:10px">● nuevo</span>':'')+'</div><div class="cmd-d">'+c.desc+'</div><div class="cmd-out">'+(c.salida||'').replace(/\\n/g,String.fromCharCode(10))+'</div></div>';
-  const GRUPOS=[['ambos','Compartidos (POS y SSBT)'],['pos','POS · Punto de venta'],['ssbt','SSBT · Autoservicio']];
+  const match=c=>!q||(((c.cmd||'')+' '+(c.desc||'')+' '+tipoEff(c)).toLowerCase().includes(q));
+  const tagOf=t=> t==='pos'?'<span class="cmd-tag pos">POS</span>' : t==='ssbt'?'<span class="cmd-tag ssbt">SSBT</span>' : '<span class="cmd-tag gen">General</span>';
+  const sel=c=>{ if(!isAdmin())return ''; const t=tipoEff(c); const o=(v,l)=>'<option value="'+v+'"'+(t===v?' selected':'')+'>'+l+'</option>'; const cc=(c.cmd||'').replace(/'/g,"\\'"); return '<select class="cmd-sel" title="Reclasificar este comando" onclick="event.stopPropagation()" onchange="setCmdTipo(\''+cc+'\',this.value)">'+o('pos','POS')+o('ssbt','SSBT')+o('general','General')+'</select>'; };
+  const cmdHtml=c=>'<div class="cmd" onclick="this.classList.toggle(\'on\')"><div class="cmd-l">$ '+c.cmd+' '+tagOf(tipoEff(c))+sel(c)+(c.nuevo?' <span style="color:var(--accent);font-size:10px">● nuevo</span>':'')+'</div><div class="cmd-d">'+c.desc+'</div><div class="cmd-out">'+(c.salida||'').replace(/\\n/g,String.fromCharCode(10))+'</div></div>';
+  const GRUPOS=[['pos','POS · Punto de venta'],['ssbt','SSBT · Autoservicio (acceso con n1)'],['general','Generales (red/sistema)']];
   let html='';
-  GRUPOS.forEach(g=>{ const t=g[0]; const items=COMANDOS.filter(c=>(c.tipo||'pos')===t && match(c)); if(items.length){ html+='<div class="cmd-grp">'+g[1]+'</div>'+items.map(cmdHtml).join(''); } });
-  const otros=COMANDOS.filter(c=>['ambos','pos','ssbt'].indexOf(c.tipo||'pos')<0 && match(c)); if(otros.length){ html+='<div class="cmd-grp">Otros</div>'+otros.map(cmdHtml).join(''); }
+  GRUPOS.forEach(g=>{ const items=COMANDOS.filter(c=>tipoEff(c)===g[0] && match(c)); if(items.length){ html+='<div class="cmd-grp">'+g[1]+'</div>'+items.map(cmdHtml).join(''); } });
   el.innerHTML=html||'<div class="cmd-d" style="padding:8px 0">Sin comandos para "'+q+'".</div>';
 }
 function openRetail(){ if(!me){ gateShow(); return; } $('retailOverlay').classList.add('on'); $('retailPanel').classList.add('on'); $('retailRole').textContent=isAdmin()?'(admin · puedes editar notas)':'(solo lectura)'; renderSalas(''); renderComandos(); const ss=$('salaSearch'); if(ss){ ss.value=''; ss.focus(); ss.oninput=()=>renderSalas(ss.value); } const cs=$('cmdSearch'); if(cs){ cs.value=''; cs.oninput=()=>renderComandos(cs.value); } }

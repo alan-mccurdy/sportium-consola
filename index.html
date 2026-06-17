@@ -1342,14 +1342,16 @@ function renderSalas(q){
 /* comandos extra (detectados por la IA en documentos): persisten y se muestran con el mismo diseño */
 // descarta titulos/categorias que NO son un comando real (ej. "Alias", "Comandos", "Red", "Alias:")
 function esComandoReal(cmd){ cmd=(cmd||'').trim(); if(!cmd) return false; if(cmd.endsWith(':')) return false; if(/^[A-ZÁÉÍÓÚÑ][^\s]*$/.test(cmd)) return false; return true; }
+// "alias nombre='comando real'" -> muestra solo "nombre" (lo que el tecnico teclea) y deja el comando real en la descripcion
+function desalias(c){ const m=(c.cmd||'').trim().match(/^alias\s+([^\s=]+)\s*=\s*['"]?(.+?)['"]?\s*$/i); if(m){ const real=(m[2]||'').trim(); c.cmd=m[1].trim(); if(real && (c.desc||'').indexOf(real)<0) c.desc=(c.desc?c.desc+' ':'')+'→ '+real; } return c; }
 function loadComandosExtra(){ try{ let e=JSON.parse(lsGet('sptm-comandos')||'[]'); if(!Array.isArray(e))return;
-  const limpio=e.filter(c=>c&&esComandoReal(c.cmd));
-  if(limpio.length!==e.length){ lsSet('sptm-comandos',JSON.stringify(limpio)); }   // purga titulos como "Alias" guardados antes
+  const limpio=e.filter(c=>c&&c.cmd).map(c=>desalias({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',tipo:c.tipo})).filter(c=>esComandoReal(c.cmd));
+  if(JSON.stringify(limpio)!==JSON.stringify(e)){ lsSet('sptm-comandos',JSON.stringify(limpio)); }   // limpia "alias..." y titulos guardados antes
   const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase()));
   limpio.forEach(c=>{ const k=(c.cmd||'').trim().toLowerCase(); if(k&&!have.has(k)){ COMANDOS.push({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',tipo:(c.tipo==='pos'||c.tipo==='ssbt')?c.tipo:'ambos',nuevo:true}); have.add(k); } });
 }catch(e){} }
 function mergeComandos(arr){ if(!Array.isArray(arr)||!arr.length)return 0; let add=0; const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase())); const store=[]; try{ store.push(...JSON.parse(lsGet('sptm-comandos')||'[]')); }catch(e){}
-  arr.forEach(c=>{ const cmd=(c&&c.cmd||'').trim(); if(!cmd||!esComandoReal(cmd))return; const k=cmd.toLowerCase(); if(have.has(k))return; have.add(k); const tipo=(c.tipo==='pos'||c.tipo==='ssbt')?c.tipo:'ambos'; const obj={cmd,desc:c.desc||'',salida:c.salida||'(sin salida de ejemplo)',tipo,nuevo:true}; COMANDOS.push(obj); store.push({cmd,desc:obj.desc,salida:obj.salida,tipo}); add++; });
+  arr.forEach(c0=>{ const c=desalias({cmd:(c0&&c0.cmd||''),desc:(c0&&c0.desc||''),salida:(c0&&c0.salida||''),tipo:c0&&c0.tipo}); const cmd=(c.cmd||'').trim(); if(!cmd||!esComandoReal(cmd))return; const k=cmd.toLowerCase(); if(have.has(k))return; have.add(k); const tipo=(c.tipo==='pos'||c.tipo==='ssbt')?c.tipo:'ambos'; const obj={cmd,desc:c.desc||'',salida:c.salida||'(sin salida de ejemplo)',tipo,nuevo:true}; COMANDOS.push(obj); store.push({cmd,desc:obj.desc,salida:obj.salida,tipo}); add++; });
   if(add){ lsSet('sptm-comandos',JSON.stringify(store)); renderComandos(); }
   return add;
 }

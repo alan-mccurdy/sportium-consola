@@ -331,10 +331,11 @@
     <div class="hint">Lo que escribas aquí se aplica de inmediato a las respuestas de la IA. Úsalo para corregir datos (p. ej. condiciones de un bono) sin tocar el flujo.</div>
     <div class="fld">Instrucciones generales (aplican a todos los países)</div>
     <textarea class="ta" id="ctxPrompt" placeholder="Ej. Tono cordial, siempre verificar KYC antes de hablar de retiros…"></textarea>
-    <div class="fld">Contexto por país y vertiente (bonos, promos, procesos)</div>
-    <div class="hint">Elige país y tipo de servicio; el texto se guarda <b>solo</b> para esa combinación, así Colombia y Panamá no se pisan. La IA elige el bloque correcto según la pregunta del agente.</div>
+    <div class="fld">Agregar contexto por país (bonos, promos, procesos)</div>
+    <div class="hint">Elige país (o <b>Todos</b>) y vertiente, escribe la info y dale <b>Agregar</b>: se <b>indexa en la base y genera FAQs</b> (respuestas a 0 tokens). El texto <b>no se queda pegado</b> aquí: cada vez que agregas, se suma a la base.</div>
     <div style="display:flex;gap:8px;margin-bottom:7px">
       <select class="in" id="ctxPais" style="flex:1">
+        <option value="ALL">🌎 Todos los países</option>
         <option value="MX">🇲🇽 México</option>
         <option value="PA">🇵🇦 Panamá</option>
         <option value="CO">🇨🇴 Colombia</option>
@@ -345,6 +346,7 @@
       </select>
     </div>
     <textarea class="ta" id="ctxBonos" placeholder="Ej. Bono de bienvenida: 100% hasta $3,000, rollover 3x, código MAXSPORT. Vigencia 30 días…"></textarea>
+    <div class="btnrow"><button class="btn" id="ctxAdd">Agregar al contexto</button><span class="savemsg" id="ctxAddMsg"></span></div>
     <div class="fld">Lógica de cálculo (reglas sobre los datos de la base, todos los países)</div>
     <textarea class="ta" id="ctxReglas" placeholder="Ej. Si un cliente tiene 2 retiros rechazados seguidos, escalar a Riesgos. Si el saldo supera 5x el último depósito sin apuestas, alertar posible bonus abuse…"></textarea>
     <div class="btnrow"><button class="btn" id="ctxSave">Guardar contexto</button><span class="savemsg" id="ctxMsg"></span></div>
@@ -557,9 +559,9 @@ let lastSlot={pais:'MX',vert:'online'};   // recuerda el slot abierto para no pe
 function curPais(){ return ($('ctxPais')&&$('ctxPais').value)||'MX'; }
 function curVert(){ return ($('ctxVert')&&$('ctxVert').value)||'online'; }
 function stashSlot(pais,vert){ if(!$('ctxBonos'))return; if(!ctxCache.paises) ctxCache.paises=emptyPaises(); if(!ctxCache.paises[pais]) ctxCache.paises[pais]={online:'',retail:''}; ctxCache.paises[pais][vert]=$('ctxBonos').value; }
-function fillSlot(){ if($('ctxBonos')){ const p=(ctxCache.paises&&ctxCache.paises[curPais()])||{}; $('ctxBonos').value=p[curVert()]||''; } }
+function fillSlot(){ if($('ctxBonos')) $('ctxBonos').value=''; }   // caja de AGREGAR: no muestra lo guardado, no se queda pegado
 function fillCtxFields(){ if($('ctxPrompt')){ $('ctxPrompt').value=ctxCache.system_prompt||''; if($('ctxReglas')) $('ctxReglas').value=ctxCache.reglas_calculo||''; lastSlot={pais:curPais(),vert:curVert()}; fillSlot(); } }
-function onSlotChange(){ stashSlot(lastSlot.pais,lastSlot.vert); lastSlot={pais:curPais(),vert:curVert()}; fillSlot(); }
+function onSlotChange(){ lastSlot={pais:curPais(),vert:curVert()}; fillSlot(); }   // ya no acumula en el slot visible
 async function loadContext(){
   // 1) localStorage: persistencia garantizada (sobrevive aunque no haya Supabase)
   try{ const ls=localStorage.getItem('jobany-ctx'); if(ls){ const o=JSON.parse(ls); ctxCache={...ctxCache,...o}; ctxCache.paises=normPaises(o.paises); } }catch(e){}
@@ -577,7 +579,6 @@ async function loadContext(){
 async function saveContext(){
   if(!isAdmin())return;
   $('ctxSave').disabled=true; $('ctxMsg').textContent='Guardando…';
-  stashSlot(curPais(),curVert());   // guarda lo escrito en el slot actual ANTES de persistir
   ctxCache={...ctxCache, system_prompt:$('ctxPrompt').value, reglas_calculo:($('ctxReglas')?$('ctxReglas').value:(ctxCache.reglas_calculo||''))};
   ctxCache.paises=normPaises(ctxCache.paises);
   const paisesJSON=JSON.stringify(ctxCache.paises);
@@ -1140,6 +1141,28 @@ async function indexNote(){
   }catch(e){ procesando=procesando.filter(p=>p!==name); kbStatus('Error: '+(e.message||e),'err'); }
   finally{ $('kbNoteBtn').disabled=false; }
 }
+/* AGREGAR contexto por país (o Todos): indexa en la base (RAG) + genera FAQs (0 tokens). No se queda pegado. */
+async function agregarContexto(){
+  if(!isAdmin())return;
+  const text=$('ctxBonos').value.trim();
+  if(!text){ $('ctxAddMsg').textContent='Escribe la info primero.'; setTimeout(()=>$('ctxAddMsg').textContent='',3000); return; }
+  const PNL={MX:'México',PA:'Panamá',CO:'Colombia'};
+  const pais=curPais(), vert=curVert();
+  const label = pais==='ALL' ? 'Todos los países' : (PNL[pais]||pais);
+  const vlabel = vert==='retail' ? 'Retail' : 'Online';
+  const stamp = new Date().toISOString().slice(0,16).replace('T',' ');
+  const name = 'Contexto '+label+' '+vlabel+' '+stamp;
+  const body = '[Aplica a: '+label+' — '+vlabel+']\n'+text;
+  $('ctxAdd').disabled=true; $('ctxAddMsg').textContent='Agregando e indexando…';
+  try{
+    const [n,clas]=await Promise.all([ ingestKB(name,body), classifyKB(name,body) ]);
+    await loadIndexed();
+    const real=IDX.find(d=>d.name===name);
+    if(real&&real.chunks>0){ $('ctxAddMsg').textContent='✅ Agregado a '+label+(clas?' · FAQs creadas':''); $('ctxBonos').value=''; }
+    else $('ctxAddMsg').textContent='⚠️ No quedó en la base (posible cupo de embeddings).';
+  }catch(e){ $('ctxAddMsg').textContent='Error: '+(e.message||e); }
+  finally{ $('ctxAdd').disabled=false; setTimeout(()=>$('ctxAddMsg').textContent='',5000); }
+}
 async function addFiles(files){
   for(const f of files){ const l=f.name.toLowerCase(); const isImg=/\.(png|jpe?g|gif|webp)$/.test(l)||(f.type&&f.type.startsWith('image/'));
    try{
@@ -1178,7 +1201,7 @@ async function classifyKB(name,text){
     const r=await fetch(CLASSIFY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
       body:JSON.stringify({tenant:CONFIG.tenant,text})});
     const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
-    if(d&&d.ok&&d.paises&&typeof d.paises==='object'){ mergeDocIntoPaises(name,d.paises); await persistContext(); fillCtxFields(); if(d.comandos) mergeComandos(d.comandos); if(d.faqs) await saveFaqsFromDoc(d.faqs,name); return true; }
+    if(d&&d.ok){ if(d.comandos) mergeComandos(d.comandos); if(d.faqs) await saveFaqsFromDoc(d.faqs,name); return true; }   // NO rellena el contexto visible: solo FAQs (0 tokens) + comandos
   }catch(e){}
   return false;
 }
@@ -1273,6 +1296,7 @@ async function addFaq(){
 async function delFaq(id){ if(!isAdmin())return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_delete',id})}); await loadFaqs(); }catch(e){} }
 $('drop').onclick=()=>$('kbFile').click(); $('kbFile').onchange=e=>{ addFiles(e.target.files); e.target.value=''; };
 if($('kbNoteBtn')) $('kbNoteBtn').onclick=indexNote;
+if($('ctxAdd')) $('ctxAdd').onclick=agregarContexto;
 if($('kbUrlBtn')) $('kbUrlBtn').onclick=indexFromUrl;
 ['dragover','dragenter'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();}));
 $('drop').addEventListener('drop',e=>{e.preventDefault(); if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);});

@@ -934,11 +934,14 @@ function iprow(k, ip){ return '<div class="row"><span class="k">'+k+'</span><spa
 function renderSalaPanel(sa, p){
   const equipos=[].concat(sa.pos||[], sa.galgos||[], sa.maquinas||[]);
   const ipsHtml=equipos.map(e=>iprow(e.nombre, e.ip)).join('');
+  const ipSsbt=((sa.maquinas&&sa.maquinas[0])?sa.maquinas[0].ip:(sa.galgos[0]?sa.galgos[0].ip:sa.ip_sala));
   const cmds='<div class="blk"><div class="blk-h">'+pxIcon('target')+'Comandos rápidos</div>'+
     row('Probar conexión','ping '+sa.ip_sala)+
-    row('Abrir POS (SSH)','putty -ssh '+sa.user_root+'@'+(sa.pos[0]?sa.pos[0].ip:sa.ip_sala))+
+    row('Abrir POS (SSH · root)','putty -ssh '+sa.user_root+'@'+(sa.pos[0]?sa.pos[0].ip:sa.ip_sala))+
+    row('Abrir SSBT (SSH · n1)','putty -ssh '+sa.user_n1+'@'+ipSsbt)+
     row('Ver pantalla (VNC)','vncviewer '+(sa.galgos[0]?sa.galgos[0].ip:sa.ip_sala)+':5900')+
-    row('Reiniciar POS','systemctl restart pos-service')+'</div>';
+    row('Reiniciar POS','systemctl restart pos-service')+
+    row('Reiniciar SSBT','systemctl restart ssbt-service')+'</div>';
   p.innerHTML='<div class="pnl">'+
     '<div class="chero"><div class="ch-top"><div class="avt">'+pxIcon('list')+'</div>'+
       '<div><div class="nm">'+sa.nombre+'</div><div class="us">Sala #'+sa.numero+' · '+sa.ciudad+' · Panamá</div></div></div></div>'+
@@ -946,9 +949,9 @@ function renderSalaPanel(sa, p){
       '<div class="tile"><div class="tl">Equipos</div><div class="tv sm">'+sa.pos.length+' POS · '+sa.galgos.length+' galgos · '+(sa.maquinas?sa.maquinas.length:0)+' máq.</div></div></div>'+
     '<div class="blk"><div class="blk-h">'+pxIcon('check')+'Acceso (VNC / PuTTY)</div>'+
       iprow('IP de la sala', sa.ip_sala)+
-      row('Usuario root', '<b>'+sa.user_root+'</b>')+
-      row('Usuario N1', '<b>'+sa.user_n1+'</b>')+
-      '<div class="row"><span class="reqd">Usa <b>root</b> para administración total; <b>n1</b> para soporte de primer nivel. La contraseña está en el manual.</span></div>'+
+      row('Usuario root', '<b>'+sa.user_root+'</b> <span class="cmd-tag amb">POS + total</span>')+
+      row('Usuario N1', '<b>'+sa.user_n1+'</b> <span class="cmd-tag ssbt">solo SSBT</span>')+
+      '<div class="row"><span class="reqd"><b>root</b>: administración total y POS. <b>n1</b>: solo para los SSBT (terminales de autoservicio). La contraseña está en el manual.</span></div>'+
     '</div>'+
     '<div class="blk"><div class="blk-h">'+pxIcon('dice')+'Equipos y sus IPs</div>'+ipsHtml+'</div>'+
     cmds+
@@ -1337,9 +1340,16 @@ function renderSalas(q){
   }).join('');
 }
 /* comandos extra (detectados por la IA en documentos): persisten y se muestran con el mismo diseño */
-function loadComandosExtra(){ try{ const e=JSON.parse(lsGet('sptm-comandos')||'[]'); if(Array.isArray(e)&&e.length){ const ex=e.map(c=>({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',tipo:(c.tipo==='pos'||c.tipo==='ssbt')?c.tipo:'ambos',nuevo:true})); const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase())); ex.forEach(c=>{ if(c.cmd&&!have.has(c.cmd.trim().toLowerCase())){ COMANDOS.push(c); have.add(c.cmd.trim().toLowerCase()); } }); } }catch(e){} }
+// descarta titulos/categorias que NO son un comando real (ej. "Alias", "Comandos", "Red", "Alias:")
+function esComandoReal(cmd){ cmd=(cmd||'').trim(); if(!cmd) return false; if(cmd.endsWith(':')) return false; if(/^[A-ZÁÉÍÓÚÑ][^\s]*$/.test(cmd)) return false; return true; }
+function loadComandosExtra(){ try{ let e=JSON.parse(lsGet('sptm-comandos')||'[]'); if(!Array.isArray(e))return;
+  const limpio=e.filter(c=>c&&esComandoReal(c.cmd));
+  if(limpio.length!==e.length){ lsSet('sptm-comandos',JSON.stringify(limpio)); }   // purga titulos como "Alias" guardados antes
+  const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase()));
+  limpio.forEach(c=>{ const k=(c.cmd||'').trim().toLowerCase(); if(k&&!have.has(k)){ COMANDOS.push({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',tipo:(c.tipo==='pos'||c.tipo==='ssbt')?c.tipo:'ambos',nuevo:true}); have.add(k); } });
+}catch(e){} }
 function mergeComandos(arr){ if(!Array.isArray(arr)||!arr.length)return 0; let add=0; const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase())); const store=[]; try{ store.push(...JSON.parse(lsGet('sptm-comandos')||'[]')); }catch(e){}
-  arr.forEach(c=>{ const cmd=(c&&c.cmd||'').trim(); if(!cmd)return; const k=cmd.toLowerCase(); if(have.has(k))return; have.add(k); const tipo=(c.tipo==='pos'||c.tipo==='ssbt')?c.tipo:'ambos'; const obj={cmd,desc:c.desc||'',salida:c.salida||'(sin salida de ejemplo)',tipo,nuevo:true}; COMANDOS.push(obj); store.push({cmd,desc:obj.desc,salida:obj.salida,tipo}); add++; });
+  arr.forEach(c=>{ const cmd=(c&&c.cmd||'').trim(); if(!cmd||!esComandoReal(cmd))return; const k=cmd.toLowerCase(); if(have.has(k))return; have.add(k); const tipo=(c.tipo==='pos'||c.tipo==='ssbt')?c.tipo:'ambos'; const obj={cmd,desc:c.desc||'',salida:c.salida||'(sin salida de ejemplo)',tipo,nuevo:true}; COMANDOS.push(obj); store.push({cmd,desc:obj.desc,salida:obj.salida,tipo}); add++; });
   if(add){ lsSet('sptm-comandos',JSON.stringify(store)); renderComandos(); }
   return add;
 }

@@ -605,7 +605,9 @@ async function createUser(){
     const res=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
       body:JSON.stringify({action:'create_user',email,full_name})});
     if(!res.ok)throw new Error('Servidor '+res.status);
-    $('userMsg').textContent='✅ Invitado'; $('newEmail').value='';$('newName').value='';
+    const j=await res.json().catch(()=>({}));
+    if(j&&j.ok===false) throw new Error(j.error||'No se pudo enviar la invitación. Revisa el correo (SMTP) en Supabase.');
+    $('userMsg').textContent='✅ Invitado: '+email; $('newEmail').value='';$('newName').value='';
     logAudit('create_user',{email}); loadUsers();
   }catch(e){ $('userMsg').textContent='Error: '+e.message; }
   finally{ $('userCreate').disabled=false; setTimeout(()=>$('userMsg').textContent='',3000); }

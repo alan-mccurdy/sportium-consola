@@ -407,6 +407,13 @@
     <div class="btnrow"><button class="btn" id="faqAdd">Agregar respuesta rápida</button><span class="savemsg" id="faqMsg"></span></div>
     <div class="ulist" id="faqList"></div>
   </div>
+
+  <!-- Sinónimos / jerga -->
+  <div class="sec">
+    <h4>Sinónimos / jerga</h4>
+    <div style="display:flex;gap:6px"><input id="glosTerm" class="in" placeholder="término (ej. cuota 7)"><input id="glosEq" class="in" placeholder="equivalentes, separados por coma"><button class="btn" onclick="saveGlos()">+</button></div>
+    <div id="glosList"></div>
+  </div>
 </div></aside>
 
 <!-- ===== SALAS RETAIL (terminal) ===== -->
@@ -524,6 +531,7 @@ async function handleSession(session){
   await loadKB();
   loadFaqs();
   loadGlosario();
+  loadGlos();
   initTeam();
   logAudit('login',{});
 }
@@ -1266,7 +1274,9 @@ async function classifyKB(name,text){
     const r=await fetch(CLASSIFY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
       body:JSON.stringify({tenant:CONFIG.tenant,text})});
     const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
-    if(d&&d.ok){ if(d.comandos) mergeComandos(d.comandos); if(d.faqs) await saveFaqsFromDoc(d.faqs,name); return true; }   // NO rellena el contexto visible: solo FAQs (0 tokens) + comandos
+    if(d&&d.ok){ if(d.comandos) mergeComandos(d.comandos); if(d.faqs) await saveFaqsFromDoc(d.faqs,name);
+      if(Array.isArray(d.sinonimos)){ for(const s of d.sinonimos){ if(s.termino){ try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'glos_save',tenant:CONFIG.tenant,termino:s.termino,equivalentes:s.equivalentes||[]})}); }catch(e){} } } await loadGlosario(); }
+      return true; }   // NO rellena el contexto visible: solo FAQs (0 tokens) + comandos
   }catch(e){}
   return false;
 }
@@ -1312,16 +1322,17 @@ async function loadKB(){
 /* INDICADOR REAL: lee kb_chunks de la base y agrupa por documento (cuántos trozos, sin duplicar) */
 async function loadIndexed(){
   if(!sb){ IDX=[]; renderKB(); return; }
-  try{ const {data}=await sb.from('kb_chunks').select('doc_name').eq('tenant',CONFIG.tenant);
-    const m={}; (data||[]).forEach(r=>{ const n=r.doc_name||'(sin nombre)'; m[n]=(m[n]||0)+1; });
-    IDX=Object.keys(m).map(n=>({name:n,chunks:m[n]})).sort((a,b)=>a.name.localeCompare(b.name));
+  try{ const {data}=await sb.from('kb_chunks').select('doc_name,pais,vertical,audiencia').eq('tenant',CONFIG.tenant);
+    const byDoc={};
+    (data||[]).forEach(r=>{ const k=r.doc_name||'(sin nombre)'; const d=byDoc[k]||(byDoc[k]={n:0,cli:0,int:0,vert:{}}); d.n++; if(r.audiencia==='cliente')d.cli++; else d.int++; const v=r.vertical||'*'; d.vert[v]=(d.vert[v]||0)+1; });
+    IDX=Object.keys(byDoc).sort().map(name=>{ const d=byDoc[name]; const vert=Object.keys(d.vert).sort((a,b)=>d.vert[b]-d.vert[a])[0]||'*'; return {name,chunks:d.n,cli:d.cli,int:d.int,vert}; });
   }catch(e){ IDX=[]; }
   renderKB();
 }
 function _q(s){ return (s||'').replace(/'/g,"\\'"); }
 function renderKB(){ const L=$('kbList'); if(!L)return; let h='';
   procesando.forEach(n=>{ h+='<div class="file"><span class="nm">'+n+'</span><span style="color:var(--warn)">procesando…</span></div>'; });
-  IDX.forEach(d=>{ h+='<div class="file"><span class="nm">'+d.name+'</span><span style="color:var(--ok)">✓ '+d.chunks+' trozos en la base</span><span class="rm" onclick="deleteIndexed(\''+_q(d.name)+'\')">×</span></div>'; });
+  IDX.forEach(d=>{ const vert=d.vert||'*'; const cli=d.cli!=null?d.cli:0; const int=d.int!=null?d.int:0; h+='<div class="file"><span class="nm">'+d.name+'</span><span style="color:var(--ok)">✓ '+d.chunks+' trozos &middot; '+vert+' &middot; '+cli+' cliente / '+int+' interno</span><span class="rm" onclick="deleteIndexed(\''+_q(d.name)+'\')">×</span></div>'; });
   KB.filter(f=>f.img).forEach(f=>{ h+='<div class="file"><span class="nm">'+f.name+'</span><span>imagen</span><span class="rm" onclick="rmImg(\''+_q(f.key)+'\')">×</span></div>'; });
   L.innerHTML=h||'<small style="color:var(--txt-2)">Nada indexado todavía. Sube un documento.</small>';
 }
@@ -1361,6 +1372,10 @@ async function addFaq(){
   finally{ $('faqAdd').disabled=false; setTimeout(()=>$('faqMsg').textContent='',3000); }
 }
 async function delFaq(id){ if(!isAdmin())return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_delete',id})}); await loadFaqs(); }catch(e){} }
+async function loadGlos(){ if(!isAdmin())return; try{ const {data:{session}}=await sb.auth.getSession(); const r=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'glos_list',tenant:CONFIG.tenant})}); const j=await r.json(); renderGlos(j.glosario||[]); }catch(e){} }
+function renderGlos(arr){ const el=$('glosList'); if(!el)return; el.innerHTML=arr.map(g=>'<div class="faqrow">'+escapeHtml(g.termino)+' &rarr; '+(g.equivalentes||[]).map(escapeHtml).join(', ')+' <span onclick="delGlos('+g.id+')" style="cursor:pointer">x</span></div>').join(''); }
+async function saveGlos(){ if(!isAdmin())return; const termino=$('glosTerm').value.trim(); const eq=$('glosEq').value.split(',').map(s=>s.trim()).filter(Boolean); if(!termino)return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'glos_save',tenant:CONFIG.tenant,termino,equivalentes:eq})}); $('glosTerm').value='';$('glosEq').value=''; await loadGlos(); await loadGlosario(); }catch(e){} }
+async function delGlos(id){ if(!isAdmin())return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'glos_delete',id})}); await loadGlos(); await loadGlosario(); }catch(e){} }
 $('drop').onclick=()=>$('kbFile').click(); $('kbFile').onchange=e=>{ addFiles(e.target.files); e.target.value=''; };
 if($('kbNoteBtn')) $('kbNoteBtn').onclick=indexNote;
 if($('ctxAdd')) $('ctxAdd').onclick=agregarContexto;

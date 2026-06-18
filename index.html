@@ -217,11 +217,15 @@
   .sec h4{font-size:13.5px;margin-bottom:4px;display:flex;align-items:center;gap:7px}
   .sec .hint{font-size:11.5px;color:var(--txt-2);margin-bottom:11px;line-height:1.4}
   .fld{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--txt-3);margin:10px 0 5px}
-  textarea.ta,input.in{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-family:inherit;font-size:13px;color:var(--txt);background:var(--bg)}
+  textarea.ta,input.in,select.in{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-family:inherit;font-size:13px;color:var(--txt);background:var(--bg);transition:border-color .15s,box-shadow .15s}
   textarea.ta{resize:vertical;min-height:80px;line-height:1.45}
-  textarea.ta:focus,input.in:focus{outline:none;border-color:var(--accent)}
-  .btn{border:none;border-radius:10px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:var(--accent);color:#fff}
-  .btn:disabled{opacity:.5}
+  textarea.ta:focus,input.in:focus,select.in:focus{outline:none;border-color:var(--accent)}
+  textarea.ta:focus-visible,input.in:focus-visible,select.in:focus-visible,.btn:focus-visible,.ic:focus-visible,.ubtn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+  select.in{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:30px;background-repeat:no-repeat;background-position:right 10px center;background-size:11px;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23726A5C' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>")}
+  :root[data-theme="dark"] select.in{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A99E8C' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>")}
+  .btn{border:none;border-radius:10px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:var(--accent);color:#fff;transition:filter .15s,transform .1s,box-shadow .15s}
+  .btn:hover{filter:brightness(1.07)} .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.5;filter:none;transform:none}
   .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
   .btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
   .btnrow{display:flex;gap:8px;align-items:center;margin-top:11px}
@@ -235,7 +239,12 @@
   .drop:hover{border-color:var(--accent);color:var(--accent)}
   .files{margin-top:10px;display:flex;flex-direction:column;gap:6px}
   .file{display:flex;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px}
-  .file .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file .rm{cursor:pointer;color:var(--txt-3)}
+  .file .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file .rm{cursor:pointer;color:var(--txt-3);transition:color .15s}
+  .file .rm:hover{color:var(--bad)}
+  .turno{display:inline-flex;align-items:center;gap:5px;padding:3px 5px 3px 9px;border:1px solid var(--line);border-radius:11px;background:var(--surface);box-shadow:var(--shadow)}
+  .turno-lbl{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--txt-3)}
+  .in.mini{width:auto;padding:5px 26px 5px 9px;font-size:12px;border-radius:8px}
+  #glosList{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 
   /* AUTH GATE */
   .auth-gate{position:fixed;inset:0;background:var(--bg);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -286,9 +295,9 @@
       <div class="hbtns">
         <span class="who" id="useMeter" style="cursor:help;display:none"></span>
         <span class="who" id="who"></span>
-        <span class="turno">
-          <select id="turnoPais" class="in"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select>
-          <select id="turnoVert" class="in"><option value="online">Online</option><option value="retail">Retail</option></select>
+        <span class="turno" title="Tu turno: pais y vertical que atiendes"><span class="turno-lbl">Turno</span>
+          <select id="turnoPais" class="in mini" aria-label="Pais de tu turno"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select>
+          <select id="turnoVert" class="in mini" aria-label="Vertical de tu turno"><option value="online">Online</option><option value="retail">Retail</option></select>
         </span>
         <button class="ic" id="copyToggle" title="Auto-copiar respuesta sugerida" onclick="toggleAutocopy()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
@@ -1373,7 +1382,7 @@ async function addFaq(){
 }
 async function delFaq(id){ if(!isAdmin())return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_delete',id})}); await loadFaqs(); }catch(e){} }
 async function loadGlos(){ if(!isAdmin())return; try{ const {data:{session}}=await sb.auth.getSession(); const r=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'glos_list',tenant:CONFIG.tenant})}); const j=await r.json(); renderGlos(j.glosario||[]); }catch(e){} }
-function renderGlos(arr){ const el=$('glosList'); if(!el)return; el.innerHTML=arr.map(g=>'<div class="faqrow">'+escapeHtml(g.termino)+' &rarr; '+(g.equivalentes||[]).map(escapeHtml).join(', ')+' <span onclick="delGlos('+g.id+')" style="cursor:pointer">x</span></div>').join(''); }
+function renderGlos(arr){ const el=$('glosList'); if(!el)return; el.innerHTML=(arr||[]).map(g=>'<div class="uitem"><div style="flex:1;min-width:0"><div class="nm">'+escapeHtml(g.termino)+' &rarr; '+(g.equivalentes||[]).map(escapeHtml).join(', ')+'</div></div><button class="ubtn" onclick="delGlos('+g.id+')">Quitar</button></div>').join('')||'<small style="color:var(--txt-2)">Aún no hay sinónimos.</small>'; }
 async function saveGlos(){ if(!isAdmin())return; const termino=$('glosTerm').value.trim(); const eq=$('glosEq').value.split(',').map(s=>s.trim()).filter(Boolean); if(!termino)return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'glos_save',tenant:CONFIG.tenant,termino,equivalentes:eq})}); $('glosTerm').value='';$('glosEq').value=''; await loadGlos(); await loadGlosario(); }catch(e){} }
 async function delGlos(id){ if(!isAdmin())return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'glos_delete',id})}); await loadGlos(); await loadGlosario(); }catch(e){} }
 $('drop').onclick=()=>$('kbFile').click(); $('kbFile').onchange=e=>{ addFiles(e.target.files); e.target.value=''; };

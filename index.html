@@ -286,6 +286,10 @@
       <div class="hbtns">
         <span class="who" id="useMeter" style="cursor:help;display:none"></span>
         <span class="who" id="who"></span>
+        <span class="turno">
+          <select id="turnoPais" class="in"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select>
+          <select id="turnoVert" class="in"><option value="online">Online</option><option value="retail">Retail</option></select>
+        </span>
         <button class="ic" id="copyToggle" title="Auto-copiar respuesta sugerida" onclick="toggleAutocopy()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         <button class="ic" id="themeBtn" title="Tema" onclick="toggleTheme()">
@@ -519,6 +523,7 @@ async function handleSession(session){
   await loadContext();
   await loadKB();
   loadFaqs();
+  loadGlosario();
   initTeam();
   logAudit('login',{});
 }
@@ -572,6 +577,12 @@ function normPaises(p){ const out=emptyPaises(); if(p&&typeof p==='object'){ ['M
 let lastSlot={pais:'MX',vert:'online'};   // recuerda el slot abierto para no perder lo escrito al cambiar de selector
 function curPais(){ return ($('ctxPais')&&$('ctxPais').value)||'MX'; }
 function curVert(){ return ($('ctxVert')&&$('ctxVert').value)||'online'; }
+function loadTurno(){ try{ return JSON.parse(localStorage.getItem('sptm-turno')||'{}'); }catch(e){ return {}; } }
+function turnoPais(){ return ($('turnoPais')&&$('turnoPais').value) || loadTurno().pais || 'MX'; }
+function turnoVert(){ return ($('turnoVert')&&$('turnoVert').value) || loadTurno().vertical || 'online'; }
+function saveTurno(){ try{ localStorage.setItem('sptm-turno', JSON.stringify({pais:turnoPais(),vertical:turnoVert()})); }catch(e){} }
+(function initTurno(){ const t=loadTurno(); if($('turnoPais')&&t.pais)$('turnoPais').value=t.pais; if($('turnoVert')&&t.vertical)$('turnoVert').value=t.vertical;
+  if($('turnoPais'))$('turnoPais').onchange=saveTurno; if($('turnoVert'))$('turnoVert').onchange=saveTurno; })();
 function stashSlot(pais,vert){ if(!$('ctxBonos'))return; if(!ctxCache.paises) ctxCache.paises=emptyPaises(); if(!ctxCache.paises[pais]) ctxCache.paises[pais]={online:'',retail:''}; ctxCache.paises[pais][vert]=$('ctxBonos').value; }
 function fillSlot(){ if($('ctxBonos')) $('ctxBonos').value=''; }   // caja de AGREGAR: no muestra lo guardado, no se queda pegado
 function fillCtxFields(){ if($('ctxPrompt')){ $('ctxPrompt').value=ctxCache.system_prompt||''; if($('ctxReglas')) $('ctxReglas').value=ctxCache.reglas_calculo||''; lastSlot={pais:curPais(),vert:curVert()}; fillSlot(); } }
@@ -1244,7 +1255,7 @@ async function addFiles(files){
 async function ingestKB(name,text){
   try{ const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(INGEST_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
-      body:JSON.stringify({tenant:CONFIG.tenant,doc_name:name,text})});
+      body:JSON.stringify({tenant:CONFIG.tenant,doc_name:name,text:text,pais:curPais(),vertical:curVert()})});
     const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
     return (d&&d.chunks)||0;
   }catch(e){ return 0; }
@@ -1331,6 +1342,8 @@ function getImagenes(){ return Object.keys(imageMap); }
    RESPUESTAS RÁPIDAS (FAQ) — responden al instante, 0 tokens de IA
    ============================================================ */
 let FAQS=[];
+let GLOS=[];
+async function loadGlosario(){ if(!sb)return; try{ const {data}=await sb.from('kb_glosario').select('termino,equivalentes,activo').eq('tenant',CONFIG.tenant); GLOS=(data||[]).filter(g=>g.activo!==false); }catch(e){ GLOS=[]; } }
 function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function normFaq(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9ñ ]/g,' ').replace(/\s+/g,' ').trim(); }
 async function loadFaqs(){ if(!sb)return; try{ const {data}=await sb.from('faqs').select('id,disparador,respuesta,activo').eq('tenant',CONFIG.tenant); FAQS=(data||[]).filter(f=>f.activo!==false); }catch(e){ FAQS=[]; } renderFaqs(); }
@@ -1444,7 +1457,7 @@ async function sendMsg(){
   try{
     const {data:{session}}=await sb.auth.getSession();
     const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
-      body:JSON.stringify({cliente_id:s.cliente?s.cliente.usuario:'', cliente:s.cliente||null, analisis:s.cliente?analizar(s.cliente):null, catalogo:s.cliente?BONOS[s.cliente.pais]:null, sala:s.sala||null, comandos:s.sala?COMANDOS:null, pais:s.cliente?s.cliente.pais:(s.sala?'PA':''), tenant:CONFIG.tenant, imagenes:getImagenes(), empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, base:getBase(), mensajes:s.mensajes.map(m=>({role:m.role,content:m.content})), adjuntos:imgs, agente:me.email})});
+      body:JSON.stringify({cliente_id:s.cliente?s.cliente.usuario:'', cliente:s.cliente||null, analisis:s.cliente?analizar(s.cliente):null, catalogo:s.cliente?BONOS[s.cliente.pais]:null, sala:s.sala||null, comandos:s.sala?COMANDOS:null, pais:s.cliente?s.cliente.pais:(s.sala?'PA':''), tenant:CONFIG.tenant, imagenes:getImagenes(), empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, base:getBase(), mensajes:s.mensajes.map(m=>({role:m.role,content:m.content})), adjuntos:imgs, agente:me.email, turno:{pais:turnoPais(),vertical:turnoVert()}, glosario:GLOS})});
     if(!res.ok)throw new Error('Servidor '+res.status);
     const raw=(await res.text()||'').trim();
     if(!raw) throw new Error('el workflow de n8n respondió vacío. En n8n, el webhook "sportium-chat" debe terminar en un nodo «Respond to Webhook» que devuelva {"respuesta":"…"}.');

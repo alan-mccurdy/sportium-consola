@@ -237,6 +237,7 @@
   .ubtn:hover{border-color:var(--bad)} .ubtn.on{color:var(--ok)} .ubtn.on:hover{border-color:var(--ok)}
   .drop{border:1.5px dashed var(--line);border-radius:13px;padding:18px;text-align:center;font-size:13px;color:var(--txt-2);cursor:pointer}
   .drop:hover{border-color:var(--accent);color:var(--accent)}
+  .col-more{font-size:11.5px;color:var(--accent);cursor:pointer;text-align:center;padding:6px;font-weight:700}
   .files{margin-top:10px;display:flex;flex-direction:column;gap:6px}
   .file{display:flex;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px}
   .file .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file .rm{cursor:pointer;color:var(--txt-3);transition:color .15s}
@@ -1347,7 +1348,8 @@ async function loadIndexed(){
 function _q(s){ return (s||'').replace(/'/g,"\\'"); }
 function renderKB(){ const L=$('kbList'); if(!L)return; let h='';
   procesando.forEach(n=>{ h+='<div class="file"><span class="nm">'+n+'</span><span style="color:var(--warn)">procesando…</span></div>'; });
-  IDX.forEach(d=>{ const vert=d.vert||'*'; const cli=d.cli!=null?d.cli:0; const int=d.int!=null?d.int:0; h+='<div class="file"><span class="nm">'+d.name+'</span><span style="color:var(--ok)">✓ '+d.chunks+' trozos &middot; '+vert+' &middot; '+cli+' cliente / '+int+' interno</span><span class="rm" onclick="deleteIndexed(\''+_q(d.name)+'\')">×</span></div>'; });
+  const idxRows = collapsibleList(IDX, d=>{ const vert=d.vert||'*'; const cli=d.cli!=null?d.cli:0; const int=d.int!=null?d.int:0; return '<div class="file"><span class="nm">'+escapeHtml(d.name)+'</span><span style="color:var(--ok)">✓ '+d.chunks+' trozos &middot; '+vert+' &middot; '+cli+' cliente / '+int+' interno</span><span class="rm" onclick="deleteIndexed(\''+_q(d.name)+'\')">×</span></div>'; }, 'kbidx', renderKB);
+  h += idxRows;
   KB.filter(f=>f.img).forEach(f=>{ h+='<div class="file"><span class="nm">'+f.name+'</span><span>imagen</span><span class="rm" onclick="rmImg(\''+_q(f.key)+'\')">×</span></div>'; });
   L.innerHTML=h||'<small style="color:var(--txt-2)">Nada indexado todavía. Sube un documento.</small>';
 }
@@ -1370,6 +1372,18 @@ function getImagenes(){ return Object.keys(imageMap); }
 let FAQS=[];
 let GLOS=[];
 async function loadGlosario(){ if(!sb)return; try{ const {data}=await sb.from('kb_glosario').select('termino,equivalentes,activo').eq('tenant',CONFIG.tenant); GLOS=(data||[]).filter(g=>g.activo!==false); }catch(e){ GLOS=[]; } }
+window.__collapsed = window.__collapsed || {};
+window.__rerender = window.__rerender || {};
+// items: array; renderRow: (item)=>htmlString; key: id estable; rerender: fn que repinta la lista
+function collapsibleList(items, renderRow, key, rerender){
+  window.__rerender[key]=rerender;
+  if(!items.length) return '<small style="color:var(--txt-2)">Sin datos.</small>';
+  const expanded = !!window.__collapsed[key+'__exp'];
+  const shown = expanded ? items : items.slice(0,5);
+  let h = shown.map(renderRow).join('');
+  if(items.length>5){ const more=items.length-5; h += '<div class="col-more" onclick="window.__collapsed[\''+key+'__exp\']=!window.__collapsed[\''+key+'__exp\']; (window.__rerender[\''+key+'\']||function(){})()">'+(expanded?'ver menos':('ver '+more+' más'))+'</div>'; }
+  return h;
+}
 function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function normFaq(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9ñ ]/g,' ').replace(/\s+/g,' ').trim(); }
 async function loadFaqs(){ if(!sb)return; try{ const {data}=await sb.from('faqs').select('id,disparador,respuesta,activo').eq('tenant',CONFIG.tenant); FAQS=(data||[]).filter(f=>f.activo!==false); }catch(e){ FAQS=[]; } renderFaqs(); }

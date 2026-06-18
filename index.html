@@ -483,6 +483,7 @@ const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const WEBHOOK       = "https://n8n-production-aff6.up.railway.app/webhook/sportium-chat";
 const ADMIN_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/sportium-admin";
 const INGEST_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/kb-ingest";
+const REPORTE_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/intel-reporte";
 const CLASSIFY_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/kb-classify";
 const LOGIN_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/request-login";
 const FETCHURL_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/fetch-url";
@@ -1110,7 +1111,12 @@ async function reportarIA(i){
   const s=activeS(); if(!s||!s.mensajes[i])return;
   let pregunta=''; for(let k=i-1;k>=0;k--){ if(s.mensajes[k].role==='user'){ pregunta=(s.mensajes[k].content||'').trim(); break; } }
   const respuesta=(s.mensajes[i].content||'').trim();
-  try{ await logAudit('reporte_ia',{pregunta:pregunta.slice(0,500),respuesta:respuesta.slice(0,1000)}); alert('👎 Reportado. El admin lo revisará y corregirá. ¡Gracias!'); }
+  try{
+    await logAudit('reporte_ia',{pregunta:pregunta.slice(0,500),respuesta:respuesta.slice(0,1000)});
+    const lid=s.mensajes[i].log_id;
+    if(lid){ try{ const {data:{session}}=await sb.auth.getSession(); await fetch(REPORTE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({log_id:lid})}); }catch(e){} }
+    alert('👎 Reportado. El admin lo revisará y corregirá. ¡Gracias!');
+  }
   catch(e){ alert('No se pudo reportar: '+(e.message||e)); }
 }
 /* Admin: lista de respuestas reportadas (lee audit_log) para corregirlas */
@@ -1489,7 +1495,7 @@ async function sendMsg(){
     const d=Array.isArray(data)?data[0]:data;
     const r=(d&&(d.respuesta||d.output||d.text||d.message))||'…';
     if(d&&d.modelo) trackUsage(d.modelo, d.tokens);
-    s.mensajes.push({role:'assistant',content:r});
+    s.mensajes.push({role:'assistant',content:r,log_id:(d&&d.log_id)||null});
     if(autocopy){ const sug=extraerSugerida(r); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); }
   }catch(e){ s.mensajes.push({role:'assistant',content:'(No pude responder: '+e.message+')'}); }
   finally{ $('typing').classList.remove('on'); $('send').disabled=false; renderChat(); }

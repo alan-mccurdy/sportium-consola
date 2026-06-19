@@ -1295,10 +1295,10 @@ async function addFiles(files){
   logAudit('upload_kb',{n:files.length});
 }
 /* RAG: manda el documento al backend para trocearlo + indexarlo (embeddings en Supabase) */
-async function ingestKB(name,text){
+async function ingestKB(name,text,pais,vertical){
   try{ const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(INGEST_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
-      body:JSON.stringify({tenant:CONFIG.tenant,doc_name:name,text:text,pais:curPais(),vertical:curVert()})});
+      body:JSON.stringify({tenant:CONFIG.tenant,doc_name:name,text:text,pais:pais||curPais(),vertical:vertical||curVert()})});
     const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
     return (d&&d.chunks)||0;
   }catch(e){ return 0; }
@@ -1509,7 +1509,22 @@ async function loadIntelResumen(){ const el=$('intelMetricas'); if(!el)return; e
       +'<div class="fld" style="margin-top:10px">Uso de IA por modelo</div><small style="color:var(--txt-2)">'+modelos+'</small>';
   }catch(e){ el.innerHTML='<small style="color:var(--bad)">No se pudo cargar el resumen.</small>'; }
 }
-async function loadIntelHuecos(){}
+async function loadIntelHuecos(){ const el=$('intelHuecos'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
+  try{ const {data,error}=await sb.rpc('intel_huecos',{match_tenant:CONFIG.tenant,dias:intelDias,limite:50}); if(error)throw error; const rows=data||[];
+    const esc=s=>String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    el.innerHTML=collapsibleList(rows, h=>{ const q=escapeHtml((h.pregunta||'').slice(0,140)); const pv=(h.pais||'*')+'/'+(h.vertical||'*'); const qa=esc(h.pregunta), pa=esc(h.pais), va=esc(h.vertical); return '<div class="uitem" style="flex-direction:column;align-items:stretch;gap:5px"><div style="font-size:12px"><b>'+q+'</b></div><div style="font-size:11px;color:var(--txt-2)">'+pv+' · '+escapeHtml(h.motivo||'')+' · ×'+h.veces+'</div><button class="ubtn" style="color:var(--accent)" onclick="ensenarHueco(\''+qa+'\',\''+pa+'\',\''+va+'\')">Enseñar</button></div>'; }, 'huecos', loadIntelHuecos);
+  }catch(e){ el.innerHTML='<small style="color:var(--bad)">No se pudo cargar.</small>'; }
+}
+async function ensenarHueco(pregunta,pais,vertical){ if(!isAdmin())return; pregunta=(pregunta||'').trim(); if(!pregunta)return;
+  const resp=prompt('Respuesta CORRECTA para: "'+pregunta+'"'); if(resp===null)return; const r=resp.trim(); if(!r){ alert('Escribe la respuesta correcta.'); return; }
+  try{ const {data:{session}}=await sb.auth.getSession();
+    if(!session) throw new Error('sesion expirada, recarga la pagina');
+    const res=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador:pregunta,respuesta:r,fuente:'hueco'})});
+    const j=await res.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j; if(d&&d.ok===false)throw new Error(d.error||'no se pudo');
+    ingestKB('Hueco: '+pregunta.slice(0,60),'Pregunta: '+pregunta+'\nRespuesta correcta: '+r, pais||undefined, vertical||undefined).catch(()=>{});
+    alert('✅ Aprendido. La próxima vez responderá la versión correcta.'); loadIntel();
+  }catch(e){ alert('No se pudo: '+(e.message||e)); }
+}
 async function loadIntelCobertura(){}
 $('ctxSave').onclick=saveContext;
 if($('ctxPais')) $('ctxPais').onchange=onSlotChange;

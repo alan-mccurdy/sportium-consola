@@ -324,6 +324,7 @@
         <button class="ic" id="teamBtn" title="Chat de equipo" onclick="openTeam()" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span id="teamDot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#E2001A"></span></button>
         <button class="ic" id="retailBtn" title="Salas Retail · IPs / VNC / PuTTY" onclick="openRetail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M6 8l3 2-3 2M13.5 12H17"/></svg></button>
         <button class="ic realadminonly" id="demoBtn" title="Ver como agente (demo)" onclick="toggleDemo()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button class="ic" id="toolsBtn" title="Mis herramientas" onclick="openTools()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4l-6 6a1.4 1.4 0 0 0 2 2l6-6a4 4 0 0 0 5.4-5.4l-2.5 2.5-2-2z"/></svg></button>
         <button class="ic adminonly" id="intelBtn" title="Panel de Inteligencia" onclick="openIntel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg></button>
         <button class="ic adminonly" id="adminBtn" title="Panel de administración" onclick="openPanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
         <button class="ic" id="clearBtn" title="Limpiar esta conversación" onclick="limpiarChat()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg></button>
@@ -467,6 +468,15 @@
   <div class="sec"><div id="intelMetricas"></div></div>
   <div class="sec"><div class="fld">Huecos de conocimiento</div><div id="intelHuecos"></div></div>
   <div class="sec"><div class="fld">Cobertura de la base (por país × vertical × audiencia)</div><div id="intelCobertura"></div></div>
+</aside>
+
+<!-- ===== MIS HERRAMIENTAS (todos los agentes) ===== -->
+<div class="overlay" id="toolsOverlay" onclick="closeTools()"></div>
+<aside class="panel wide" id="toolsPanel">
+  <div class="phead"><b>Mis herramientas</b><span class="rm" onclick="closeTools()" style="margin-left:auto;cursor:pointer">&times;</span></div>
+  <div class="sec"><div class="fld">Plantillas</div><div id="toolsPlantillas"></div></div>
+  <div class="sec"><div class="fld">Mis favoritas</div><div id="toolsFavoritas"></div></div>
+  <div class="sec"><div class="fld">Mi historial</div><div id="toolsHistorial"></div></div>
 </aside>
 
 <!-- ===== CHAT DE EQUIPO (privado) ===== -->
@@ -1511,6 +1521,16 @@ function closeRetail(){ $('retailOverlay').classList.remove('on'); $('retailPane
 let intelDias=7;
 function openIntel(){ if(!isAdmin())return; $('intelOverlay').classList.add('on'); $('intelPanel').classList.add('on'); loadIntel(); }
 function closeIntel(){ $('intelOverlay').classList.remove('on'); $('intelPanel').classList.remove('on'); }
+function openTools(){ if(!me){ gateShow(); return; } $('toolsOverlay').classList.add('on'); $('toolsPanel').classList.add('on'); loadTools(); }
+function closeTools(){ $('toolsOverlay').classList.remove('on'); $('toolsPanel').classList.remove('on'); }
+async function loadTools(){ if(!sb)return; await Promise.all([loadToolsPlantillas(), loadToolsFavoritas(), loadToolsHistorial()]); }
+async function loadToolsPlantillas(){ const el=$('toolsPlantillas'); if(!el)return; await loadPlantillas(); el.innerHTML=collapsibleList(MISPLANTILLAS, p=>'<div class="uitem"><div style="flex:1;min-width:0"><div class="nm">'+escapeHtml(p.nombre)+'</div><small style="color:var(--txt-2)">'+escapeHtml((p.texto||'').slice(0,60))+'</small></div><button class="ubtn" onclick="delPlantilla('+p.id+')">Borrar</button></div>', 'tpl', loadToolsPlantillas); }
+async function loadToolsFavoritas(){ const el=$('toolsFavoritas'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando...</small>'; try{ const {data}=await sb.from('agente_favoritos').select('id,pregunta,respuesta').order('created_at',{ascending:false}); const rows=data||[]; el.innerHTML=collapsibleList(rows, f=>'<div class="uitem" style="flex-direction:column;align-items:stretch;gap:5px"><div style="font-size:12px"><b>'+escapeHtml((f.pregunta||'(sin pregunta)').slice(0,90))+'</b></div><div style="font-size:11px;color:var(--txt-2)">'+escapeHtml((f.respuesta||'').slice(0,120))+'...</div><div style="display:flex;gap:6px"><button class="ubtn" style="color:var(--accent)" onclick="usarFav('+f.id+')">Copiar respuesta</button><button class="ubtn" onclick="delFav('+f.id+')">Borrar</button></div></div>', 'fav', loadToolsFavoritas); }catch(e){ el.innerHTML='<small style="color:var(--bad)">No se pudo cargar.</small>'; } }
+async function loadToolsHistorial(){ const el=$('toolsHistorial'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando...</small>'; try{ const {data}=await sb.from('consultas_log').select('pregunta,respondio_ok,created_at').order('created_at',{ascending:false}).limit(30); const rows=data||[]; el.innerHTML=collapsibleList(rows, r=>{ const q=(r.pregunta||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); return '<div class="uitem"><div style="flex:1;min-width:0"><span class="nm">'+escapeHtml((r.pregunta||'').slice(0,80))+'</span></div>'+(r.respondio_ok?'':'<span style="font-size:11px;color:var(--bad)">hueco</span>')+'<button class="ubtn" onclick="rePreguntar(\''+q+'\')">Re-preguntar</button></div>'; }, 'hist', loadToolsHistorial); }catch(e){ el.innerHTML='<small style="color:var(--bad)">No se pudo cargar.</small>'; } }
+async function delPlantilla(id){ if(!confirm('Borrar esta plantilla?'))return; try{ await sb.from('agente_plantillas').delete().eq('id',id); await loadToolsPlantillas(); renderChips(); }catch(e){ alert('No se pudo: '+(e.message||e)); } }
+async function usarFav(id){ try{ const {data}=await sb.from('agente_favoritos').select('respuesta').eq('id',id).single(); if(data&&data.respuesta){ navigator.clipboard.writeText(data.respuesta).then(()=>toast('Respuesta copiada')).catch(()=>toast('Copia manual')); } }catch(e){} }
+async function delFav(id){ if(!confirm('Borrar esta favorita?'))return; try{ await sb.from('agente_favoritos').delete().eq('id',id); await loadToolsFavoritas(); }catch(e){ alert('No se pudo: '+(e.message||e)); } }
+function rePreguntar(q){ closeTools(); const inp=$('input'); if(inp){ inp.value=q; inp.focus(); } }
 function setIntelDias(v){ intelDias=parseInt(v,10)||7; loadIntel(); }
 async function loadIntel(){ if(!sb||!isAdmin())return; await Promise.all([loadIntelResumen(), loadIntelHuecos(), loadIntelCobertura()]); }
 async function loadIntelResumen(){ const el=$('intelMetricas'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';

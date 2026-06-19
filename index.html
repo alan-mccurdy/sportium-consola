@@ -83,6 +83,9 @@
   .msg:hover .msgteach{opacity:1} @media(hover:none){.msgteach{opacity:.55}}
   .msgrep{position:absolute;top:-7px;right:42px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:1px solid var(--line);font-size:10px;line-height:18px;text-align:center;cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow)}
   .msg:hover .msgrep{opacity:1} @media(hover:none){.msgrep{opacity:.55}}
+  .msgsave{position:absolute;top:-7px;right:66px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--txt-2);cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow);display:grid;place-items:center}
+  .msg:hover .msgsave{opacity:1} @media(hover:none){.msgsave{opacity:.55}}
+  .msgsave svg{width:11px;height:11px}
   .msg.ai{align-self:flex-start;background:var(--bubble-ai);border-bottom-left-radius:5px}
   .msg.me{align-self:flex-end;background:var(--bubble-me);color:var(--bubble-me-txt);border-bottom-right-radius:5px}
   .msg img{max-width:240px;width:100%;border-radius:12px;margin:6px 0;display:block}
@@ -1105,7 +1108,7 @@ function renderContent(text){ let t=esc(text);
   return t.replace(/\n/g,'<br>'); }
 function renderChat(){
   const c=$('chat'); c.querySelectorAll('.msg').forEach(e=>e.remove());
-  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); if(m.role==='assistant') h+='<span class="msgrep" title="Reportar respuesta incorrecta" onclick="reportarIA('+i+')">👎</span>'; if(m.role==='assistant'&&isAdmin()) h+='<span class="msgteach" title="Corregir / Enseñar a la IA" onclick="ensenar('+i+')">✏️</span>'; h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
+  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); if(m.role==='assistant') h+='<span class="msgrep" title="Reportar respuesta incorrecta" onclick="reportarIA('+i+')">👎</span>'; if(m.role==='assistant') h+='<span class="msgsave" title="Guardar en mis favoritas" onclick="guardarFav('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>'; if(m.role==='assistant'&&isAdmin()) h+='<span class="msgteach" title="Corregir / Enseñar a la IA" onclick="ensenar('+i+')">✏️</span>'; h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
   c.appendChild($('typing')); c.scrollTop=c.scrollHeight;
 }
 function delMsg(i){ const s=activeS(); if(!s||!s.mensajes[i])return; s.mensajes.splice(i,1); renderChat(); }
@@ -1134,6 +1137,8 @@ async function ensenar(i){
     alert('✅ Aprendido. La próxima vez que pregunten esto, responderá la versión correcta.');
   }catch(e){ alert('No se pudo enseñar: '+(e.message||e)); }
 }
+/* Guardar respuesta de la IA en favoritas del agente */
+async function guardarFav(i){ const s=activeS(); if(!s||!s.mensajes[i])return; let pregunta=''; for(let k=i-1;k>=0;k--){ if(s.mensajes[k].role==='user'){ pregunta=(s.mensajes[k].content||'').trim(); break; } } const respuesta=(s.mensajes[i].content||'').trim(); if(!respuesta)return; try{ await sb.from('agente_favoritos').insert({pregunta:pregunta.slice(0,2000),respuesta:respuesta.slice(0,4000)}); toast('Guardado en favoritas'); }catch(e){ alert('No se pudo guardar: '+(e.message||e)); } }
 /* 👎 Reportar respuesta de la IA -> queda en audit_log para que el admin la revise/corrija */
 async function reportarIA(i){
   const s=activeS(); if(!s||!s.mensajes[i])return;

@@ -1525,7 +1525,12 @@ async function ensenarHueco(pregunta,pais,vertical){ if(!isAdmin())return; pregu
     alert('✅ Aprendido. La próxima vez responderá la versión correcta.'); loadIntel();
   }catch(e){ alert('No se pudo: '+(e.message||e)); }
 }
-async function loadIntelCobertura(){}
+async function loadIntelCobertura(){ const el=$('intelCobertura'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
+  try{ const {data,error}=await sb.rpc('intel_cobertura',{match_tenant:CONFIG.tenant}); if(error)throw error; const rows=data||[];
+    el.innerHTML=collapsibleList(rows, c=>{ const cell=(c.pais||'*')+' · '+(c.vertical||'*')+' · '+(c.audiencia||'?'); const low=c.trozos<3; return '<div class="uitem"><div style="flex:1"><span class="nm">'+escapeHtml(cell)+'</span></div><span style="font-size:12px;color:'+(low?'var(--bad)':'var(--txt-2)')+'">'+c.trozos+' trozos</span><button class="ubtn" onclick="agregarInfoHueco(\''+(c.pais||'')+'\',\''+(c.vertical||'')+'\')">Agregar info</button></div>'; }, 'cobertura', loadIntelCobertura);
+  }catch(e){ el.innerHTML='<small style="color:var(--bad)">No se pudo cargar.</small>'; }
+}
+function agregarInfoHueco(pais,vertical){ closeIntel(); openPanel(); try{ if(pais&&$('ctxPais'))$('ctxPais').value=pais; if(vertical&&$('ctxVert'))$('ctxVert').value=vertical; if(typeof onSlotChange==='function')onSlotChange(); }catch(e){} const box=$('ctxBonos'); if(box){ box.focus(); box.scrollIntoView({behavior:'smooth',block:'center'}); } }
 $('ctxSave').onclick=saveContext;
 if($('ctxPais')) $('ctxPais').onchange=onSlotChange;
 if($('ctxVert')) $('ctxVert').onchange=onSlotChange;

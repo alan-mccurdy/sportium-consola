@@ -101,6 +101,12 @@
   .acitem .flag{width:17px;height:12px;border-radius:2px;border:1px solid rgba(0,0,0,.18);flex-shrink:0}
   .acitem .acico{width:17px;display:grid;place-items:center;color:var(--accent);flex-shrink:0}.acitem .acico .pxi{width:13px;height:13px}
   .acitem small{color:var(--txt-2)}
+  .chipbar{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+  .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--surface);color:var(--txt);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;transition:border-color .15s,background .15s}
+  .chip:hover{border-color:var(--accent);color:var(--accent)}
+  .chip.add{border-style:dashed;color:var(--txt-2)}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--txt);color:var(--bg);font-size:13px;font-weight:600;padding:9px 16px;border-radius:10px;box-shadow:var(--shadow);opacity:0;transition:opacity .2s;z-index:90;pointer-events:none}
+  .toast.on{opacity:.95}
   .cbox{display:flex;align-items:flex-end;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:7px 7px 7px 16px}
   .cbox:focus-within{border-color:var(--accent)}
   .cbox textarea{flex:1;border:none;background:transparent;resize:none;font-family:inherit;font-size:14px;color:var(--txt);max-height:110px;padding:7px 0;line-height:1.45}
@@ -332,6 +338,7 @@
         <input id="search" placeholder="Buscar cliente (usuario/correo/cédula) o sala (número/ciudad)…" autocomplete="off">
       </div>
       <div class="attach" id="attach"></div>
+      <div class="chipbar" id="chipbar"></div>
       <div class="cbox">
         <button class="att-btn" id="attBtn" title="Adjuntar imagen (o pega con Ctrl+V)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 11.05 12.25 20.2a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.19 9.19a1 1 0 0 1-1.41-1.41l8.48-8.49"/></svg></button>
         <input type="file" id="attFile" accept="image/*" multiple style="display:none">
@@ -561,6 +568,7 @@ async function handleSession(session){
   await loadKB();
   loadFaqs();
   loadGlosario();
+  loadPlantillas();
   loadGlos();
   initTeam();
   logAudit('login',{});
@@ -1390,6 +1398,11 @@ function getImagenes(){ return Object.keys(imageMap); }
    ============================================================ */
 let FAQS=[];
 let GLOS=[];
+let MISPLANTILLAS=[];
+async function loadPlantillas(){ if(!sb)return; try{ const {data}=await sb.from('agente_plantillas').select('id,nombre,texto,orden').order('orden',{ascending:true}); MISPLANTILLAS=data||[]; }catch(e){ MISPLANTILLAS=[]; } renderChips(); }
+function renderChips(){ const el=$('chipbar'); if(!el)return; let h=MISPLANTILLAS.map(p=>'<button class="chip" title="Copiar para pegar al cliente" onclick="usarPlantilla('+p.id+')">'+escapeHtml(p.nombre)+'</button>').join(''); h+='<button class="chip add" title="Nueva plantilla" onclick="addPlantilla()">+ plantilla</button>'; el.innerHTML=h; }
+function usarPlantilla(id){ const p=MISPLANTILLAS.find(x=>x.id===id); if(!p)return; navigator.clipboard.writeText(p.texto).then(()=>toast('Plantilla copiada')).catch(()=>{ toast('Copia manual: '+p.texto.slice(0,40)+'...'); }); }
+async function addPlantilla(){ const nombre=prompt('Nombre del chip (ej. Saludo, Pedir cedula):'); if(nombre===null)return; const n=nombre.trim(); if(!n)return; const texto=prompt('Texto que se copiara al cliente:'); if(texto===null)return; const t=texto.trim(); if(!t)return; try{ const orden=MISPLANTILLAS.length; await sb.from('agente_plantillas').insert({nombre:n,texto:t,orden}); await loadPlantillas(); toast('Plantilla creada'); }catch(e){ alert('No se pudo crear: '+(e.message||e)); } }
 async function loadGlosario(){ if(!sb)return; try{ const {data}=await sb.from('kb_glosario').select('termino,equivalentes,activo').eq('tenant',CONFIG.tenant); GLOS=(data||[]).filter(g=>g.activo!==false); }catch(e){ GLOS=[]; } }
 window.__collapsed = window.__collapsed || {};
 window.__rerender = window.__rerender || {};
@@ -1404,6 +1417,8 @@ function collapsibleList(items, renderRow, key, rerender){
   return h;
 }
 function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+let __toastT=null;
+function toast(msg){ let el=$('toastBox'); if(!el){ el=document.createElement('div'); el.id='toastBox'; el.className='toast'; document.body.appendChild(el); } el.textContent=msg; el.classList.add('on'); clearTimeout(__toastT); __toastT=setTimeout(()=>el.classList.remove('on'),1600); }
 function normFaq(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9ñ ]/g,' ').replace(/\s+/g,' ').trim(); }
 async function loadFaqs(){ if(!sb)return; try{ const {data}=await sb.from('faqs').select('id,disparador,respuesta,activo').eq('tenant',CONFIG.tenant); FAQS=(data||[]).filter(f=>f.activo!==false); }catch(e){ FAQS=[]; } renderFaqs(); }
 function matchFaq(text){ const t=normFaq(text); if(!t)return null; for(const f of FAQS){ const words=normFaq(f.disparador).split(' ').filter(w=>w.length>=3); if(words.length && words.every(w=>t.includes(w))) return f; } return null; }

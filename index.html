@@ -83,6 +83,7 @@
   .msg:hover .msgteach{opacity:1} @media(hover:none){.msgteach{opacity:.55}}
   .msgrep{position:absolute;top:-7px;right:42px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:1px solid var(--line);font-size:10px;line-height:18px;text-align:center;cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow)}
   .msg:hover .msgrep{opacity:1} @media(hover:none){.msgrep{opacity:.55}}
+  .msgrep,.msgteach{display:grid;place-items:center} .msgrep svg,.msgteach svg{width:11px;height:11px}
   .msgsave{position:absolute;top:-7px;right:66px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--txt-2);cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow);display:grid;place-items:center}
   .msg:hover .msgsave{opacity:1} @media(hover:none){.msgsave{opacity:.55}}
   .msgsave svg{width:11px;height:11px}
@@ -366,7 +367,7 @@
 
   <!-- Contexto de la IA -->
   <div class="sec">
-    <h4>🧠 Contexto de la IA (en vivo)</h4>
+    <h4>Contexto de la IA (en vivo)</h4>
     <div class="hint">Lo que escribas aquí se aplica de inmediato a las respuestas de la IA. Úsalo para corregir datos (p. ej. condiciones de un bono) sin tocar el flujo.</div>
     <div class="fld">Instrucciones generales (aplican a todos los países)</div>
     <textarea class="ta" id="ctxPrompt" placeholder="Ej. Tono cordial, siempre verificar KYC antes de hablar de retiros…"></textarea>
@@ -374,10 +375,10 @@
     <div class="hint">Elige país (o <b>Todos</b>) y vertiente, escribe la info y dale <b>Agregar</b>: se <b>indexa en la base y genera FAQs</b> (respuestas a 0 tokens). El texto <b>no se queda pegado</b> aquí: cada vez que agregas, se suma a la base.</div>
     <div style="display:flex;gap:8px;margin-bottom:7px">
       <select class="in" id="ctxPais" style="flex:1">
-        <option value="ALL">🌎 Todos los países</option>
-        <option value="MX">🇲🇽 México</option>
-        <option value="PA">🇵🇦 Panamá</option>
-        <option value="CO">🇨🇴 Colombia</option>
+        <option value="ALL">Todos los países</option>
+        <option value="MX">México</option>
+        <option value="PA">Panamá</option>
+        <option value="CO">Colombia</option>
       </select>
       <select class="in" id="ctxVert" style="flex:1">
         <option value="online">Online (clientes externos)</option>
@@ -393,7 +394,7 @@
 
   <!-- Usuarios -->
   <div class="sec">
-    <h4>👤 Usuarios del equipo</h4>
+    <h4>Usuarios del equipo</h4>
     <div class="hint">Da de alta a un agente por correo. Recibirá un enlace de acceso (sin contraseña).</div>
     <input class="in" id="newEmail" type="email" placeholder="correo del agente" style="margin-bottom:7px">
     <input class="in" id="newName" placeholder="nombre (opcional)">
@@ -403,7 +404,7 @@
 
   <!-- Respuestas reportadas -->
   <div class="sec">
-    <h4>🔎 Respuestas reportadas (👎)</h4>
+    <h4>Respuestas reportadas</h4>
     <div class="hint">Lo que los agentes marcan como incorrecto. Corrige una y la IA aprende (queda como FAQ, 0 tokens).</div>
     <div class="btnrow"><button class="btn" id="repLoad">Cargar reportes</button><span class="savemsg" id="repMsg"></span></div>
     <div class="ulist" id="repList"></div>
@@ -411,7 +412,7 @@
 
   <!-- Base de conocimientos -->
   <div class="sec">
-    <h4>📁 Base de conocimientos</h4>
+    <h4>Base de conocimientos</h4>
     <div class="hint">Sube un documento: se <b>envía y se indexa en la base de datos</b> (no se queda guardado en la página). Abajo ves el estado REAL leído de la base, con cuántos trozos quedaron y sin duplicar.</div>
     <div class="drop" id="drop">Arrastra o sube documentos (PDF, TXT, MD) · o imágenes para [IMG:]</div>
     <input type="file" id="kbFile" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.gif,.webp,image/*" multiple style="display:none">
@@ -429,7 +430,7 @@
 
   <!-- Respuestas rápidas (FAQ) -->
   <div class="sec">
-    <h4>⚡ Respuestas rápidas (ahorran tokens)</h4>
+    <h4>Respuestas rápidas (ahorran tokens)</h4>
     <div class="hint">Si la pregunta del agente contiene TODAS las palabras del disparador, la consola responde al instante con tu texto, <b>sin gastar IA</b>. Ideal para las dudas más repetidas.</div>
     <input class="in" id="faqTrigger" placeholder="disparador (palabras clave, ej. bono bienvenida colombia)" style="margin-bottom:6px">
     <textarea class="ta" id="faqAnswer" placeholder="respuesta lista que verá el agente…"></textarea>
@@ -462,7 +463,7 @@
 <!-- ===== PANEL DE INTELIGENCIA (solo admin) ===== -->
 <div class="overlay" id="intelOverlay" onclick="closeIntel()"></div>
 <aside class="panel wide" id="intelPanel">
-  <div class="phead"><b>📊 Inteligencia</b>
+  <div class="phead"><b>Inteligencia</b>
     <select class="in mini" id="intelDiasSel" onchange="setIntelDias(this.value)"><option value="1">Hoy</option><option value="7" selected>7 días</option><option value="30">30 días</option></select>
     <span class="rm" onclick="closeIntel()" style="margin-left:auto;cursor:pointer">×</span></div>
   <div class="sec"><div id="intelMetricas"></div></div>
@@ -500,7 +501,7 @@
 <div class="overlay" id="teamOverlay" onclick="closeTeam()"></div>
 <aside class="panel" id="teampanel">
   <div class="tc-top">
-    <h3>💬 Chat de equipo</h3>
+    <h3>Chat de equipo</h3>
     <button class="ic adminonly" id="tcClearBtn" title="Borrar toda la conversación" onclick="clearTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     <button class="ic" title="Cerrar" onclick="closeTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
   </div>
@@ -612,7 +613,7 @@ $('authMagic').onclick=async()=>{
     // pasa por el backend: solo envía el enlace si el agente está dado de alta y ACTIVO
     const r=await fetch(LOGIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,redirect:location.href.split(/[?#]/)[0]})});
     const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
-    if(d&&d.ok){ authMsg('✅ Te envié un enlace a '+email+'. Ábrelo desde este dispositivo.'); }
+    if(d&&d.ok){ authMsg('Te envié un enlace a '+email+'. Ábrelo desde este dispositivo.'); }
     else{ const M={bloqueado:'Tu cuenta está bloqueada. Contacta al administrador.',no_invitado:'Ese correo no está dado de alta. Pide acceso al administrador.',limite:'Llegaste al límite de enlaces por hoy. Intenta mañana.',email:'Correo inválido.'}; authMsg(M[d&&d.reason]||'No se pudo enviar el enlace. Intenta de nuevo en un momento.',true); }
   }catch(e){ authMsg('Error de conexión. Intenta de nuevo.',true); }
   finally{ $('authMagic').disabled=false; }
@@ -675,7 +676,7 @@ async function saveContext(){
     if(r.error){ r=await sb.from('ai_context').update({system_prompt:ctxCache.system_prompt, bonos_notes:paisesJSON, updated_at:new Date().toISOString(), updated_by:me.id}).eq('id',1); }
     err=r.error;
   }catch(e){ err=e; } }
-  $('ctxSave').disabled=false; $('ctxMsg').textContent = err? 'Guardado en este equipo ✓ (sin sincronizar al equipo)' : '✅ Guardado y sincronizado';
+  $('ctxSave').disabled=false; $('ctxMsg').textContent = err? 'Guardado en este equipo (sin sincronizar al equipo)' : 'Guardado y sincronizado';
   logAudit('edit_context',{}); setTimeout(()=>$('ctxMsg').textContent='',3000);
 }
 
@@ -694,7 +695,7 @@ async function createUser(){
     if(!res.ok)throw new Error('Servidor '+res.status);
     const j=await res.json().catch(()=>({}));
     if(j&&j.ok===false) throw new Error(j.error||'No se pudo enviar la invitación. Revisa el correo (SMTP) en Supabase.');
-    $('userMsg').textContent='✅ Invitado: '+email; $('newEmail').value='';$('newName').value='';
+    $('userMsg').textContent='Invitado: '+email; $('newEmail').value='';$('newName').value='';
     logAudit('create_user',{email}); loadUsers();
   }catch(e){ $('userMsg').textContent='Error: '+e.message; }
   finally{ $('userCreate').disabled=false; setTimeout(()=>$('userMsg').textContent='',3000); }
@@ -1118,7 +1119,7 @@ function renderContent(text){ let t=esc(text);
   return t.replace(/\n/g,'<br>'); }
 function renderChat(){
   const c=$('chat'); c.querySelectorAll('.msg').forEach(e=>e.remove());
-  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); if(m.role==='assistant') h+='<span class="msgrep" title="Reportar respuesta incorrecta" onclick="reportarIA('+i+')">👎</span>'; if(m.role==='assistant') h+='<span class="msgsave" title="Guardar en mis favoritas" onclick="guardarFav('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>'; if(m.role==='assistant'&&isAdmin()) h+='<span class="msgteach" title="Corregir / Enseñar a la IA" onclick="ensenar('+i+')">✏️</span>'; h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
+  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); if(m.role==='assistant') h+='<span class="msgrep" title="Reportar respuesta incorrecta" onclick="reportarIA('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2H7.3a2 2 0 0 0-2 1.7L4 12a2 2 0 0 0 2 2.3h4l-1 5a2 2 0 0 0 3.6 1.2L17 14"/><path d="M17 2v12"/></svg></span>'; if(m.role==='assistant') h+='<span class="msgsave" title="Guardar en mis favoritas" onclick="guardarFav('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>'; if(m.role==='assistant'&&isAdmin()) h+='<span class="msgteach" title="Corregir / Enseñar a la IA" onclick="ensenar('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>'; h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
   c.appendChild($('typing')); c.scrollTop=c.scrollHeight;
 }
 function delMsg(i){ const s=activeS(); if(!s||!s.mensajes[i])return; s.mensajes.splice(i,1); renderChat(); }
@@ -1144,7 +1145,7 @@ async function ensenar(i){
     // 2) indexar en la KB (para preguntas parecidas via RAG)
     ingestKB('Correccion: '+pregunta.slice(0,60), 'Pregunta: '+pregunta+'\nRespuesta correcta: '+resp).catch(()=>{});
     await loadFaqs();
-    alert('✅ Aprendido. La próxima vez que pregunten esto, responderá la versión correcta.');
+    alert('Aprendido. La próxima vez que pregunten esto, responderá la versión correcta.');
   }catch(e){ alert('No se pudo enseñar: '+(e.message||e)); }
 }
 /* Guardar respuesta de la IA en favoritas del agente */
@@ -1158,7 +1159,7 @@ async function reportarIA(i){
     await logAudit('reporte_ia',{pregunta:pregunta.slice(0,500),respuesta:respuesta.slice(0,1000)});
     const lid=s.mensajes[i].log_id;
     if(lid){ try{ const {data:{session}}=await sb.auth.getSession(); await fetch(REPORTE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({log_id:lid})}); }catch(e){} }
-    alert('👎 Reportado. El admin lo revisará y corregirá. ¡Gracias!');
+    alert('Reportado. El admin lo revisará y corregirá. ¡Gracias!');
   }
   catch(e){ alert('No se pudo reportar: '+(e.message||e)); }
 }
@@ -1176,7 +1177,7 @@ async function ensenarReporte(pregunta){ if(!isAdmin())return; pregunta=(pregunt
     const res=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador:pregunta,respuesta:r,fuente:'correccion'})});
     const j=await res.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j; if(d&&d.ok===false)throw new Error(d.error||'no se pudo');
     ingestKB('Correccion: '+pregunta.slice(0,60),'Pregunta: '+pregunta+'\nRespuesta correcta: '+r).catch(()=>{});
-    await loadFaqs(); alert('✅ Aprendido. La próxima vez responderá la versión correcta.');
+    await loadFaqs(); alert('Aprendido. La próxima vez responderá la versión correcta.');
   }catch(e){ alert('No se pudo: '+(e.message||e)); }
 }
 function renderAll(){ renderTabs(); renderPanel(); renderChat(); }
@@ -1249,10 +1250,10 @@ async function indexFromUrl(){
     const [n,clas]=await Promise.all([ ingestKB(name,d.text), classifyKB(name,d.text) ]);
     procesando=procesando.filter(p=>p!==name); await loadIndexed();
     const real=IDX.find(x=>x.name===name);
-    if(real&&real.chunks>0){ kbStatus('✅ "'+name+'": '+real.chunks+' trozos en la base'+(clas?' · país y FAQs actualizados':'')+'. Se re-leerá cada día.','ok'); $('kbUrl').value='';
+    if(real&&real.chunks>0){ kbStatus('"'+name+'": '+real.chunks+' trozos en la base'+(clas?' · país y FAQs actualizados':'')+'. Se re-leerá cada día.','ok'); $('kbUrl').value='';
       try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'source_save',tenant:CONFIG.tenant,url,doc_name:name})}); }catch(e){}
     }
-    else kbStatus('⚠️ No quedó en la base (posible cupo de embeddings).','err');
+    else kbStatus('No quedó en la base (posible cupo de embeddings).','err');
   }catch(e){ procesando=procesando.filter(p=>p!==name); kbStatus('Error: '+(e.message||e),'err'); }
   finally{ $('kbUrlBtn').disabled=false; }
 }
@@ -1267,8 +1268,8 @@ async function indexNote(){
     const [n,clas]=await Promise.all([ ingestKB(name,text), classifyKB(name,text) ]);
     procesando=procesando.filter(p=>p!==name); await loadIndexed();
     const real=IDX.find(d=>d.name===name);
-    if(real&&real.chunks>0){ kbStatus('✅ "'+name+'": '+real.chunks+' trozos en la base'+(clas?' · repartido por país':'')+'. Sin duplicar.','ok'); $('kbNoteText').value=''; $('kbNoteName').value=''; }
-    else kbStatus('⚠️ No quedó en la base (posible cupo de embeddings). Intenta de nuevo.','err');
+    if(real&&real.chunks>0){ kbStatus('"'+name+'": '+real.chunks+' trozos en la base'+(clas?' · repartido por país':'')+'. Sin duplicar.','ok'); $('kbNoteText').value=''; $('kbNoteName').value=''; }
+    else kbStatus('No quedó en la base (posible cupo de embeddings). Intenta de nuevo.','err');
   }catch(e){ procesando=procesando.filter(p=>p!==name); kbStatus('Error: '+(e.message||e),'err'); }
   finally{ $('kbNoteBtn').disabled=false; }
 }
@@ -1289,8 +1290,8 @@ async function agregarContexto(){
     const [n,clas]=await Promise.all([ ingestKB(name,body), classifyKB(name,body) ]);
     await loadIndexed();
     const real=IDX.find(d=>d.name===name);
-    if(real&&real.chunks>0){ $('ctxAddMsg').textContent='✅ Agregado a '+label+(clas?' · FAQs creadas':''); $('ctxBonos').value=''; }
-    else $('ctxAddMsg').textContent='⚠️ No quedó en la base (posible cupo de embeddings).';
+    if(real&&real.chunks>0){ $('ctxAddMsg').textContent='Agregado a '+label+(clas?' · FAQs creadas':''); $('ctxBonos').value=''; }
+    else $('ctxAddMsg').textContent='No quedó en la base (posible cupo de embeddings).';
   }catch(e){ $('ctxAddMsg').textContent='Error: '+(e.message||e); }
   finally{ $('ctxAdd').disabled=false; setTimeout(()=>$('ctxAddMsg').textContent='',5000); }
 }
@@ -1310,8 +1311,8 @@ async function addFiles(files){
       procesando=procesando.filter(p=>p!==f.name);
       await loadIndexed();   // <- lee el estado REAL de la base (kb_chunks)
       const real=IDX.find(d=>d.name===f.name);
-      if(real&&real.chunks>0) kbStatus('✅ "'+f.name+'": '+real.chunks+' trozos guardados en la base'+(clas?' · repartido por país':'')+'. Sin duplicar.','ok');
-      else kbStatus('⚠️ "'+f.name+'" NO quedó en la base (posible cupo de embeddings agotado). Intenta más tarde.','err');
+      if(real&&real.chunks>0) kbStatus('"'+f.name+'": '+real.chunks+' trozos guardados en la base'+(clas?' · repartido por país':'')+'. Sin duplicar.','ok');
+      else kbStatus('"'+f.name+'" NO quedó en la base (posible cupo de embeddings agotado). Intenta más tarde.','err');
     }
    }catch(e){ procesando=procesando.filter(p=>p!==f.name); kbStatus('Error con "'+f.name+'": '+(e.message||e),'err'); renderKB(); }
   }
@@ -1353,7 +1354,7 @@ async function saveFaqsFromDoc(faqs,fuente){
 function _reEsc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
 function mergeDocIntoPaises(docName,ai){
   if(!ctxCache.paises) ctxCache.paises=emptyPaises();
-  const tag='=== 📄 '+docName+' ===', endTag='=== fin '+docName+' ===';
+  const tag='=== '+docName+' ===', endTag='=== fin '+docName+' ===';
   Object.keys(ctxCache.paises).forEach(pc=>{ Object.keys(ctxCache.paises[pc]).forEach(vc=>{
     let cur=(ctxCache.paises[pc][vc]||'');
     cur=cur.replace(new RegExp('\\n*'+_reEsc(tag)+'[\\s\\S]*?'+_reEsc(endTag),'g'),'').trim();
@@ -1390,7 +1391,7 @@ async function loadIndexed(){
 function _q(s){ return (s||'').replace(/'/g,"\\'"); }
 function renderKB(){ const L=$('kbList'); if(!L)return; let h='';
   procesando.forEach(n=>{ h+='<div class="file"><span class="nm">'+n+'</span><span style="color:var(--warn)">procesando…</span></div>'; });
-  const idxRows = collapsibleList(IDX, d=>{ const vert=d.vert||'*'; const cli=d.cli!=null?d.cli:0; const int=d.int!=null?d.int:0; return '<div class="file"><span class="nm">'+escapeHtml(d.name)+'</span><span style="color:var(--ok)">✓ '+d.chunks+' trozos &middot; '+vert+' &middot; '+cli+' cliente / '+int+' interno</span><span class="rm" onclick="deleteIndexed(\''+_q(d.name)+'\')">×</span></div>'; }, 'kbidx', renderKB);
+  const idxRows = collapsibleList(IDX, d=>{ const vert=d.vert||'*'; const cli=d.cli!=null?d.cli:0; const int=d.int!=null?d.int:0; return '<div class="file"><span class="nm">'+escapeHtml(d.name)+'</span><span style="color:var(--ok)">'+d.chunks+' trozos &middot; '+vert+' &middot; '+cli+' cliente / '+int+' interno</span><span class="rm" onclick="deleteIndexed(\''+_q(d.name)+'\')">×</span></div>'; }, 'kbidx', renderKB);
   h += idxRows;
   KB.filter(f=>f.img).forEach(f=>{ h+='<div class="file"><span class="nm">'+f.name+'</span><span>imagen</span><span class="rm" onclick="rmImg(\''+_q(f.key)+'\')">×</span></div>'; });
   L.innerHTML=h||'<small style="color:var(--txt-2)">Nada indexado todavía. Sube un documento.</small>';
@@ -1445,7 +1446,7 @@ async function addFaq(){
   try{ const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador,respuesta})});
     const j=await r.json().catch(()=>({})); if(j&&j.ok===false)throw new Error(j.error||'falló');
-    $('faqTrigger').value=''; $('faqAnswer').value=''; $('faqMsg').textContent='✅ Agregada'; await loadFaqs();
+    $('faqTrigger').value=''; $('faqAnswer').value=''; $('faqMsg').textContent='Agregada'; await loadFaqs();
   }catch(e){ $('faqMsg').textContent='Error: '+(e.message||e); }
   finally{ $('faqAdd').disabled=false; setTimeout(()=>$('faqMsg').textContent='',3000); }
 }
@@ -1474,7 +1475,7 @@ function renderSalas(q){
   if(!m.length){ el.innerHTML='<span class="cmd-d">Sin resultados para "'+q+'".</span>'; return; }
   el.innerHTML=m.map(s=>{
     const chips=arr=>arr.map(x=>'<span class="ipchip" onclick="copyIp(\''+x.ip+'\')">'+x.nombre+' '+x.ip+'</span>').join('');
-    const editar=isAdmin()?' <span class="ipchip" onclick="editNota(\''+s.numero+'\')">✎ nota</span>':'';
+    const editar=isAdmin()?' <span class="ipchip" onclick="editNota(\''+s.numero+'\')">nota</span>':'';
     return '<div class="sala-card"><div class="sn">Sala '+s.numero+' · '+s.ciudad+editar+'</div>'+
       '<div class="ln">IP sala: <span class="ipchip" onclick="copyIp(\''+s.ip_sala+'\')">'+s.ip_sala+'</span> · root: '+s.user_root+' · n1: '+s.user_n1+'</div>'+
       '<div class="ln">POS: '+chips(s.pos)+'</div>'+
@@ -1562,7 +1563,7 @@ async function ensenarHueco(pregunta,pais,vertical){ if(!isAdmin())return; pregu
     const res=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador:pregunta,respuesta:r,fuente:'hueco'})});
     const j=await res.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j; if(d&&d.ok===false)throw new Error(d.error||'no se pudo');
     ingestKB('Hueco: '+pregunta.slice(0,60),'Pregunta: '+pregunta+'\nRespuesta correcta: '+r, pais||undefined, vertical||undefined).catch(()=>{});
-    alert('✅ Aprendido. La próxima vez responderá la versión correcta.'); loadIntel();
+    alert('Aprendido. La próxima vez responderá la versión correcta.'); loadIntel();
   }catch(e){ alert('No se pudo: '+(e.message||e)); }
 }
 async function loadIntelCobertura(){ const el=$('intelCobertura'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';

@@ -177,6 +177,9 @@
   .pxi{width:16px;height:16px;display:block}
   .blk-h .pxi{width:12px;height:12px}
   .tile .pxi{width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:5px}
+  .sec h4 .pxi{width:14px;height:14px;color:var(--accent);flex-shrink:0}
+  .phead b .pxi{display:inline-block;width:15px;height:15px;vertical-align:-2px;margin-right:8px;color:var(--accent)}
+  h3 .pxi{display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:7px;color:var(--accent)}
 
   /* detalle k/v */
   .row{display:flex;justify-content:space-between;gap:10px;padding:10px 15px;font-size:13px;border-top:1px solid var(--line)}
@@ -367,7 +370,7 @@
 
   <!-- Contexto de la IA -->
   <div class="sec">
-    <h4>Contexto de la IA (en vivo)</h4>
+    <h4 data-pxi="bulb">Contexto de la IA (en vivo)</h4>
     <div class="hint">Lo que escribas aquí se aplica de inmediato a las respuestas de la IA. Úsalo para corregir datos (p. ej. condiciones de un bono) sin tocar el flujo.</div>
     <div class="fld">Instrucciones generales (aplican a todos los países)</div>
     <textarea class="ta" id="ctxPrompt" placeholder="Ej. Tono cordial, siempre verificar KYC antes de hablar de retiros…"></textarea>
@@ -394,7 +397,7 @@
 
   <!-- Usuarios -->
   <div class="sec">
-    <h4>Usuarios del equipo</h4>
+    <h4 data-pxi="user">Usuarios del equipo</h4>
     <div class="hint">Da de alta a un agente por correo. Recibirá un enlace de acceso (sin contraseña).</div>
     <input class="in" id="newEmail" type="email" placeholder="correo del agente" style="margin-bottom:7px">
     <input class="in" id="newName" placeholder="nombre (opcional)">
@@ -404,7 +407,7 @@
 
   <!-- Respuestas reportadas -->
   <div class="sec">
-    <h4>Respuestas reportadas</h4>
+    <h4 data-pxi="flag">Respuestas reportadas</h4>
     <div class="hint">Lo que los agentes marcan como incorrecto. Corrige una y la IA aprende (queda como FAQ, 0 tokens).</div>
     <div class="btnrow"><button class="btn" id="repLoad">Cargar reportes</button><span class="savemsg" id="repMsg"></span></div>
     <div class="ulist" id="repList"></div>
@@ -412,7 +415,7 @@
 
   <!-- Base de conocimientos -->
   <div class="sec">
-    <h4>Base de conocimientos</h4>
+    <h4 data-pxi="folder">Base de conocimientos</h4>
     <div class="hint">Sube un documento: se <b>envía y se indexa en la base de datos</b> (no se queda guardado en la página). Abajo ves el estado REAL leído de la base, con cuántos trozos quedaron y sin duplicar.</div>
     <div class="drop" id="drop">Arrastra o sube documentos (PDF, TXT, MD) · o imágenes para [IMG:]</div>
     <input type="file" id="kbFile" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.gif,.webp,image/*" multiple style="display:none">
@@ -430,7 +433,7 @@
 
   <!-- Respuestas rápidas (FAQ) -->
   <div class="sec">
-    <h4>Respuestas rápidas (ahorran tokens)</h4>
+    <h4 data-pxi="bolt">Respuestas rápidas (ahorran tokens)</h4>
     <div class="hint">Si la pregunta del agente contiene TODAS las palabras del disparador, la consola responde al instante con tu texto, <b>sin gastar IA</b>. Ideal para las dudas más repetidas.</div>
     <input class="in" id="faqTrigger" placeholder="disparador (palabras clave, ej. bono bienvenida colombia)" style="margin-bottom:6px">
     <textarea class="ta" id="faqAnswer" placeholder="respuesta lista que verá el agente…"></textarea>
@@ -440,7 +443,7 @@
 
   <!-- Sinónimos / jerga -->
   <div class="sec">
-    <h4>Sinónimos / jerga</h4>
+    <h4 data-pxi="chat">Sinónimos / jerga</h4>
     <div style="display:flex;gap:6px"><input id="glosTerm" class="in" placeholder="término (ej. cuota 7)"><input id="glosEq" class="in" placeholder="equivalentes, separados por coma"><button class="btn" onclick="saveGlos()">+</button></div>
     <div id="glosList"></div>
   </div>
@@ -463,7 +466,7 @@
 <!-- ===== PANEL DE INTELIGENCIA (solo admin) ===== -->
 <div class="overlay" id="intelOverlay" onclick="closeIntel()"></div>
 <aside class="panel wide" id="intelPanel">
-  <div class="phead"><b>Inteligencia</b>
+  <div class="phead"><b data-pxi="chart">Inteligencia</b>
     <select class="in mini" id="intelDiasSel" onchange="setIntelDias(this.value)"><option value="1">Hoy</option><option value="7" selected>7 días</option><option value="30">30 días</option></select>
     <span class="rm" onclick="closeIntel()" style="margin-left:auto;cursor:pointer">×</span></div>
   <div class="sec"><div id="intelMetricas"></div></div>
@@ -474,7 +477,7 @@
 <!-- ===== MIS HERRAMIENTAS (todos los agentes) ===== -->
 <div class="overlay" id="toolsOverlay" onclick="closeTools()"></div>
 <aside class="panel wide" id="toolsPanel">
-  <div class="phead"><b>Mis herramientas</b><span class="rm" onclick="closeTools()" style="margin-left:auto;cursor:pointer">&times;</span></div>
+  <div class="phead"><b data-pxi="wrench">Mis herramientas</b><span class="rm" onclick="closeTools()" style="margin-left:auto;cursor:pointer">&times;</span></div>
   <div class="sec"><div class="fld">Plantillas</div><div id="toolsPlantillas"></div></div>
   <div class="sec"><div class="fld">Mis favoritas</div><div id="toolsFavoritas"></div></div>
   <div class="sec"><div class="fld">Mi historial</div><div id="toolsHistorial"></div></div>
@@ -501,7 +504,7 @@
 <div class="overlay" id="teamOverlay" onclick="closeTeam()"></div>
 <aside class="panel" id="teampanel">
   <div class="tc-top">
-    <h3>Chat de equipo</h3>
+    <h3 data-pxi="chat">Chat de equipo</h3>
     <button class="ic adminonly" id="tcClearBtn" title="Borrar toda la conversación" onclick="clearTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     <button class="ic" title="Cerrar" onclick="closeTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
   </div>
@@ -1004,11 +1007,21 @@ const PXMAP={
  target:["..####..",".#....#.","#..##..#","#.####.#","#.####.#","#..##..#",".#....#.","..####.."],
  list:["#.######","........","#.######","........","#.######","........","#.######"],
  check:["......##",".....##.","#...##..","##.##...",".###....","..#....."],
- clock:["######","#....#",".####.","..##..",".####.","#....#","######"]
+ clock:["######","#....#",".####.","..##..",".####.","#....#","######"],
+ bulb:["..####..",".#....#.","#......#","#......#",".#....#.","..####..","...##...","..####.."],
+ user:["..####..",".#....#.",".#....#.","..####..","........",".######.","#......#","#......#"],
+ flag:["##......","#.####..","#.####..","#.####..","#.......","#.......","#.......","#......."],
+ folder:["........","###.....","#..#####","#......#","#......#","#......#","########","........"],
+ bolt:["...###..","..###...",".###....","#######.","..###...",".###....","###.....","##......"],
+ chat:["########","#......#","#.####.#","#......#","#.####.#","#......#","########","..##...."],
+ chart:["........","......##","......##","...##.##","...##.##","##.##.##","##.##.##","########"],
+ wrench:["##...##.","##...##.",".#####..","..###...","..###...","..###...","..###...","..###..."]
 };
 function pxIcon(name){ const g=PXMAP[name]; if(!g)return ''; const w=g[0].length,h=g.length; let r='';
  for(let y=0;y<h;y++){const row=g[y];for(let x=0;x<w;x++){if(row[x]==='#')r+='<rect x="'+x+'" y="'+y+'" width="1" height="1"/>';}}
  return '<svg class="pxi" viewBox="0 0 '+w+' '+h+'" fill="currentColor" shape-rendering="crispEdges">'+r+'</svg>'; }
+function paintPxiTitles(){ document.querySelectorAll('[data-pxi]').forEach(function(el){ var svg=pxIcon(el.getAttribute('data-pxi')); if(svg) el.insertAdjacentHTML('afterbegin', svg); el.removeAttribute('data-pxi'); }); }
+if(document.readyState!=='loading') paintPxiTitles(); else document.addEventListener('DOMContentLoaded', paintPxiTitles);
 function initials(nm){ return (nm||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?'; }
 function chip(cls,txt){ return '<span class="chip '+cls+'"><span class="dot"></span>'+txt+'</span>'; }
 function brow(icon,k,val){ return '<div class="brow'+(val?'':' off')+'"><div class="bi">'+pxIcon(icon)+'</div><div class="bmeta"><div class="bk">'+k+'</div><div class="bv">'+(val||'Sin bono activo')+'</div></div></div>'; }
@@ -1527,7 +1540,7 @@ function closeTools(){ $('toolsOverlay').classList.remove('on'); $('toolsPanel')
 async function loadTools(){ if(!sb)return; await Promise.all([loadToolsPlantillas(), loadToolsFavoritas(), loadToolsHistorial()]); }
 async function loadToolsPlantillas(){ const el=$('toolsPlantillas'); if(!el)return; await loadPlantillas(); el.innerHTML=collapsibleList(MISPLANTILLAS, p=>'<div class="uitem"><div style="flex:1;min-width:0"><div class="nm">'+escapeHtml(p.nombre)+'</div><small style="color:var(--txt-2)">'+escapeHtml((p.texto||'').slice(0,60))+'</small></div><button class="ubtn" onclick="delPlantilla('+p.id+')">Borrar</button></div>', 'tpl', loadToolsPlantillas); }
 async function loadToolsFavoritas(){ const el=$('toolsFavoritas'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando...</small>'; try{ const {data}=await sb.from('agente_favoritos').select('id,pregunta,respuesta').order('created_at',{ascending:false}); const rows=data||[]; el.innerHTML=collapsibleList(rows, f=>'<div class="uitem" style="flex-direction:column;align-items:stretch;gap:5px"><div style="font-size:12px"><b>'+escapeHtml((f.pregunta||'(sin pregunta)').slice(0,90))+'</b></div><div style="font-size:11px;color:var(--txt-2)">'+escapeHtml((f.respuesta||'').slice(0,120))+'...</div><div style="display:flex;gap:6px"><button class="ubtn" style="color:var(--accent)" onclick="usarFav('+f.id+')">Copiar respuesta</button><button class="ubtn" onclick="delFav('+f.id+')">Borrar</button></div></div>', 'fav', loadToolsFavoritas); }catch(e){ el.innerHTML='<small style="color:var(--bad)">No se pudo cargar.</small>'; } }
-async function loadToolsHistorial(){ const el=$('toolsHistorial'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando...</small>'; try{ const {data}=await sb.from('consultas_log').select('pregunta,respondio_ok,created_at').order('created_at',{ascending:false}).limit(30); const rows=data||[]; el.innerHTML=collapsibleList(rows, r=>{ const q=(r.pregunta||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); return '<div class="uitem"><div style="flex:1;min-width:0"><span class="nm">'+escapeHtml((r.pregunta||'').slice(0,80))+'</span></div>'+(r.respondio_ok?'':'<span style="font-size:11px;color:var(--bad)">hueco</span>')+'<button class="ubtn" onclick="rePreguntar(\''+q+'\')">Re-preguntar</button></div>'; }, 'hist', loadToolsHistorial); }catch(e){ el.innerHTML='<small style="color:var(--bad)">No se pudo cargar.</small>'; } }
+async function loadToolsHistorial(){ const el=$('toolsHistorial'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando...</small>'; try{ const {data}=await sb.from('consultas_log').select('pregunta,respondio_ok,created_at').order('created_at',{ascending:false}).limit(30); const rows=data||[]; el.innerHTML=collapsibleList(rows, r=>{ const q=(r.pregunta||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); return '<div class="uitem"><div style="flex:1;min-width:0"><div class="nm">'+escapeHtml((r.pregunta||'').slice(0,80))+'</div></div>'+(r.respondio_ok?'':'<span style="font-size:11px;color:var(--bad);flex-shrink:0">hueco</span>')+'<button class="ubtn" onclick="rePreguntar(\''+q+'\')">Re-preguntar</button></div>'; }, 'hist', loadToolsHistorial); }catch(e){ el.innerHTML='<small style="color:var(--bad)">No se pudo cargar.</small>'; } }
 async function delPlantilla(id){ if(!confirm('Borrar esta plantilla?'))return; try{ await sb.from('agente_plantillas').delete().eq('id',id); await loadToolsPlantillas(); renderChips(); }catch(e){ alert('No se pudo: '+(e.message||e)); } }
 async function usarFav(id){ try{ const {data}=await sb.from('agente_favoritos').select('respuesta').eq('id',id).single(); if(data&&data.respuesta){ navigator.clipboard.writeText(data.respuesta).then(()=>toast('Respuesta copiada')).catch(()=>toast('Copia manual')); } }catch(e){} }
 async function delFav(id){ if(!confirm('Borrar esta favorita?'))return; try{ await sb.from('agente_favoritos').delete().eq('id',id); await loadToolsFavoritas(); }catch(e){ alert('No se pudo: '+(e.message||e)); } }

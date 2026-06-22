@@ -1641,7 +1641,7 @@ function cpAddClient(){ const i=$('cpClientMsg'); if(!i)return; const t=(i.value
 function cpNueva(){ CPCONV=[]; try{ localStorage.setItem('cp-conv','[]'); }catch(e){} cpRenderThread(); const s=$('cpSug'); if(s) s.value=''; const g=$('cpGen'); if(g) g.textContent=''; }
 function cpExtraerCliente(txt){ if(!txt)return ''; const m=txt.match(/respuesta\s+(?:sugerida\s+)?al\s+cliente\s*:?\s*([\s\S]*)$/i); return (m?m[1]:txt).trim(); }
 async function cpPedirSugerencia(){
-  const sug=$('cpSug'), gen=$('cpGen'); if(!sug)return;
+  const sug=$('cpSug'), gen=$('cpGen'); if(!sug||!gen)return;
   if(!CPCONV.some(function(m){return m.from==='cliente';})) return;
   gen.textContent='generando...'; const dis=['cpResug','cpSend','cpAddBtn']; dis.forEach(function(id){ const b=$(id); if(b)b.disabled=true; });
   try{

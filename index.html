@@ -221,6 +221,20 @@
 
   /* CONFIG / ADMIN PANEL */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:.3s;z-index:20}
+  .appmodal{position:fixed;inset:0;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.42);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:.2s;z-index:60}
+  .appmodal.on{opacity:1;pointer-events:auto}
+  .appmodal .am-card{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:22px 22px 18px;transform:translateY(10px) scale(.98);transition:.2s}
+  .appmodal.on .am-card{transform:none}
+  .appmodal .am-title{font-size:15px;font-weight:800;line-height:1.4;margin-bottom:6px}
+  .appmodal .am-msg{font-size:13px;color:var(--txt-2);line-height:1.45;margin-bottom:14px}
+  .appmodal .am-field{width:100%;border:1px solid var(--line);border-radius:11px;padding:11px 13px;font-family:inherit;font-size:14px;color:var(--txt);background:var(--bg);margin:8px 0 16px}
+  .appmodal .am-field:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .appmodal textarea.am-ta{resize:vertical;min-height:92px;line-height:1.5}
+  .appmodal .am-row{display:flex;gap:9px;justify-content:flex-end}
+  .appmodal .am-row .btn{padding:9px 17px;font-size:13px;width:auto}
+  .btn.ghost{background:transparent;color:var(--txt-2);border:1px solid var(--line);box-shadow:none}
+  .btn.ghost:hover{border-color:var(--accent);color:var(--txt)}
+  .btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
   .overlay.on{opacity:1;pointer-events:auto}
   .panel{position:fixed;top:0;right:0;bottom:0;width:min(440px,94%);background:var(--surface);border-left:1px solid var(--line);z-index:21;transform:translateX(100%);transition:.35s;overflow-y:auto}
   .panel.on{transform:none} .panel-in{padding:24px}
@@ -502,6 +516,15 @@
   .tc-att img{height:46px;border-radius:7px;border:1px solid var(--line)}
 </style>
 <div class="overlay" id="teamOverlay" onclick="closeTeam()"></div>
+<div class="appmodal" id="appModal" role="dialog" aria-modal="true">
+  <div class="am-card">
+    <div class="am-title" id="amTitle"></div>
+    <div class="am-msg" id="amMsg"></div>
+    <input class="am-field" id="amInput" type="text" autocomplete="off">
+    <textarea class="am-field am-ta" id="amTa" rows="4"></textarea>
+    <div class="am-row"><button class="btn ghost" id="amCancel">Cancelar</button><button class="btn" id="amOk">Aceptar</button></div>
+  </div>
+</div>
 <aside class="panel" id="teampanel">
   <div class="tc-top">
     <h3 data-pxi="chat">Chat de equipo</h3>
@@ -723,12 +746,12 @@ async function loadUsers(){
 }
 async function toggleAgent(id,active){
   if(!isAdmin())return;
-  if(!confirm(active?'¿Desbloquear a este agente? Volverá a poder iniciar sesión y recibir enlaces.':'¿Bloquear a este agente? No podrá iniciar sesión, no recibirá enlaces de acceso y se cerrará su sesión.'))return;
+  if(!await appConfirm(active?'¿Desbloquear a este agente? Volverá a poder iniciar sesión y recibir enlaces.':'¿Bloquear a este agente? No podrá iniciar sesión, no recibirá enlaces de acceso y se cerrará su sesión.',{danger:!active}))return;
   try{ const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'set_active',id,active})});
     const j=await r.json().catch(()=>({})); if(j&&j.ok===false) throw new Error(j.error||'falló');
     loadUsers();
-  }catch(e){ alert('No se pudo: '+(e.message||e)); }
+  }catch(e){ toast('No se pudo: '+(e.message||e)); }
 }
 
 /* ---- banderas ---- */
@@ -1022,6 +1045,29 @@ function pxIcon(name){ const g=PXMAP[name]; if(!g)return ''; const w=g[0].length
  return '<svg class="pxi" viewBox="0 0 '+w+' '+h+'" fill="currentColor" shape-rendering="crispEdges">'+r+'</svg>'; }
 function paintPxiTitles(){ document.querySelectorAll('[data-pxi]').forEach(function(el){ var svg=pxIcon(el.getAttribute('data-pxi')); if(svg) el.insertAdjacentHTML('afterbegin', svg); el.removeAttribute('data-pxi'); }); }
 if(document.readyState!=='loading') paintPxiTitles(); else document.addEventListener('DOMContentLoaded', paintPxiTitles);
+/* ---- modal propio (reemplaza prompt/confirm nativos del navegador) ---- */
+let __amResolve=null, __amMode='confirm';
+function __amClose(val){ const m=$('appModal'); if(!m)return; m.classList.remove('on'); document.removeEventListener('keydown',__amKey); const r=__amResolve; __amResolve=null; if(r) r(val); }
+function __amCancel(){ __amClose(__amMode==='prompt'?null:false); }
+function __amKey(e){ if(e.key==='Escape'){ e.preventDefault(); __amCancel(); return; } if(e.key==='Enter'){ if(document.activeElement===$('amTa') && !(e.ctrlKey||e.metaKey)) return; e.preventDefault(); $('amOk').click(); } }
+function appModal(opts){ return new Promise(function(resolve){
+  __amResolve=resolve; __amMode=opts.input?'prompt':'confirm';
+  const t=$('amTitle'); t.textContent=opts.title||''; t.style.display=opts.title?'':'none';
+  const ms=$('amMsg'); ms.textContent=opts.message||''; ms.style.display=opts.message?'':'none';
+  const inp=$('amInput'), ta=$('amTa'); const useTa=!!(opts.input&&opts.multiline);
+  inp.style.display=(opts.input&&!opts.multiline)?'':'none'; ta.style.display=useTa?'':'none';
+  if(opts.input){ const f=useTa?ta:inp; f.value=opts.value||''; f.placeholder=opts.placeholder||''; }
+  const ok=$('amOk'), cancel=$('amCancel');
+  ok.textContent=opts.okText||'Aceptar'; ok.classList.toggle('danger',!!opts.danger);
+  cancel.textContent=opts.cancelText||'Cancelar';
+  ok.onclick=function(){ if(opts.input){ const f=useTa?ta:inp; __amClose(f.value.trim()); } else { __amClose(true); } };
+  cancel.onclick=__amCancel;
+  const ov=$('appModal'); ov.onclick=function(e){ if(e.target===ov) __amCancel(); };
+  ov.classList.add('on'); document.addEventListener('keydown',__amKey);
+  setTimeout(function(){ if(opts.input){ const f=useTa?ta:inp; f.focus(); if(f.value) f.select(); } else { ok.focus(); } },40);
+}); }
+function appPrompt(title,opts){ opts=opts||{}; return appModal({title:title,input:true,placeholder:opts.placeholder||'',value:opts.value||'',multiline:!!opts.multiline}); }
+function appConfirm(message,opts){ opts=opts||{}; return appModal({title:message,danger:!!opts.danger,okText:opts.okText}); }
 function initials(nm){ return (nm||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?'; }
 function chip(cls,txt){ return '<span class="chip '+cls+'"><span class="dot"></span>'+txt+'</span>'; }
 function brow(icon,k,val){ return '<div class="brow'+(val?'':' off')+'"><div class="bi">'+pxIcon(icon)+'</div><div class="bmeta"><div class="bk">'+k+'</div><div class="bv">'+(val||'Sin bono activo')+'</div></div></div>'; }
@@ -1136,18 +1182,18 @@ function renderChat(){
   c.appendChild($('typing')); c.scrollTop=c.scrollHeight;
 }
 function delMsg(i){ const s=activeS(); if(!s||!s.mensajes[i])return; s.mensajes.splice(i,1); renderChat(); }
-function limpiarChat(){ const s=activeS(); if(!s||!s.mensajes.length)return; if(!confirm('¿Borrar toda la conversación de este chat?'))return; s.mensajes=[]; renderChat(); }
+async function limpiarChat(){ const s=activeS(); if(!s||!s.mensajes.length)return; if(!await appConfirm('¿Borrar toda la conversación de este chat?',{danger:true}))return; s.mensajes=[]; renderChat(); }
 /* ---- ENSEÑAR A LA IA: corregir una respuesta -> FAQ (0 tokens) + RAG ---- */
 async function ensenar(i){
   if(!isAdmin())return;
   const s=activeS(); if(!s||!s.mensajes[i])return;
   // pregunta = el último mensaje del agente antes de esta respuesta
   let pregunta=''; for(let k=i-1;k>=0;k--){ if(s.mensajes[k].role==='user'){ pregunta=(s.mensajes[k].content||'').trim(); break; } }
-  pregunta=prompt('¿A qué pregunta corresponde esta corrección? (palabras clave que escribiría el agente)', pregunta);
-  if(pregunta===null)return; pregunta=pregunta.trim(); if(!pregunta){ alert('Necesito la pregunta para reconocerla la próxima vez.'); return; }
+  pregunta=await appPrompt('¿A qué pregunta corresponde esta corrección? (palabras clave que escribiría el agente)',{value:pregunta});
+  if(pregunta===null)return; if(!pregunta){ toast('Necesito la pregunta para reconocerla la próxima vez.'); return; }
   const actual=(s.mensajes[i].content||'').trim();
-  const correcta=prompt('¿Cuál era la respuesta correcta? (esto le enseña a la IA para la próxima)', actual);
-  if(correcta===null)return; const resp=correcta.trim(); if(!resp){ alert('Escribe la respuesta correcta.'); return; }
+  const correcta=await appPrompt('¿Cuál era la respuesta correcta? (esto le enseña a la IA para la próxima)',{value:actual,multiline:true});
+  if(correcta===null)return; const resp=correcta; if(!resp){ toast('Escribe la respuesta correcta.'); return; }
   try{
     const {data:{session}}=await sb.auth.getSession();
     // 1) guardar como FAQ (responde al instante, 0 tokens)
@@ -1158,11 +1204,11 @@ async function ensenar(i){
     // 2) indexar en la KB (para preguntas parecidas via RAG)
     ingestKB('Correccion: '+pregunta.slice(0,60), 'Pregunta: '+pregunta+'\nRespuesta correcta: '+resp).catch(()=>{});
     await loadFaqs();
-    alert('Aprendido. La próxima vez que pregunten esto, responderá la versión correcta.');
-  }catch(e){ alert('No se pudo enseñar: '+(e.message||e)); }
+    toast('Aprendido. La próxima vez que pregunten esto, responderá la versión correcta.');
+  }catch(e){ toast('No se pudo enseñar: '+(e.message||e)); }
 }
 /* Guardar respuesta de la IA en favoritas del agente */
-async function guardarFav(i){ const s=activeS(); if(!s||!s.mensajes[i])return; let pregunta=''; for(let k=i-1;k>=0;k--){ if(s.mensajes[k].role==='user'){ pregunta=(s.mensajes[k].content||'').trim(); break; } } const respuesta=(s.mensajes[i].content||'').trim(); if(!respuesta)return; try{ await sb.from('agente_favoritos').insert({pregunta:pregunta.slice(0,2000),respuesta:respuesta.slice(0,4000)}); toast('Guardado en favoritas'); }catch(e){ alert('No se pudo guardar: '+(e.message||e)); } }
+async function guardarFav(i){ const s=activeS(); if(!s||!s.mensajes[i])return; let pregunta=''; for(let k=i-1;k>=0;k--){ if(s.mensajes[k].role==='user'){ pregunta=(s.mensajes[k].content||'').trim(); break; } } const respuesta=(s.mensajes[i].content||'').trim(); if(!respuesta)return; try{ await sb.from('agente_favoritos').insert({pregunta:pregunta.slice(0,2000),respuesta:respuesta.slice(0,4000)}); toast('Guardado en favoritas'); }catch(e){ toast('No se pudo guardar: '+(e.message||e)); } }
 /* 👎 Reportar respuesta de la IA -> queda en audit_log para que el admin la revise/corrija */
 async function reportarIA(i){
   const s=activeS(); if(!s||!s.mensajes[i])return;
@@ -1172,9 +1218,9 @@ async function reportarIA(i){
     await logAudit('reporte_ia',{pregunta:pregunta.slice(0,500),respuesta:respuesta.slice(0,1000)});
     const lid=s.mensajes[i].log_id;
     if(lid){ try{ const {data:{session}}=await sb.auth.getSession(); await fetch(REPORTE_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({log_id:lid})}); }catch(e){} }
-    alert('Reportado. El admin lo revisará y corregirá. ¡Gracias!');
+    toast('Reportado. El admin lo revisará y corregirá. ¡Gracias!');
   }
-  catch(e){ alert('No se pudo reportar: '+(e.message||e)); }
+  catch(e){ toast('No se pudo reportar: '+(e.message||e)); }
 }
 /* Admin: lista de respuestas reportadas (lee audit_log) para corregirlas */
 async function loadReportes(){ if(!sb||!isAdmin())return; const L=$('repList'); if(L)L.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
@@ -1185,13 +1231,13 @@ async function loadReportes(){ if(!sb||!isAdmin())return; const L=$('repList'); 
   }catch(e){ if(L)L.innerHTML='<small style="color:#c0392b">No se pudo cargar.</small>'; }
 }
 async function ensenarReporte(pregunta){ if(!isAdmin())return; pregunta=(pregunta||'').trim(); if(!pregunta)return;
-  const resp=prompt('Respuesta CORRECTA para: "'+pregunta+'"'); if(resp===null)return; const r=resp.trim(); if(!r){ alert('Escribe la respuesta correcta.'); return; }
+  const resp=await appPrompt('Respuesta CORRECTA para: "'+pregunta+'"',{multiline:true}); if(resp===null)return; const r=resp; if(!r){ toast('Escribe la respuesta correcta.'); return; }
   try{ const {data:{session}}=await sb.auth.getSession();
     const res=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador:pregunta,respuesta:r,fuente:'correccion'})});
     const j=await res.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j; if(d&&d.ok===false)throw new Error(d.error||'no se pudo');
     ingestKB('Correccion: '+pregunta.slice(0,60),'Pregunta: '+pregunta+'\nRespuesta correcta: '+r).catch(()=>{});
-    await loadFaqs(); alert('Aprendido. La próxima vez responderá la versión correcta.');
-  }catch(e){ alert('No se pudo: '+(e.message||e)); }
+    await loadFaqs(); toast('Aprendido. La próxima vez responderá la versión correcta.');
+  }catch(e){ toast('No se pudo: '+(e.message||e)); }
 }
 function renderAll(){ renderTabs(); renderPanel(); renderChat(); }
 
@@ -1411,7 +1457,7 @@ function renderKB(){ const L=$('kbList'); if(!L)return; let h='';
 }
 /* quitar un documento de la base (borra sus trozos en kb_chunks via backend) */
 async function deleteIndexed(name){
-  if(!isAdmin())return; if(!confirm('¿Quitar "'+name+'" de la base? La IA dejará de usar ese documento.'))return;
+  if(!isAdmin())return; if(!await appConfirm('¿Quitar "'+name+'" de la base? La IA dejará de usar ese documento.',{danger:true}))return;
   kbStatus('Quitando "'+name+'" de la base…');
   try{ const {data:{session}}=await sb.auth.getSession();
     await fetch(INGEST_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({tenant:CONFIG.tenant,doc_name:name,borrar:true})});
@@ -1431,7 +1477,7 @@ let MISPLANTILLAS=[];
 async function loadPlantillas(){ if(!sb)return; try{ const {data}=await sb.from('agente_plantillas').select('id,nombre,texto,orden').order('orden',{ascending:true}); MISPLANTILLAS=data||[]; }catch(e){ MISPLANTILLAS=[]; } renderChips(); }
 function renderChips(){ const el=$('chipbar'); if(!el)return; let h=MISPLANTILLAS.map(p=>'<button class="chip" title="Copiar para pegar al cliente" onclick="usarPlantilla('+p.id+')">'+escapeHtml(p.nombre)+'</button>').join(''); h+='<button class="chip add" title="Nueva plantilla" onclick="addPlantilla()">+ plantilla</button>'; el.innerHTML=h; }
 function usarPlantilla(id){ const p=MISPLANTILLAS.find(x=>x.id===id); if(!p)return; navigator.clipboard.writeText(p.texto).then(()=>toast('Plantilla copiada')).catch(()=>{ toast('Copia manual: '+p.texto.slice(0,40)+'...'); }); }
-async function addPlantilla(){ const nombre=prompt('Nombre del chip (ej. Saludo, Pedir cedula):'); if(nombre===null)return; const n=nombre.trim(); if(!n)return; const texto=prompt('Texto que se copiara al cliente:'); if(texto===null)return; const t=texto.trim(); if(!t)return; try{ const orden=MISPLANTILLAS.length; await sb.from('agente_plantillas').insert({nombre:n,texto:t,orden}); await loadPlantillas(); toast('Plantilla creada'); }catch(e){ alert('No se pudo crear: '+(e.message||e)); } }
+async function addPlantilla(){ const nombre=await appPrompt('Nombre del chip (ej. Saludo, Pedir cédula):',{placeholder:'Saludo'}); if(nombre===null)return; const n=nombre; if(!n)return; const texto=await appPrompt('Texto que se copiará al cliente:',{multiline:true,placeholder:'Hola, gracias por contactarnos...'}); if(texto===null)return; const t=texto; if(!t)return; try{ const orden=MISPLANTILLAS.length; await sb.from('agente_plantillas').insert({nombre:n,texto:t,orden}); await loadPlantillas(); toast('Plantilla creada'); }catch(e){ toast('No se pudo crear: '+(e.message||e)); } }
 async function loadGlosario(){ if(!sb)return; try{ const {data}=await sb.from('kb_glosario').select('termino,equivalentes,activo').eq('tenant',CONFIG.tenant); GLOS=(data||[]).filter(g=>g.activo!==false); }catch(e){ GLOS=[]; } }
 window.__collapsed = window.__collapsed || {};
 window.__rerender = window.__rerender || {};
@@ -1480,7 +1526,7 @@ function closePanel(){$('overlay').classList.remove('on');$('cpanel').classList.
 
 /* ---- Salas Retail (terminal) ---- */
 function copyIp(ip){ try{ navigator.clipboard.writeText(ip); }catch(e){} }
-function editNota(num){ if(!isAdmin())return; const s=SALAS.find(x=>x.numero===num); if(!s)return; const v=prompt('Nota para Sala '+num+':', s.notas||''); if(v===null)return; s.notas=v; try{ localStorage.setItem('sala-nota-'+num, v); }catch(e){} renderSalas($('salaSearch').value); }
+async function editNota(num){ if(!isAdmin())return; const s=SALAS.find(x=>x.numero===num); if(!s)return; const v=await appPrompt('Nota para Sala '+num+':',{value:s.notas||'',multiline:true}); if(v===null)return; s.notas=v; try{ localStorage.setItem('sala-nota-'+num, v); }catch(e){} renderSalas($('salaSearch').value); }
 function renderSalas(q){
   q=(q||'').toLowerCase().trim();
   const m = !q ? SALAS.slice(0,8) : SALAS.filter(s=>s.numero.includes(q)||s.ciudad.toLowerCase().includes(q)||s.nombre.toLowerCase().includes(q)).slice(0,14);
@@ -1541,9 +1587,9 @@ async function loadTools(){ if(!sb)return; await Promise.all([loadToolsPlantilla
 async function loadToolsPlantillas(){ const el=$('toolsPlantillas'); if(!el)return; await loadPlantillas(); el.innerHTML=collapsibleList(MISPLANTILLAS, p=>'<div class="uitem"><div style="flex:1;min-width:0"><div class="nm">'+escapeHtml(p.nombre)+'</div><small style="color:var(--txt-2)">'+escapeHtml((p.texto||'').slice(0,60))+'</small></div><button class="ubtn" onclick="delPlantilla('+p.id+')">Borrar</button></div>', 'tpl', loadToolsPlantillas); }
 async function loadToolsFavoritas(){ const el=$('toolsFavoritas'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando...</small>'; try{ const {data}=await sb.from('agente_favoritos').select('id,pregunta,respuesta').order('created_at',{ascending:false}); const rows=data||[]; el.innerHTML=collapsibleList(rows, f=>'<div class="uitem" style="flex-direction:column;align-items:stretch;gap:5px"><div style="font-size:12px"><b>'+escapeHtml((f.pregunta||'(sin pregunta)').slice(0,90))+'</b></div><div style="font-size:11px;color:var(--txt-2)">'+escapeHtml((f.respuesta||'').slice(0,120))+'...</div><div style="display:flex;gap:6px"><button class="ubtn" style="color:var(--accent)" onclick="usarFav('+f.id+')">Copiar respuesta</button><button class="ubtn" onclick="delFav('+f.id+')">Borrar</button></div></div>', 'fav', loadToolsFavoritas); }catch(e){ el.innerHTML='<small style="color:var(--bad)">No se pudo cargar.</small>'; } }
 async function loadToolsHistorial(){ const el=$('toolsHistorial'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando...</small>'; try{ const {data}=await sb.from('consultas_log').select('pregunta,respondio_ok,created_at').order('created_at',{ascending:false}).limit(30); const rows=data||[]; el.innerHTML=collapsibleList(rows, r=>{ const q=(r.pregunta||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); return '<div class="uitem"><div style="flex:1;min-width:0"><div class="nm">'+escapeHtml((r.pregunta||'').slice(0,80))+'</div></div>'+(r.respondio_ok?'':'<span style="font-size:11px;color:var(--bad);flex-shrink:0">hueco</span>')+'<button class="ubtn" onclick="rePreguntar(\''+q+'\')">Re-preguntar</button></div>'; }, 'hist', loadToolsHistorial); }catch(e){ el.innerHTML='<small style="color:var(--bad)">No se pudo cargar.</small>'; } }
-async function delPlantilla(id){ if(!confirm('Borrar esta plantilla?'))return; try{ await sb.from('agente_plantillas').delete().eq('id',id); await loadToolsPlantillas(); renderChips(); }catch(e){ alert('No se pudo: '+(e.message||e)); } }
+async function delPlantilla(id){ if(!await appConfirm('¿Borrar esta plantilla?',{danger:true}))return; try{ await sb.from('agente_plantillas').delete().eq('id',id); await loadToolsPlantillas(); renderChips(); }catch(e){ toast('No se pudo: '+(e.message||e)); } }
 async function usarFav(id){ try{ const {data}=await sb.from('agente_favoritos').select('respuesta').eq('id',id).single(); if(data&&data.respuesta){ navigator.clipboard.writeText(data.respuesta).then(()=>toast('Respuesta copiada')).catch(()=>toast('Copia manual')); } }catch(e){} }
-async function delFav(id){ if(!confirm('Borrar esta favorita?'))return; try{ await sb.from('agente_favoritos').delete().eq('id',id); await loadToolsFavoritas(); }catch(e){ alert('No se pudo: '+(e.message||e)); } }
+async function delFav(id){ if(!await appConfirm('¿Borrar esta favorita?',{danger:true}))return; try{ await sb.from('agente_favoritos').delete().eq('id',id); await loadToolsFavoritas(); }catch(e){ toast('No se pudo: '+(e.message||e)); } }
 function rePreguntar(q){ closeTools(); const inp=$('input'); if(inp){ inp.value=q; inp.focus(); } }
 function setIntelDias(v){ intelDias=parseInt(v,10)||7; loadIntel(); }
 async function loadIntel(){ if(!sb||!isAdmin())return; await Promise.all([loadIntelResumen(), loadIntelHuecos(), loadIntelCobertura()]); }
@@ -1570,14 +1616,14 @@ async function loadIntelHuecos(){ const el=$('intelHuecos'); if(!el)return; el.i
   }catch(e){ el.innerHTML='<small style="color:var(--bad)">No se pudo cargar.</small>'; }
 }
 async function ensenarHueco(pregunta,pais,vertical){ if(!isAdmin())return; pregunta=(pregunta||'').trim(); if(!pregunta)return;
-  const resp=prompt('Respuesta CORRECTA para: "'+pregunta+'"'); if(resp===null)return; const r=resp.trim(); if(!r){ alert('Escribe la respuesta correcta.'); return; }
+  const resp=await appPrompt('Respuesta CORRECTA para: "'+pregunta+'"',{multiline:true}); if(resp===null)return; const r=resp; if(!r){ toast('Escribe la respuesta correcta.'); return; }
   try{ const {data:{session}}=await sb.auth.getSession();
     if(!session) throw new Error('sesion expirada, recarga la pagina');
     const res=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador:pregunta,respuesta:r,fuente:'hueco'})});
     const j=await res.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j; if(d&&d.ok===false)throw new Error(d.error||'no se pudo');
     ingestKB('Hueco: '+pregunta.slice(0,60),'Pregunta: '+pregunta+'\nRespuesta correcta: '+r, pais||undefined, vertical||undefined).catch(()=>{});
-    alert('Aprendido. La próxima vez responderá la versión correcta.'); loadIntel();
-  }catch(e){ alert('No se pudo: '+(e.message||e)); }
+    toast('Aprendido. La próxima vez responderá la versión correcta.'); loadIntel();
+  }catch(e){ toast('No se pudo: '+(e.message||e)); }
 }
 async function loadIntelCobertura(){ const el=$('intelCobertura'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
   try{ const {data,error}=await sb.rpc('intel_cobertura',{match_tenant:CONFIG.tenant}); if(error)throw error; const rows=data||[];
@@ -1667,17 +1713,17 @@ function subTeam(){ if(!sb||tcChan)return; tcChan=sb.channel('team-'+CONFIG.tena
   .on('postgres_changes',{event:'DELETE',schema:'public',table:'team_messages'},payload=>{ const id=payload.old&&payload.old.id; if(id){ const n=tcMsgsArr.length; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); if(tcMsgsArr.length!==n) renderTeam(); } })
   .subscribe(); }
 async function delTeamMsg(id,mine){
-  if(!confirm('¿Borrar este mensaje?'))return;
+  if(!await appConfirm('¿Borrar este mensaje?',{danger:true}))return;
   try{
     if(mine){ await sb.from('team_messages').delete().eq('id',id); }
     else if(isAdmin()){ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_delete',id})}); }
     else return;
     tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); renderTeam();
-  }catch(e){ alert('No se pudo borrar: '+(e.message||e)); }
+  }catch(e){ toast('No se pudo borrar: '+(e.message||e)); }
 }
 async function clearTeam(){
-  if(!isAdmin())return; if(!confirm('¿Borrar TODA la conversación del chat de equipo (para todos)?'))return;
-  try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_clear',tenant:CONFIG.tenant})}); tcMsgsArr=[]; renderTeam(); }catch(e){ alert('No se pudo: '+(e.message||e)); }
+  if(!isAdmin())return; if(!await appConfirm('¿Borrar TODA la conversación del chat de equipo (para todos)?',{danger:true}))return;
+  try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_clear',tenant:CONFIG.tenant})}); tcMsgsArr=[]; renderTeam(); }catch(e){ toast('No se pudo: '+(e.message||e)); }
 }
 async function initTeam(){ await loadTeam(); subTeam(); }
 function tcDownscale(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=1280; let w=img.width,h=img.height; if(w>max||h>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);} const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); res(c.toDataURL('image/jpeg',0.6)); }; img.onerror=()=>res(null); img.src=r.result; }; r.onerror=()=>res(null); r.readAsDataURL(file); }); }

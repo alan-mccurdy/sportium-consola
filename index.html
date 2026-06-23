@@ -1775,7 +1775,16 @@ function emResponder(){
   toast('Marcado como respondido (recuerda enviarlo desde Outlook)');
 }
 function emVaciar(){ EMBANDEJA=[]; emSel=null; emSave(); emRenderList(); emRenderThread(); }
-function emFetchAuto(){}
+async function emFetchAuto(){
+  if(!EMAIL_AUTO.on){ return; }
+  const items=$('emItems'); if(items) items.innerHTML='<div class="em-empty">Cargando correos...</div>';
+  try{
+    const { data, error } = await sb.from(EMAIL_AUTO.tabla).select('id,de,asunto,cuerpo,estado,recibido_en').eq('tenant',CONFIG.tenant).order('recibido_en',{ascending:false}).limit(50);
+    if(error) throw error;
+    EMBANDEJA=(data||[]).map(function(r){ return { id:r.id, de:r.de||'cliente', asunto:r.asunto||'(sin asunto)', estado:r.estado||'nuevo', t:r.recibido_en, mensajes:[{from:'cliente',text:(r.asunto?('Asunto: '+r.asunto+'\n\n'):'')+(r.cuerpo||''),t:r.recibido_en}] }; });
+    emRenderList();
+  }catch(e){ toast('No se pudieron cargar los correos automaticos'); emRenderList(); }
+}
 function openCopiloto(){ if(!me){ gateShow(); return; } cpLoad(); cpRenderThread(); const h=$('cpTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('copilotoPanel').classList.add('on'); const i=$('cpClientMsg'); if(i){ i.onkeydown=function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); cpAddClient(); } }; setTimeout(function(){ i.focus(); },50); } }
 function closeCopiloto(){ $('copilotoPanel').classList.remove('on'); }
 function cpLoad(){ try{ CPCONV=JSON.parse(localStorage.getItem('cp-conv')||'[]')||[]; }catch(e){ CPCONV=[]; } }

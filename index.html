@@ -2040,6 +2040,10 @@ async function emPedirSugerencia(slot){
   slot=slot||emFocus; const isMail=(slot==='mail');
   const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;});
   const gen=$(isMail?'emMailGen':'emChatGen'); if(!t)return;
+  // Correcciones (Ensenar a la IA): si el mensaje del cliente coincide con una FAQ, usala (0 tokens)
+  var _lastCli=''; for(var _k=(t.mensajes||[]).length-1;_k>=0;_k--){ if(t.mensajes[_k].from==='cliente'){ _lastCli=t.mensajes[_k].text||''; break; } }
+  var _faq=(typeof matchFaq==='function')?matchFaq(_lastCli):null;
+  if(_faq){ var _pais=(t.cliente&&t.cliente.pais)||turnoPais(); t.iaRaw='Para ti (interno): Respuesta tomada de una correccion guardada (FAQ), sin IA.\nRespuesta sugerida al cliente: '+_faq.respuesta; t.draft=extraerSugerida(t.iaRaw); var _lk=emEnlaces(_lastCli,_pais); if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n'+_lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); } emSave(); emRenderSlot(slot); return; }
   if(gen)gen.textContent='generando...'; const ab=$('emAddBtn'); if(ab)ab.disabled=true;
   try{
     const mensajes=(t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; });

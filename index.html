@@ -324,6 +324,11 @@
   .em-thread{display:flex;flex-direction:column;gap:6px}
   .em-clisearch{padding:0 14px 12px}
   .em-clichip{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer}
+  .em-link-badge{display:inline-flex;align-items:center;gap:5px;background:var(--ok);color:#fff;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin-left:8px}
+  .em-pegar-h{cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+  .em-pegar-h svg{width:14px;height:14px;transition:transform .2s;color:var(--txt-3)}
+  .em-pegar.collapsed #emPegarBody{display:none}
+  .em-pegar.collapsed .em-pegar-h svg{transform:rotate(-90deg)}
   #emCliBox .acico svg{width:15px;height:15px}
   @media(max-width:900px){ .em-shell{grid-template-columns:1fr} .em-dock{flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line)} .em-list{max-height:30vh} .em-quad{grid-template-columns:1fr} }
   .em-gen{font-size:12px;color:var(--txt-2)}
@@ -769,16 +774,19 @@ body{background:transparent}
       <button class="em-dbtn" title="Vaciar inbox" onclick="emVaciar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     </div>
     <div class="em-list" id="emList">
-      <div class="em-pegar" id="emPegar">
-        <div class="em-coltitle">Agregar conversacion</div>
-        <div class="em-canalsw" id="emCanalSw">
-          <button id="emCanalEmail" class="sel" onclick="emSetCanal('email')">Correo</button>
-          <button id="emCanalMsg" onclick="emSetCanal('mensaje')">Mensaje</button>
+      <div class="em-pegar collapsed" id="emPegar">
+        <div class="em-coltitle em-pegar-h" onclick="emTogglePegar()"><span>Agregar conversacion</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+        <div id="emPegarBody">
+          <div class="em-canalsw" id="emCanalSw">
+            <button id="emCanalEmail" class="sel" onclick="emSetCanal('email')">Correo</button>
+            <button id="emCanalMsg" onclick="emSetCanal('mensaje')">Mensaje</button>
+          </div>
+          <input id="emDe" placeholder="De: cliente@correo.com" autocomplete="off">
+          <input id="emAsunto" placeholder="Asunto">
+          <textarea id="emCuerpo" rows="3" placeholder="Cuerpo del correo del cliente..."></textarea>
+          <button class="btn" id="emAddBtn" onclick="emAddManual()">Agregar al inbox</button>
+          <button class="btn ghost" onclick="emCargarEjemplos()" style="margin-top:6px">Cargar 20 ejemplos</button>
         </div>
-        <input id="emDe" placeholder="De: cliente@correo.com" autocomplete="off">
-        <input id="emAsunto" placeholder="Asunto">
-        <textarea id="emCuerpo" rows="3" placeholder="Cuerpo del correo del cliente..."></textarea>
-        <button class="btn" id="emAddBtn" onclick="emAddManual()">Agregar al inbox</button>
       </div>
       <div class="em-clisearch">
         <div class="em-coltitle">Buscar cliente (lo adjunta al panel activo)</div>
@@ -791,7 +799,7 @@ body{background:transparent}
     </div>
     <div class="em-cockpit">
       <div class="em-slot focus" id="emSlotChat" onclick="emFocusSet('chat')">
-        <div class="em-slot-h"><span class="em-badge canal">Mensaje</span><span id="emChatWho">sin chat seleccionado</span><span id="emChatCli" style="margin-left:auto"></span></div>
+        <div class="em-slot-h"><span class="em-badge canal">Mensaje</span><span id="emChatWho">sin chat seleccionado</span><span id="emChatLink"></span><span id="emChatCli" style="margin-left:auto"></span></div>
         <div class="em-quad em-lr">
           <div class="em-leftcol">
             <div class="em-q em-conv"><div class="em-coltitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div></div>
@@ -801,7 +809,7 @@ body{background:transparent}
         </div>
       </div>
       <div class="em-slot" id="emSlotMail" onclick="emFocusSet('mail')">
-        <div class="em-slot-h"><span class="em-badge canal">Correo</span><span id="emMailWho">sin correo seleccionado</span><span id="emMailCli" style="margin-left:auto"></span></div>
+        <div class="em-slot-h"><span class="em-badge canal">Correo</span><span id="emMailWho">sin correo seleccionado</span><span id="emMailLink"></span><span id="emMailCli" style="margin-left:auto"></span></div>
         <div class="em-quad em-mailonly">
           <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div></div>
           <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div></div>
@@ -1885,6 +1893,31 @@ let intelDias=7;
 function openIntel(){ if(!isAdmin())return; $('intelOverlay').classList.add('on'); $('intelPanel').classList.add('on'); loadIntel(); }
 function closeIntel(){ $('intelOverlay').classList.remove('on'); $('intelPanel').classList.remove('on'); }
 let CPCONV=[]; let cpRaw='';
+const EM_DEMO=[
+ {canal:'mensaje', de:'Juan Perez', texto:'Hola, hice mi deposito con el codigo MAXSPORT pero no veo el bono reflejado en mi cuenta. Me pueden ayudar?'},
+ {canal:'correo', de:'juan@mail.com', asunto:'Bono no acreditado', texto:'Buenas tardes, depositE 225 y use MAXSPORT pero el bono no aparece. Quedo atento.'},
+ {canal:'mensaje', de:'Laura Gomez', texto:'Buenas, hice un deposito por PSE de 20000 y no me dieron el bono, que paso?'},
+ {canal:'mensaje', de:'Diego Ruiz', texto:'Quiero retirar 100 pero me dice que no puedo, ya cumpli el rollover?'},
+ {canal:'correo', de:'carlos@mail.com', asunto:'Retiro rechazado', texto:'Mi retiro de 25000 fue rechazado, necesito saber por que.'},
+ {canal:'mensaje', de:'Maria Lopez', texto:'No me llega el bono, deposite 50 en oxxo.'},
+ {canal:'mensaje', de:'Ana Torres', texto:'Como reclamo el giro gratis? no me aparece.'},
+ {canal:'correo', de:'pedro@mail.com', asunto:'Retiro pendiente', texto:'Mi retiro de 150 lleva 2 dias pendiente, cuando se paga?'},
+ {canal:'mensaje', de:'Roberto Gil', texto:'No puedo entrar a mi cuenta, me dice intentos fallidos.'},
+ {canal:'mensaje', de:'Sofia Vargas', texto:'Hice deposito de 80000 y quiero saber el rollover de mi bono.'},
+ {canal:'correo', de:'gabriela@mail.com', asunto:'Retiro de 120000', texto:'Solicite un retiro grande y sigue pendiente, soy clienta frecuente.'},
+ {canal:'mensaje', de:'Valentina Reyes', texto:'Deposite 200 pero el bono no se acredito, use MAXSPORT.'},
+ {canal:'mensaje', de:'Mateo Vega', texto:'Me autoexclui por error, puedo reactivar mi cuenta?'},
+ {canal:'correo', de:'andres@mail.com', asunto:'Bono de casino', texto:'Use MAXCASINO, cuanto es el rollover para retirar?'},
+ {canal:'mensaje', de:'Lucia Mendez', texto:'Mi retiro de 35000 sigue pendiente, soy VIP, me ayudan?'},
+ {canal:'correo', de:'lucia.mendez@mail.com', asunto:'Retiro pendiente VIP', texto:'Buenas, el retiro de 35000 lleva tiempo, agradezco prioridad.'},
+ {canal:'mensaje', de:'Fernando Luna', texto:'El codigo de bono no me aplico en mi ultimo deposito.'},
+ {canal:'correo', de:'fernando.luna@mail.com', asunto:'Retiro pendiente +48h', texto:'Mi retiro lleva mas de 48 horas, necesito una respuesta.'},
+ {canal:'correo', de:'camila.q@mail.com', asunto:'Reapertura de cuenta', texto:'Pedi un bloqueo temporal pero quedo permanente, puedo reabrir mi cuenta?'},
+ {canal:'mensaje', de:'Hector Mora', texto:'Quiero verificar el estado de mi ultimo retiro de 300.'}
+];
+function emCargarEjemplos(silent){ EMBANDEJA = EM_DEMO.map(function(d,i){ return { id:'demo'+i+'_'+Date.now(), canal:d.canal, de:d.de, asunto:d.asunto||(d.canal==='mensaje'?'':'(sin asunto)'), estado:'nuevo', t:Date.now()-i*60000, mensajes:[{from:'cliente',text:d.texto,t:Date.now()-i*60000}] }; }); emSelChat=null; emSelMail=null; emSave(); emSaveSel(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); if(!silent) toast('20 conversaciones de ejemplo cargadas'); }
+function emTogglePegar(){ const p=$('emPegar'); if(p)p.classList.toggle('collapsed'); }
+function emRenderLink(){ const ct=EMBANDEJA.find(function(x){return x.id===emSelChat;}); const mt=EMBANDEJA.find(function(x){return x.id===emSelMail;}); var same=false; if(ct&&mt){ const a=emClienteDe(ct), b=emClienteDe(mt); same = !!((a&&b&&a.usuario===b.usuario)||(ct.de&&(ct.de||'').toLowerCase()===(mt.de||'').toLowerCase())); } const badge = same ? '<span class="em-link-badge">Mismo cliente — chat y correo</span>' : ''; const cl=$('emChatLink'), ml=$('emMailLink'); if(cl)cl.innerHTML=badge; if(ml)ml.innerHTML=badge; }
 let EMBANDEJA=[]; let emSelChat=null; let emSelMail=null; let emFocus='chat'; let emModo='manual'; let emRaw=''; let emAddCanal='email';
 function emActiveThread(){ const id=(emFocus==='mail')?emSelMail:emSelChat; return EMBANDEJA.find(function(x){return x.id===id;}); }
 function emSaveSel(){ try{ localStorage.setItem('inbox-sel', JSON.stringify({chat:emSelChat,mail:emSelMail,focus:emFocus})); }catch(e){} }
@@ -1901,7 +1934,7 @@ function emTryLink(t){ if(!t)return; const cli=emClienteDe(t); if(!cli)return; c
   if(!other)return; const oslot=(other.canal==='mensaje')?'chat':'mail'; const cur=(oslot==='mail')?emSelMail:emSelChat;
   if(cur===other.id)return; if(oslot==='chat')emSelChat=other.id; else emSelMail=other.id; emRenderList(); emRenderSlot(oslot);
   toast('Mismo cliente: cargue su '+(oslot==='mail'?'correo':'chat')+' en el otro panel'); }
-function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); emReflectModo(); emReflectCanal(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; emSave(); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; emSave(); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); }
+function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} if(!EMBANDEJA.length){ emCargarEjemplos(true); } emModo=(localStorage.getItem('email-modo')||'manual'); emReflectModo(); emReflectCanal(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; emSave(); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; emSave(); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); }
 function closeEmail(){ $('emailPanel').classList.remove('on'); }
 function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = emModo==='manual' ? '' : 'none'; }
 function emSetModo(modo){ if(modo==='auto' && !EMAIL_AUTO.on){ toast('Modo automatico no configurado todavia — avisame para activar el correo de reenvio'); return; } emModo=modo; try{ localStorage.setItem('email-modo', modo); }catch(e){} emReflectModo(); if(modo==='auto') emFetchAuto(); else emRenderList(); }
@@ -1921,7 +1954,7 @@ function emRenderSlot(slot){
     const cle=$(isMail?'emMailCli':'emChatCli'); if(cle)cle.innerHTML=''; emRenderInterno(); return; }
   if(who)who.textContent=(t.de||'cliente')+(t.estado==='respondido'?' · respondido':'');
   const cliEl=$(isMail?'emMailCli':'emChatCli');
-  if(cliEl){ if(t.cliente){ const cc=t.cliente; cliEl.innerHTML='<span class="em-clichip" title="Clic para quitar" onclick="event.stopPropagation();emDetachCliente(\''+slot+'\')">'+escapeHtml(cc.nombre)+' · '+cc.pais+' · '+fmtMon(cc.saldo,cc.pais)+' · KYC '+((cc.kyc&&cc.kyc.verificado)?'ok':'pend')+'</span>'; } else { cliEl.innerHTML=''; } }
+  if(cliEl){ if(t.cliente){ const cc=t.cliente; var extra=(cc.nivel==='VIP'?' · VIP':'')+(cc.autoexcluido?' · autoexcluido':'')+((cc.tickets_previos&&cc.tickets_previos.length)?(' · '+cc.tickets_previos.length+' tickets'):''); cliEl.innerHTML='<span class="em-clichip" title="Clic para quitar" onclick="event.stopPropagation();emDetachCliente(\''+slot+'\')">'+escapeHtml(cc.nombre)+' ('+escapeHtml(cc.usuario)+') · '+cc.pais+' · '+fmtMon(cc.saldo,cc.pais)+' · KYC '+((cc.kyc&&cc.kyc.verificado)?'ok':'pend')+extra+'</span>'; } else { cliEl.innerHTML=''; } }
   if(isMail){
     const cli=(t.mensajes||[]).find(function(m){return m.from==='cliente';})||{text:''};
     if($('emMailHead'))$('emMailHead').innerHTML='<b>De:</b> '+escapeHtml(t.de||'cliente')+'<br><b>Asunto:</b> '+escapeHtml(t.asunto||'(sin asunto)');
@@ -1945,6 +1978,7 @@ function emRenderInterno(){
     if(!sameClient){ const mi=renderContent(emInterno(mt.iaRaw)); if(mi) html += '<div class="em-coltitle" style="margin-top:10px">Interno del correo ('+escapeHtml(mt.de||'cliente')+')</div>'+mi; }
   }
   box.innerHTML = html || '<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
+  emRenderLink();
 }
 function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const slot=(t.canal==='mensaje')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(t.estado==='nuevo' && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } }
 function emAddManual(){

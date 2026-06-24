@@ -338,6 +338,13 @@
   .aviso-tt{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--accent);margin-bottom:2px}
   .aviso-tx{font-size:13px;line-height:1.5;color:var(--txt);white-space:pre-wrap;word-break:break-word}
   .aviso-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .leftdock{position:fixed;left:12px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:9px;z-index:45;padding:9px 8px;background:var(--glass);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);border:1px solid var(--glass-brd);border-radius:20px;box-shadow:var(--depth-2),var(--glass-hi)}
+  .leftdock:empty{display:none}
+  .leftdock .ic{transition:transform .16s cubic-bezier(.2,.7,.3,1.5);transform-origin:left center;will-change:transform}
+  .leftdock .ic:hover{transform:scale(1.7)}
+  .leftdock .ic:hover+.ic,.leftdock .ic:has(+.ic:hover){transform:scale(1.34)}
+  .leftdock .ic:hover+.ic+.ic,.leftdock .ic:has(+.ic+.ic:hover){transform:scale(1.14)}
+  @media(max-width:860px){ .leftdock{left:6px;gap:7px;padding:7px 6px} }
   .em-pegar-h{cursor:pointer;display:flex;align-items:center;justify-content:space-between}
   .em-pegar-h svg{width:14px;height:14px;transition:transform .2s;color:var(--txt-3)}
   .em-pegar.collapsed #emPegarBody{display:none}
@@ -515,6 +522,7 @@ body{background:transparent}
 <body>
 <div class="spatial-canvas" aria-hidden="true"></div>
 <div class="boot-splash" id="bootSplash" aria-hidden="true"><div class="boot-wm">JobAny</div><div class="boot-bar"><i></i></div></div>
+<div class="leftdock" id="leftDock" aria-label="Paneles"></div>
 
 <div class="demo-bar" id="demoBar"><span>Vista de demostración — estás viendo la consola como un <b>Agente</b> (sin permisos de admin)</span><button onclick="toggleDemo()">Volver a admin</button></div>
 
@@ -2396,6 +2404,7 @@ loadComandosExtra();
 loadUsage();
 
 renderAll();
+(function(){ try{ const d=document.getElementById('leftDock'); if(d){ ['teamBtn','retailBtn','demoBtn','emBtn','toolsBtn','transBtn','intelBtn','adminBtn'].forEach(function(id){ const b=document.getElementById(id); if(b)d.appendChild(b); }); } }catch(e){} })();
 initAuth();
 </script>
 </body>

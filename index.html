@@ -2170,13 +2170,11 @@ function emAttachCliente(usuario){ const c=CLIENTES.find(function(x){return x.us
 function emDetachCliente(slot){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.cliente=null; emSave(); emRenderSlot(slot); }
 function emClienteDe(x){ if(!x)return null; if(x.cliente)return x.cliente; const ct=(x.mensajes||[]).map(function(m){return m.text;}).join(' '); return detectCliente(ct)||findCliente(x.de)||null; }
 function emInterno(raw){ if(!raw)return ''; const s=''+raw;
-  // "Interno" muestra SOLO bloques etiquetados como internos; nunca la respuesta dirigida al cliente.
-  const labels=/(Para ti \(interno\)\s*:|Verificar en el CRM\s*:)/i;
-  if(!labels.test(s)) return '';
+  // "Interno" = los pasos/analisis internos (todo lo previo a la respuesta al cliente).
   const ci=s.search(/Respuesta\s+(?:sugerida\s+)?al\s+cliente\s*:/i);
-  let body=(ci>=0?s.slice(0,ci):s).trim();
-  const m=body.search(labels); if(m>0) body=body.slice(m).trim();
-  return labels.test(body)?body:'';
+  if(ci>=0) return s.slice(0,ci).trim();
+  // Sin marca de respuesta al cliente: solo es interno si trae etiquetas internas; si no, es texto del cliente y no se duplica.
+  return /(Para ti \(interno\)|Verificar en el CRM)/i.test(s) ? s.trim() : '';
 }
 function emTryLink(t){ if(!t)return; const cli=emClienteDe(t); if(!cli)return; const tIsChat=(t.canal==='mensaje');
   const other=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if(((x.canal==='mensaje'))===tIsChat)return false; const xc=emClienteDe(x); return !!(xc && xc.usuario===cli.usuario); });
@@ -2269,7 +2267,7 @@ async function emPedirSugerencia(slot){
     // El pais MARCADO por el agente manda: si el cliente enganchado es de otro pais, lo alineamos para no traer datos del pais equivocado.
     let cliente=t.cliente; if(cliente && cliente.pais!==pais){ cliente=Object.assign({}, cliente, {pais:pais}); }
     // Directiva: el inbox redacta el mensaje FINAL para el CLIENTE (no una ayuda para el agente).
-    const dir='Redacta la respuesta FINAL lista para ENVIAR directamente al cliente por '+(canal==='email'?'correo':'mensaje')+', en nombre del soporte de '+CONFIG.cliente+'. Dirigete al cliente de "usted", con un saludo y un cierre breves. NO escribas instrucciones para el agente ni analisis interno dentro de la respuesta. Usa unicamente la informacion, bonos y promociones del pais '+pais+'.';
+    const dir='Manten tu formato habitual con las secciones internas para el agente ("Para ti (interno):" con los pasos a seguir y "Verificar en el CRM:"). En la seccion "Respuesta sugerida al cliente:" escribe el mensaje FINAL listo para ENVIAR al cliente por '+(canal==='email'?'correo':'mensaje')+': dirigete al cliente de "usted", con saludo y cierre breves, SIN instrucciones para el agente dentro de esa respuesta. Usa unicamente la informacion, bonos y promociones del pais '+pais+'.';
     const mensajes=[{role:'system',content:dir}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
     const {data:{session}}=await sb.auth.getSession();
     const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},

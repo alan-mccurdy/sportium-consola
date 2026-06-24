@@ -744,8 +744,8 @@ body{background:transparent}
     <div class="fld">1. Sube el audio de la llamada</div>
     <div class="hint">Graba la llamada (grabadora del cel o del sistema) y sube el archivo (m4a/mp3/wav/ogg). Maximo ~24MB; si es larga, trocea.</div>
     <input type="file" id="transFile" accept="audio/*" class="in" style="margin:6px 0">
-    <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="transSubir()">Transcribir archivo (Whisper)</button><button class="btn ghost" id="transVivoBtn" onclick="transVivo()">Transcribir en vivo (microfono)</button></div>
-    <div class="hint" style="margin-top:5px">En vivo usa el microfono (pon la llamada en altavoz para captar ambas voces). Funciona en Edge/Chrome.</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="transSubir()">Transcribir archivo (Whisper)</button><button class="btn ghost" id="transVivoBtn" onclick="transVivo()">En vivo (solo micrófono)</button><button class="btn ghost" id="transVivoSisBtn" onclick="transVivoSistema()">En vivo + cliente (compartir audio)</button></div>
+    <div class="hint" style="margin-top:5px"><b>En vivo + cliente</b> capta también la voz del cliente: al pulsarlo, elige la pestaña/ventana de la llamada y <b>marca «Compartir audio»</b>. Si la llamada es por app/teléfono, comparte «Toda la pantalla» y activa «Compartir audio del sistema». Funciona en Edge/Chrome. El texto va apareciendo cada ~12s.</div>
   </div>
   <div class="sec">
     <div class="fld">2. Revisa la transcripcion (quita datos personales del cliente)</div>
@@ -2027,8 +2027,61 @@ function transVivo(){
   _rec.onerror=function(e){ const er=(e&&e.error)||''; const st=$('transStatus'); if(st)st.textContent='Microfono: '+er+(er==='not-allowed'||er==='service-not-allowed'?' (da permiso al micro)':' (reanudando...)'); if(er==='not-allowed'||er==='service-not-allowed'){ _recWant=false; } };
   try{ _rec.start(); _recOn=true; const b=$('transVivoBtn'); if(b)b.textContent='Detener'; const st=$('transStatus'); if(st)st.textContent='Escuchando (no se corta en pausas). Manten ESTA pestana al frente; para llamadas largas, mejor graba y sube el audio.'; }catch(e){ toast('No se pudo iniciar el microfono'); }
 }
+/* ===== Transcripcion en vivo CAPTANDO AL CLIENTE: comparte audio de pestana/sistema + micro, lo mezcla
+   y manda trozos a Whisper cada ~12s. Resuelve que el micro no oye la voz del cliente (sale por audifonos). ===== */
+let _live={on:false,want:false,rec:null,ac:null,streams:[],mixed:null,mime:''};
+async function transVivoSistema(){
+  if(_live.on){ _live.want=false; _stopLive(); return; }
+  const st=$('transStatus');
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia||!window.MediaRecorder){ toast('Tu navegador no soporta compartir audio (usa Edge o Chrome de escritorio)'); return; }
+  let sys, mic=null;
+  try{ sys=await navigator.mediaDevices.getDisplayMedia({video:true, audio:true}); }
+  catch(e){ if(st)st.textContent='No se compartio la pantalla/pestana (cancelado).'; return; }
+  if(!sys.getAudioTracks().length){ try{ sys.getTracks().forEach(function(t){t.stop();}); }catch(_){}
+    if(st)st.textContent='No marcaste «Compartir audio». Vuelve a pulsar y activa la casilla de audio de la pestana/sistema.'; toast('Falta marcar «Compartir audio»'); return; }
+  try{ mic=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(e){ mic=null; }  // micro opcional (tu voz)
+  const AC=window.AudioContext||window.webkitAudioContext; const ac=new AC();
+  const dest=ac.createMediaStreamDestination();
+  try{ ac.createMediaStreamSource(sys).connect(dest); }catch(e){}
+  if(mic){ try{ ac.createMediaStreamSource(mic).connect(dest); }catch(e){} }
+  const mime=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg'].find(function(m){ try{ return MediaRecorder.isTypeSupported(m); }catch(e){ return false; } })||'';
+  _live={on:true,want:true,rec:null,ac:ac,streams:[sys,mic].filter(Boolean),mixed:dest.stream,mime:mime};
+  sys.getVideoTracks().forEach(function(tr){ tr.onended=function(){ _live.want=false; _stopLive(); }; });  // si detiene el share desde el navegador
+  const b=$('transVivoSisBtn'); if(b)b.textContent='Detener (cliente + agente)';
+  if(st)st.textContent='Escuchando la llamada ('+(mic?'cliente + tu micro':'cliente')+'). El texto aparece cada ~12s. No cierres la pestana compartida.';
+  _liveCycle();
+}
+function _liveCycle(){
+  if(!_live.want)return;
+  let chunks=[]; let rec;
+  try{ rec=new MediaRecorder(_live.mixed, _live.mime?{mimeType:_live.mime}:undefined); }
+  catch(e){ toast('No se pudo grabar el audio'); _live.want=false; _stopLive(); return; }
+  _live.rec=rec;
+  rec.ondataavailable=function(e){ if(e.data&&e.data.size) chunks.push(e.data); };
+  rec.onstop=function(){ const blob=new Blob(chunks,{type:_live.mime||'audio/webm'}); chunks=[]; if(blob.size>1500) _liveSend(blob); if(_live.want) _liveCycle(); };
+  try{ rec.start(); }catch(e){ _live.want=false; _stopLive(); return; }
+  setTimeout(function(){ try{ if(rec.state!=='inactive') rec.stop(); }catch(e){} }, 12000);
+}
+async function _liveSend(blob){
+  try{
+    const dataURL=await new Promise(function(res,rej){ const fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsDataURL(blob); });
+    const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(TRANSCRIBIR_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({audio:dataURL, mime:_live.mime||'audio/webm', nombre:'live-chunk'})});
+    let j={}; try{ j=JSON.parse((await r.text())||'{}'); }catch(e){ j={}; }
+    const txt=(j.texto||'').trim();
+    if(txt && $('transText')){ let cur=$('transText').value; if(cur && !/\s$/.test(cur)) cur+=' '; $('transText').value=cur+txt+' '; $('transText').scrollTop=$('transText').scrollHeight; }
+  }catch(e){}
+}
+function _stopLive(){
+  try{ if(_live.rec && _live.rec.state!=='inactive') _live.rec.stop(); }catch(e){}
+  (_live.streams||[]).forEach(function(s){ try{ s.getTracks().forEach(function(t){t.stop();}); }catch(e){} });
+  try{ if(_live.ac && _live.ac.state!=='closed') _live.ac.close(); }catch(e){}
+  _live.on=false; _live.rec=null;
+  const b=$('transVivoSisBtn'); if(b)b.textContent='En vivo + cliente (compartir audio)';
+  const st=$('transStatus'); if(st)st.textContent='Transcripcion detenida. Revisa, quita datos personales e indexa.';
+}
 function openTrans(){ if(!isAdmin())return; $('transOverlay').classList.add('on'); $('transPanel').classList.add('on'); const st=$('transStatus'); if(st)st.textContent=''; }
-function closeTrans(){ $('transOverlay').classList.remove('on'); $('transPanel').classList.remove('on'); }
+function closeTrans(){ if(_live.on){ _live.want=false; _stopLive(); } if(_recOn){ _recWant=false; try{_rec.stop();}catch(e){} } $('transOverlay').classList.remove('on'); $('transPanel').classList.remove('on'); }
 async function transSubir(){
   const inp=$('transFile'); if(!inp||!inp.files||!inp.files[0]){ toast('Elige un archivo de audio'); return; }
   const f=inp.files[0]; if(f.size>24*1024*1024){ toast('Audio muy grande (max ~24MB). Trocea la llamada.'); return; }

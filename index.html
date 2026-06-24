@@ -784,6 +784,8 @@ body{background:transparent}
   .tc-composer textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .tc-att{display:flex;gap:6px;padding:0 12px 8px;flex-wrap:wrap}
   .tc-att img{height:46px;border-radius:7px;border:1px solid var(--line)}
+  .tc-convsel{flex:1;border:1px solid var(--line);background:var(--bg);color:var(--txt);border-radius:10px;padding:7px 10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
+  .tc-convsel:focus{outline:none;border-color:var(--accent)}
 </style>
 <div class="overlay" id="teamOverlay" onclick="closeTeam()"></div>
 <div class="appmodal" id="appModal" role="dialog" aria-modal="true">
@@ -900,7 +902,7 @@ body{background:transparent}
 </div>
 <aside class="panel" id="teampanel">
   <div class="tc-top">
-    <h3 data-pxi="chat">Chat de equipo</h3>
+    <select class="tc-convsel" id="tcConvSel" onchange="tcSetConv(this.value)"><option value="team">Chat de equipo</option></select>
     <button class="ic adminonly" id="tcClearBtn" title="Borrar toda la conversación" onclick="clearTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     <button class="ic" title="Cerrar" onclick="closeTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
   </div>
@@ -2370,11 +2372,14 @@ function applyBrand(){
 /* ============================================================
    CHAT DE EQUIPO (privado, en vivo via Supabase Realtime)
    ============================================================ */
-let tcMsgsArr=[], tcPending=[], tcChan=null, tcOpen=false;
+let tcMsgsArr=[], tcPending=[], tcChan=null, tcOpen=false, tcConv='team', tcAgentes=[];
+async function tcLoadAgentes(){ if(!sb||!me)return; try{ const {data}=await sb.from('profiles').select('id,full_name,email').neq('id',me.id); tcAgentes=(data||[]).map(function(p){ return {id:p.id, nombre:p.full_name||p.email||'agente'}; }); }catch(e){ tcAgentes=[]; } tcRenderConvSel(); }
+function tcRenderConvSel(){ const s=$('tcConvSel'); if(!s)return; const cur=tcConv||'team'; let h='<option value="team">Chat de equipo</option>'; tcAgentes.forEach(function(a){ h+='<option value="'+a.id+'">Privado · '+tcEsc(a.nombre)+'</option>'; }); s.innerHTML=h; s.value=cur; }
+function tcSetConv(v){ tcConv=v||'team'; const td=$('teamDot'); if(td)td.style.display='none'; renderTeam(); const m=$('tcMsgs'); if(m)setTimeout(function(){m.scrollTop=m.scrollHeight;},40); const inp=$('tcInput'); if(inp)inp.placeholder=(tcConv==='team')?'Escribe al equipo… (pega imágenes con Ctrl+V)':'Mensaje privado…'; }
 function openTeam(){ if(!me){ authMsg&&authMsg('Inicia sesión primero.',true); return; } tcOpen=true; $('teamOverlay').classList.add('on'); $('teampanel').classList.add('on'); $('teamDot').style.display='none'; renderTeam(); setTimeout(()=>{const m=$('tcMsgs'); if(m)m.scrollTop=m.scrollHeight;},60); }
 function closeTeam(){ tcOpen=false; $('teamOverlay').classList.remove('on'); $('teampanel').classList.remove('on'); }
 function tcEsc(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
-function renderTeam(){ const L=$('tcMsgs'); if(!L)return; L.innerHTML=tcMsgsArr.map(m=>{ const mine=me&&m.from_id===me.id; const img=m.image_url?'<img src="'+m.image_url+'" onclick="window.open(this.src)">':''; const who=mine?'':'<div class="who">'+tcEsc(m.from_name||'agente')+'</div>'; const del=(m.id&&(mine||isAdmin()))?'<span class="tcdel" title="Borrar mensaje" onclick="delTeamMsg('+m.id+','+(mine?1:0)+')">×</span>':''; return '<div class="tcm '+(mine?'mine':'their')+'">'+who+tcEsc(m.body||'')+img+del+'</div>'; }).join(''); L.scrollTop=L.scrollHeight; }
+function renderTeam(){ const L=$('tcMsgs'); if(!L)return; const _cv=tcConv||'team'; L.innerHTML=tcMsgsArr.filter(function(m){ const to=m.to_id||null; return _cv==='team'?!to:((me&&m.from_id===me.id&&to===_cv)||(m.from_id===_cv&&me&&to===me.id)); }).map(m=>{ const mine=me&&m.from_id===me.id; const img=m.image_url?'<img src="'+m.image_url+'" onclick="window.open(this.src)">':''; const who=mine?'':'<div class="who">'+tcEsc(m.from_name||'agente')+'</div>'; const del=(m.id&&(mine||isAdmin()))?'<span class="tcdel" title="Borrar mensaje" onclick="delTeamMsg('+m.id+','+(mine?1:0)+')">×</span>':''; return '<div class="tcm '+(mine?'mine':'their')+'">'+who+tcEsc(m.body||'')+img+del+'</div>'; }).join(''); L.scrollTop=L.scrollHeight; }
 async function loadTeam(){ if(!sb)return; try{ const {data}=await sb.from('team_messages').select('*').eq('tenant',CONFIG.tenant).order('created_at',{ascending:true}).limit(200); tcMsgsArr=data||[]; renderTeam(); }catch(e){} }
 function subTeam(){ if(!sb||tcChan)return; tcChan=sb.channel('team-'+CONFIG.tenant)
   .on('postgres_changes',{event:'INSERT',schema:'public',table:'team_messages',filter:'tenant=eq.'+CONFIG.tenant},payload=>{ const m=payload.new; if(tcMsgsArr.some(x=>x.id===m.id))return; tcMsgsArr.push(m); if(tcOpen) renderTeam(); else if(!me||m.from_id!==me.id) $('teamDot').style.display='block'; })
@@ -2393,12 +2398,12 @@ async function clearTeam(){
   if(!isAdmin())return; if(!await appConfirm('¿Borrar TODA la conversación del chat de equipo (para todos)?',{danger:true}))return;
   try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_clear',tenant:CONFIG.tenant})}); tcMsgsArr=[]; renderTeam(); }catch(e){ toast('No se pudo: '+(e.message||e)); }
 }
-async function initTeam(){ await loadTeam(); subTeam(); }
+async function initTeam(){ await loadTeam(); subTeam(); tcLoadAgentes(); }
 function tcDownscale(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=1280; let w=img.width,h=img.height; if(w>max||h>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);} const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); res(c.toDataURL('image/jpeg',0.6)); }; img.onerror=()=>res(null); img.src=r.result; }; r.onerror=()=>res(null); r.readAsDataURL(file); }); }
 async function tcAddFiles(files){ for(const f of files){ if(f.type&&f.type.startsWith('image/')){ const d=await tcDownscale(f); if(d) tcPending.push(d); } } tcRenderAtt(); }
 function tcRenderAtt(){ const a=$('tcAtt'); if(!a)return; a.innerHTML=tcPending.map((d,i)=>'<img src="'+d+'" onclick="tcRmAtt('+i+')" title="Quitar">').join(''); }
 function tcRmAtt(i){ tcPending.splice(i,1); tcRenderAtt(); }
-async function sendTeam(){ if(!me||!sb)return; const t=$('tcInput').value.trim(); const imgs=tcPending.slice(); if(!t&&!imgs.length)return; $('tcInput').value=''; $('tcInput').style.height='auto'; tcPending=[]; tcRenderAtt(); const name=(myProfile&&myProfile.full_name)||me.email; const rows = imgs.length ? imgs.map((d,i)=>({tenant:CONFIG.tenant,from_id:me.id,from_name:name,body:i===0?t:'',image_url:d})) : [{tenant:CONFIG.tenant,from_id:me.id,from_name:name,body:t,image_url:null}]; try{ const {data,error}=await sb.from('team_messages').insert(rows).select(); if(error)throw error; (data||[]).forEach(m=>{ if(!tcMsgsArr.some(x=>x.id===m.id)) tcMsgsArr.push(m); }); renderTeam(); }catch(e){ tcMsgsArr.push({from_id:me.id,from_name:name,body:'(no se pudo enviar: '+(e.message||e)+')'}); renderTeam(); } }
+async function sendTeam(){ if(!me||!sb)return; const t=$('tcInput').value.trim(); const imgs=tcPending.slice(); if(!t&&!imgs.length)return; $('tcInput').value=''; $('tcInput').style.height='auto'; tcPending=[]; tcRenderAtt(); const name=(myProfile&&myProfile.full_name)||me.email; const _to=(tcConv&&tcConv!=='team')?tcConv:null; const rows = imgs.length ? imgs.map((d,i)=>({tenant:CONFIG.tenant,from_id:me.id,from_name:name,to_id:_to,body:i===0?t:'',image_url:d})) : [{tenant:CONFIG.tenant,from_id:me.id,from_name:name,to_id:_to,body:t,image_url:null}]; try{ const {data,error}=await sb.from('team_messages').insert(rows).select(); if(error)throw error; (data||[]).forEach(m=>{ if(!tcMsgsArr.some(x=>x.id===m.id)) tcMsgsArr.push(m); }); renderTeam(); }catch(e){ tcMsgsArr.push({from_id:me.id,from_name:name,body:'(no se pudo enviar: '+(e.message||e)+')'}); renderTeam(); } }
 if($('tcAttBtn')){ $('tcAttBtn').onclick=()=>$('tcFile').click(); $('tcFile').onchange=e=>{ tcAddFiles(e.target.files); e.target.value=''; }; $('tcInput').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendTeam(); } }); $('tcInput').addEventListener('input',()=>{ const i=$('tcInput'); i.style.height='auto'; i.style.height=Math.min(i.scrollHeight,90)+'px'; }); $('tcInput').addEventListener('paste',e=>{ const items=(e.clipboardData&&e.clipboardData.items)||[]; let got=false; for(const it of items){ if(it.type&&it.type.startsWith('image/')){ const f=it.getAsFile(); if(f){ tcAddFiles([f]); got=true; } } } if(got)e.preventDefault(); }); }
 
 applyBrand();

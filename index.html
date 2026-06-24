@@ -361,47 +361,51 @@
 <style id="spatial-theme">
 /* ===== TEMA SPATIAL (Apple Vision Pro) — capa de overrides, NO toca logica/JS ===== */
 :root[data-theme="light"]{
-  --glass: rgba(255,252,246,.82);
-  --glass-strong: rgba(255,252,246,.90);
-  --glass-brd: rgba(255,255,255,.85);
-  --glass-hi: inset 0 1px 0 rgba(255,255,255,.7);
-  --depth-1: 0 1px 1px rgba(60,45,20,.04), 0 10px 30px -16px rgba(60,45,20,.22);
-  --depth-2: 0 2px 5px rgba(60,45,20,.05), 0 26px 60px -26px rgba(60,45,20,.42);
-  --depth-3: 0 36px 90px -30px rgba(40,30,10,.5);
+  --glass: rgba(252,249,243,.55);
+  --glass-strong: rgba(252,249,243,.72);
+  --glass-brd: rgba(255,255,255,.95);
+  --glass-hi: inset 0 1px 0 rgba(255,255,255,.85), inset 0 0 0 1px rgba(255,255,255,.25);
+  --depth-1: 0 1px 2px rgba(60,45,20,.06), 0 14px 36px -16px rgba(60,45,20,.30);
+  --depth-2: 0 4px 10px rgba(60,45,20,.08), 0 34px 70px -24px rgba(60,45,20,.5);
+  --depth-3: 0 50px 110px -28px rgba(40,30,10,.6);
   --shadow: var(--depth-1);
-  --accent-glow: 0 10px 26px -12px rgba(226,0,26,.45);
+  --accent-glow: 0 12px 30px -12px rgba(226,0,26,.5);
 }
 :root[data-theme="dark"]{
-  --glass: rgba(34,27,18,.66);
-  --glass-strong: rgba(34,27,18,.84);
-  --glass-brd: rgba(255,238,210,.16);
-  --glass-hi: inset 0 1px 0 rgba(255,238,210,.08);
-  --depth-1: 0 1px 1px rgba(0,0,0,.35), 0 12px 32px -16px rgba(0,0,0,.6);
-  --depth-2: 0 2px 6px rgba(0,0,0,.45), 0 28px 64px -26px rgba(0,0,0,.78);
-  --depth-3: 0 40px 100px -30px rgba(0,0,0,.85);
+  --glass: rgba(32,25,16,.52);
+  --glass-strong: rgba(32,25,16,.74);
+  --glass-brd: rgba(255,238,210,.22);
+  --glass-hi: inset 0 1px 0 rgba(255,238,210,.13), inset 0 0 0 1px rgba(255,238,210,.04);
+  --depth-1: 0 1px 2px rgba(0,0,0,.4), 0 16px 38px -16px rgba(0,0,0,.68);
+  --depth-2: 0 4px 12px rgba(0,0,0,.5), 0 36px 72px -24px rgba(0,0,0,.85);
+  --depth-3: 0 54px 120px -28px rgba(0,0,0,.92);
   --shadow: var(--depth-1);
-  --accent-glow: 0 10px 28px -12px rgba(255,90,77,.5);
+  --accent-glow: 0 12px 32px -12px rgba(255,90,77,.55);
 }
-:root{ --blur: 22px; --blur-strong: 34px; }
+:root{ --blur: 30px; --blur-strong: 44px; }
 
-/* Lienzo spatial: profundidad detras de todo el shell */
+/* Lienzo spatial: profundidad + color vibrante detras de todo el shell */
 .spatial-canvas{position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:
-    radial-gradient(900px 620px at 10% -10%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 60%),
-    radial-gradient(820px 700px at 110% 12%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 55%),
-    radial-gradient(760px 640px at 50% 118%, color-mix(in srgb, var(--txt) 8%, transparent), transparent 60%),
+    radial-gradient(900px 640px at 6% -12%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 58%),
+    radial-gradient(760px 700px at 114% 6%, color-mix(in srgb, #7C5CFF 26%, transparent), transparent 56%),
+    radial-gradient(840px 720px at 96% 116%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 58%),
+    radial-gradient(700px 620px at 24% 122%, color-mix(in srgb, #FFB020 22%, transparent), transparent 58%),
+    radial-gradient(620px 560px at 50% 40%, color-mix(in srgb, #2DC6FF 12%, transparent), transparent 62%),
     var(--bg);
   background-attachment:fixed;}
 body{background:transparent}
 
-/* Shell flotante: sin bordes duros */
-.app{border-left:none;border-right:none}
+/* Shell flotante: slab de vidrio que flota sobre el lienzo */
+.app{border:1px solid var(--glass-brd);border-radius:30px;margin:16px auto;height:calc(100vh - 32px);overflow:hidden;box-shadow:var(--depth-3),var(--glass-hi)}
+@media(max-width:820px){.app{margin:0;height:100vh;border-radius:0;border:none}}
 
 /* Radios mas generosos + sombras de profundidad en superficies */
 .blk{border-radius:var(--r,20px);box-shadow:var(--depth-1),var(--glass-hi)}
 .tile{border-radius:20px}
 .appmodal .am-card{border-radius:24px;box-shadow:var(--depth-3),var(--glass-hi)}
-.panel{box-shadow:var(--depth-2),var(--glass-hi)}
+.panel{top:16px;bottom:16px;right:16px;height:auto;border-radius:24px;border:1px solid var(--glass-brd);box-shadow:var(--depth-3),var(--glass-hi)}
+@media(max-width:820px){.panel{top:0;bottom:0;right:0;border-radius:0}}
 .ic{border-radius:13px}
 .toast{border-radius:13px;box-shadow:var(--depth-2)}
 
@@ -414,12 +418,12 @@ body{background:transparent}
   :root{ --surface: var(--glass); }
   .side,.blk,.tile,.panel,.cbox,.acbox,.appmodal .am-card,
   .copiloto,.email,.msg.ai,.tab,.chip{
-    -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
-    backdrop-filter: blur(var(--blur)) saturate(150%);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+    backdrop-filter: blur(var(--blur)) saturate(180%);
   }
   .panel,.appmodal .am-card{
-    -webkit-backdrop-filter: blur(var(--blur-strong)) saturate(165%);
-    backdrop-filter: blur(var(--blur-strong)) saturate(165%);
+    -webkit-backdrop-filter: blur(var(--blur-strong)) saturate(190%);
+    backdrop-filter: blur(var(--blur-strong)) saturate(190%);
   }
   .copiloto,.email{ background: var(--glass) }
   .side,.blk,.tile,.panel,.cbox,.acbox,.appmodal .am-card{ border-color: var(--glass-brd) }

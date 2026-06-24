@@ -1920,7 +1920,7 @@ function emRenderSlot(slot){
     else { if($('emChatThread'))$('emChatThread').innerHTML=''; }
     return; }
   if(who)who.textContent=(t.de||'cliente')+(t.estado==='respondido'?' · respondido':'');
-  if(an)an.innerHTML=t.iaRaw?renderContent(t.iaRaw):'<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
+  if(an)an.innerHTML=t.iaRaw?(renderContent(emInterno(t.iaRaw))||'<small style="color:var(--txt-2)">Sin notas internas para este caso.</small>'):'<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
   const anaSec=$(isMail?'emMailAna':'emChatAna'); if(anaSec) anaSec.style.display='';
   if(isMail && an && t.iaRaw){ const ct=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(ct && ct.iaRaw && t.cliente && ct.cliente && ct.cliente.usuario===t.cliente.usuario && norm(emInterno(ct.iaRaw)).slice(0,160)===norm(emInterno(t.iaRaw)).slice(0,160)){ an.innerHTML='<small style="color:var(--txt-2)">Mismo analisis interno que el chat (mismo cliente y consulta) — revisalo en el panel de arriba.</small>'; } }
   const cliEl=$(isMail?'emMailCli':'emChatCli');

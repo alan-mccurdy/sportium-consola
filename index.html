@@ -1824,7 +1824,11 @@ let __toastT=null;
 function toast(msg){ let el=$('toastBox'); if(!el){ el=document.createElement('div'); el.id='toastBox'; el.className='toast'; document.body.appendChild(el); } el.textContent=msg; el.classList.add('on'); clearTimeout(__toastT); __toastT=setTimeout(()=>el.classList.remove('on'),1600); }
 function normFaq(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9ñ ]/g,' ').replace(/\s+/g,' ').trim(); }
 async function loadFaqs(){ if(!sb)return; try{ const {data}=await sb.from('faqs').select('id,disparador,respuesta,activo').eq('tenant',CONFIG.tenant); FAQS=(data||[]).filter(f=>f.activo!==false); }catch(e){ FAQS=[]; } renderFaqs(); }
-function matchFaq(text){ const t=normFaq(text); if(!t)return null; for(const f of FAQS){ const words=normFaq(f.disparador).split(' ').filter(w=>w.length>=3); if(words.length && words.every(w=>t.includes(w))) return f; } return null; }
+const FAQ_STOP={como:1,para:1,que:1,los:1,las:1,del:1,con:1,por:1,una:1,uno:1,unos:1,unas:1,este:1,esta:1,esto:1,mas:1,pero:1,sin:1,sobre:1,entre:1,son:1,fue:1,ser:1,estar:1,tengo:1,tiene:1,puedo:1,puede:1,quiero:1,necesito:1,donde:1,cuando:1,cual:1,cuales:1,porque:1,desde:1,hasta:1,algun:1,alguna:1,tipo:1,hace:1,hacer:1,manera:1,forma:1,favor:1,hola:1,buenas:1,buenos:1,dias:1,tardes:1};
+function faqRoot(w){ return w.length>5?w.slice(0,5):w; }
+function faqWords(s){ return normFaq(s).split(' ').filter(function(w){ return w.length>=3 && !FAQ_STOP[w]; }); }
+/* matchFaq tolerante: ignora muletillas, casa por raiz (verifico~verificar~verificacion) y gana la FAQ mas especifica */
+function matchFaq(text){ const t=normFaq(text); if(!t)return null; let best=null,bestN=0; for(const f of FAQS){ const words=faqWords(f.disparador); if(!words.length) continue; const ok=words.every(function(w){ return t.indexOf(faqRoot(w))>=0; }); if(ok && words.length>bestN){ best=f; bestN=words.length; } } return best; }
 function renderFaqs(){ const L=$('faqList'); if(!L)return; L.innerHTML=FAQS.map(f=>'<div class="uitem"><div style="flex:1;min-width:0"><div class="nm">'+escapeHtml(f.disparador)+'</div><small style="color:var(--txt-2)">'+escapeHtml((f.respuesta||'').slice(0,70))+'…</small></div><button class="ubtn" onclick="delFaq('+f.id+')">Quitar</button></div>').join('')||'<small style="color:var(--txt-2)">Aún no hay respuestas rápidas.</small>'; }
 async function addFaq(){
   if(!isAdmin())return; const disparador=$('faqTrigger').value.trim(); const respuesta=$('faqAnswer').value.trim();

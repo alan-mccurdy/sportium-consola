@@ -1995,17 +1995,22 @@ function renderAviso(){ const b=$('avisoBanner'); if(!b)return; const tx=(AVISO.
   else { const dismissed = (lsGet('aviso-dismiss')===(AVISO.updated_at||'')); if(tx && !dismissed){ b.style.display='flex'; if(tEl)tEl.textContent=tx; if(e)e.style.display='none'; if(c)c.style.display=''; } else b.style.display='none'; } }
 async function editAviso(){ if(!isAdmin())return; const nuevo=await appPrompt('Plan de accion / feedback para los agentes (lo veran en su pantalla principal):',{value:AVISO.texto,multiline:true}); if(nuevo===null)return; try{ const iso=new Date().toISOString(); await sb.from('avisos_agentes').upsert({tenant:CONFIG.tenant,texto:nuevo,updated_at:iso,updated_by:me.id}); AVISO={texto:nuevo,updated_at:iso}; renderAviso(); toast('Plan de accion guardado'); }catch(e){ toast('No se pudo guardar (falta crear la tabla avisos_agentes?): '+(e.message||e)); } }
 function dismissAviso(){ try{ lsSet('aviso-dismiss', AVISO.updated_at||''); }catch(e){} const b=$('avisoBanner'); if(b)b.style.display='none'; }
-let _rec=null, _recOn=false;
+let _rec=null, _recOn=false, _recWant=false;
 function transVivo(){
   const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){ toast('Tu navegador no soporta transcripcion en vivo (usa Edge o Chrome)'); return; }
-  if(_recOn){ try{_rec.stop();}catch(e){} return; }
+  if(_recOn){ _recWant=false; try{_rec.stop();}catch(e){} return; }   // el usuario pulso Detener
+  _recWant=true;
   _rec=new SR(); _rec.lang='es-MX'; _rec.continuous=true; _rec.interimResults=true;
   let base=($('transText')&&$('transText').value)||''; if(base && !/\s$/.test(base)) base+=' ';
   _rec.onresult=function(ev){ let fin='',intt=''; for(let i=ev.resultIndex;i<ev.results.length;i++){ const r=ev.results[i]; if(r.isFinal) fin+=r[0].transcript+' '; else intt+=r[0].transcript; } if(fin) base+=fin; if($('transText'))$('transText').value=base+intt; };
-  _rec.onend=function(){ _recOn=false; const b=$('transVivoBtn'); if(b)b.textContent='Transcribir en vivo (microfono)'; const st=$('transStatus'); if(st)st.textContent='Transcripcion en vivo detenida. Revisa, quita datos personales e indexa.'; };
-  _rec.onerror=function(e){ const st=$('transStatus'); if(st)st.textContent='Error de microfono: '+((e&&e.error)||''); };
-  try{ _rec.start(); _recOn=true; const b=$('transVivoBtn'); if(b)b.textContent='Detener'; const st=$('transStatus'); if(st)st.textContent='Escuchando... habla o pon la llamada en altavoz.'; }catch(e){ toast('No se pudo iniciar el microfono'); }
+  // La Web Speech API se corta sola tras cada pausa/silencio (~minuto). Si el usuario NO pulso Detener, reanudar -> captura llamadas largas.
+  _rec.onend=function(){
+    if(_recWant){ try{ _rec.start(); }catch(e){ setTimeout(function(){ if(_recWant){ try{_rec.start();}catch(_){} } },350); } return; }
+    _recOn=false; const b=$('transVivoBtn'); if(b)b.textContent='Transcribir en vivo (microfono)'; const st=$('transStatus'); if(st)st.textContent='Transcripcion detenida. Revisa, quita datos personales e indexa.';
+  };
+  _rec.onerror=function(e){ const er=(e&&e.error)||''; const st=$('transStatus'); if(st)st.textContent='Microfono: '+er+(er==='not-allowed'||er==='service-not-allowed'?' (da permiso al micro)':' (reanudando...)'); if(er==='not-allowed'||er==='service-not-allowed'){ _recWant=false; } };
+  try{ _rec.start(); _recOn=true; const b=$('transVivoBtn'); if(b)b.textContent='Detener'; const st=$('transStatus'); if(st)st.textContent='Escuchando (no se corta en pausas). Manten ESTA pestana al frente; para llamadas largas, mejor graba y sube el audio.'; }catch(e){ toast('No se pudo iniciar el microfono'); }
 }
 function openTrans(){ if(!isAdmin())return; $('transOverlay').classList.add('on'); $('transPanel').classList.add('on'); const st=$('transStatus'); if(st)st.textContent=''; }
 function closeTrans(){ $('transOverlay').classList.remove('on'); $('transPanel').classList.remove('on'); }

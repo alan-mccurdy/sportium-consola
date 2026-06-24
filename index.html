@@ -310,6 +310,9 @@
   .em-q{display:flex;flex-direction:column;min-height:0;overflow-y:auto;padding:10px 12px;gap:7px}
   .em-q-l{border-right:1px solid var(--line)}
   .em-thread{display:flex;flex-direction:column;gap:6px}
+  .em-clisearch{padding:0 14px 12px}
+  .em-clichip{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer}
+  #emCliBox .acico svg{width:15px;height:15px}
   @media(max-width:900px){ .em-shell{grid-template-columns:1fr} .em-dock{flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line)} .em-list{max-height:30vh} .em-quad{grid-template-columns:1fr} }
   .em-gen{font-size:12px;color:var(--txt-2)}
   .em-empty{padding:24px 16px;color:var(--txt-2);font-size:13px;text-align:center}
@@ -765,18 +768,25 @@ body{background:transparent}
         <textarea id="emCuerpo" rows="3" placeholder="Cuerpo del correo del cliente..."></textarea>
         <button class="btn" id="emAddBtn" onclick="emAddManual()">Agregar al inbox</button>
       </div>
+      <div class="em-clisearch">
+        <div class="em-coltitle">Buscar cliente (lo adjunta al panel activo)</div>
+        <div class="searchwrap" style="margin-bottom:0">
+          <input id="emCliInput" placeholder="usuario, nombre, correo o cedula..." autocomplete="off">
+          <div class="acbox" id="emCliBox"></div>
+        </div>
+      </div>
       <div id="emItems"></div>
     </div>
     <div class="em-cockpit">
       <div class="em-slot focus" id="emSlotChat" onclick="emFocusSet('chat')">
-        <div class="em-slot-h"><span class="em-badge canal">Mensaje</span><span id="emChatWho">sin chat seleccionado</span></div>
+        <div class="em-slot-h"><span class="em-badge canal">Mensaje</span><span id="emChatWho">sin chat seleccionado</span><span id="emChatCli" style="margin-left:auto"></span></div>
         <div class="em-quad">
           <div class="em-q em-q-l"><div class="em-coltitle">Conversacion</div><div class="em-thread" id="emChatThread"></div></div>
           <div class="em-q em-q-r"><div class="em-coltitle">Respuesta de la IA</div><div class="em-analisis" id="emChatAnalisis"></div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div></div>
         </div>
       </div>
       <div class="em-slot" id="emSlotMail" onclick="emFocusSet('mail')">
-        <div class="em-slot-h"><span class="em-badge canal">Correo</span><span id="emMailWho">sin correo seleccionado</span></div>
+        <div class="em-slot-h"><span class="em-badge canal">Correo</span><span id="emMailWho">sin correo seleccionado</span><span id="emMailCli" style="margin-left:auto"></span></div>
         <div class="em-quad">
           <div class="em-q em-q-l"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div></div>
           <div class="em-q em-q-r"><div class="em-coltitle">Respuesta al correo</div><div class="em-analisis" id="emMailAnalisis"></div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div></div>
@@ -1108,7 +1118,23 @@ const CLIENTES=[
   bono_reclamado:'co_dep', codigo_ingresado:'STYVIP', bono_acreditado:true, rollover_acumulado:100000, saldo:120000, logins_fallidos:0, ip:'181.49.77.88', ip_pais:'CO', dispositivo:'iOS', autoexcluido:false},
  {usuario:'andresc', nombre:'Andres Castro', pais:'MX', email:'andres@mail.com', celular:'+52 33 4040 5050', cedula:'-', registro:'2026-06-02',
   kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:500, fecha:'2026-06-02', metodo:'tarjeta'}], retiros:[],
-  bono_reclamado:'mx_casino', codigo_ingresado:'MAXCASINO', bono_acreditado:true, rollover_acumulado:8000, saldo:500, logins_fallidos:0, ip:'189.130.22.4', ip_pais:'MX', dispositivo:'Web', autoexcluido:false}
+  bono_reclamado:'mx_casino', codigo_ingresado:'MAXCASINO', bono_acreditado:true, rollover_acumulado:8000, saldo:500, logins_fallidos:0, ip:'189.130.22.4', ip_pais:'MX', dispositivo:'Web', autoexcluido:false},
+ {usuario:'luciam', nombre:'Lucia Mendez', pais:'CO', email:'lucia.mendez@mail.com', celular:'+57 314 555 9090', cedula:'1.077.888.999', registro:'2026-05-10',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:40000, fecha:'2026-06-08', metodo:'PSE'}], retiros:[{monto:35000, fecha:'2026-06-11', estado:'pendiente'}],
+  bono_reclamado:'co_dep', codigo_ingresado:'STYVIP', bono_acreditado:true, rollover_acumulado:120000, saldo:40000, logins_fallidos:0, ip:'181.49.90.10', ip_pais:'CO', dispositivo:'Android', autoexcluido:false,
+  nivel:'VIP', nota_interna:'Cliente recurrente, trato preferente.', tickets_previos:[{fecha:'2026-05-20', motivo:'Retiro demorado', canal:'chat', estado:'resuelto'}]},
+ {usuario:'fernandol', nombre:'Fernando Luna', pais:'MX', email:'fernando.luna@mail.com', celular:'+52 55 8080 7070', cedula:'-', registro:'2026-04-02',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:600, fecha:'2026-06-01', metodo:'spei'}], retiros:[{monto:500, fecha:'2026-06-09', estado:'pendiente'}],
+  bono_reclamado:'mx_dep', codigo_ingresado:'MAXSPORT', bono_acreditado:true, rollover_acumulado:1200, saldo:600, logins_fallidos:0, ip:'187.190.40.12', ip_pais:'MX', dispositivo:'iOS', autoexcluido:false,
+  nivel:'regular', nota_interna:'', tickets_previos:[{fecha:'2026-06-05', motivo:'Codigo de bono no aplico', canal:'correo', estado:'resuelto'},{fecha:'2026-06-09', motivo:'Retiro pendiente +48h', canal:'correo', estado:'abierto'}]},
+ {usuario:'camilaq', nombre:'Camila Quintero', pais:'CO', email:'camila.q@mail.com', celular:'+57 300 121 3434', cedula:'1.099.000.111', registro:'2026-03-28',
+  kyc:{verificado:false, documentos_faltantes:['identificacion','comprobante de domicilio']}, depositos:[{monto:25000, fecha:'2026-06-04', metodo:'PSE'}], retiros:[],
+  bono_reclamado:'co_dep', codigo_ingresado:'STYVIP', bono_acreditado:true, rollover_acumulado:50000, saldo:25000, logins_fallidos:2, ip:'181.49.33.21', ip_pais:'CO', dispositivo:'Web', autoexcluido:false,
+  nivel:'regular', nota_interna:'Solicito bloqueo temporal el 2026-06-10; quedo permanente por error operativo.', tickets_previos:[{fecha:'2026-06-10', motivo:'Bloqueo temporal de cuenta', canal:'correo', estado:'abierto'}]},
+ {usuario:'hectorm', nombre:'Hector Mora', pais:'PA', email:'hector.mora@mail.com', celular:'+507 6444 9999', cedula:'4-444-4444', registro:'2026-01-15',
+  kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:150, fecha:'2026-06-03', metodo:'tarjeta'}], retiros:[{monto:300, fecha:'2026-06-07', estado:'pagado'}],
+  bono_reclamado:'pa_dep', codigo_ingresado:'GANA', bono_acreditado:true, rollover_acumulado:450, saldo:150, logins_fallidos:0, ip:'200.46.30.18', ip_pais:'PA', dispositivo:'Android', autoexcluido:false,
+  nivel:'VIP', nota_interna:'', tickets_previos:[]}
 ];
 
 /* ============================================================
@@ -1849,7 +1875,10 @@ function emActiveThread(){ const id=(emFocus==='mail')?emSelMail:emSelChat; retu
 function emFocusSet(slot){ emFocus=slot; const sc=$('emSlotChat'), sm=$('emSlotMail'); if(sc)sc.classList.toggle('focus',slot==='chat'); if(sm)sm.classList.toggle('focus',slot==='mail'); }
 function emReflectCanal(){ const e=$('emCanalEmail'), m=$('emCanalMsg'), as=$('emAsunto'); if(e)e.classList.toggle('sel',emAddCanal==='email'); if(m)m.classList.toggle('sel',emAddCanal==='mensaje'); if(as)as.style.display=emAddCanal==='email'?'':'none'; const de=$('emDe'); if(de)de.placeholder=emAddCanal==='email'?'De: cliente@correo.com':'De: nombre del cliente'; const cu=$('emCuerpo'); if(cu)cu.placeholder=emAddCanal==='email'?'Cuerpo del correo del cliente...':'Mensaje del cliente...'; }
 function emSetCanal(c){ emAddCanal=c; emReflectCanal(); }
-function openEmail(){ if(!me){ gateShow(); return; } emLoad(); emModo=(localStorage.getItem('email-modo')||'manual'); emReflectModo(); emReflectCanal(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); }
+function emCliFiltro(){ const inp=$('emCliInput'), box=$('emCliBox'); if(!inp||!box)return; const q=(inp.value||'').trim().toLowerCase(); if(!q){ box.classList.remove('on'); box.innerHTML=''; return; } const sn=norm(q); const cm=CLIENTES.filter(function(c){ return c.usuario.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)||c.nombre.toLowerCase().includes(q)||(sn.length>2&&norm(c.cedula).includes(sn)); }).slice(0,6); if(!cm.length){ box.classList.remove('on'); box.innerHTML=''; return; } box.innerHTML=cm.map(function(c){ return '<div class="acitem" onclick="emAttachCliente(\''+c.usuario+'\')"><div class="acico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg></div><div><b>'+escapeHtml(c.nombre)+'</b> <small>'+escapeHtml(c.usuario)+' · '+c.pais+'</small></div></div>'; }).join(''); box.classList.add('on'); }
+function emAttachCliente(usuario){ const c=CLIENTES.find(function(x){return x.usuario===usuario;}); const box=$('emCliBox'), inp=$('emCliInput'); if(box){box.classList.remove('on');box.innerHTML='';} if(inp)inp.value=''; if(!c)return; const t=emActiveThread(); if(!t){ toast('Selecciona primero una conversacion (panel activo)'); return; } t.cliente=c; emSave(); emRenderSlot(emFocus); toast('Cliente adjuntado: '+c.nombre); }
+function emDetachCliente(slot){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.cliente=null; emSave(); emRenderSlot(slot); }
+function openEmail(){ if(!me){ gateShow(); return; } emLoad(); emModo=(localStorage.getItem('email-modo')||'manual'); emReflectModo(); emReflectCanal(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); }
 function closeEmail(){ $('emailPanel').classList.remove('on'); }
 function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = emModo==='manual' ? '' : 'none'; }
 function emSetModo(modo){ if(modo==='auto' && !EMAIL_AUTO.on){ toast('Modo automatico no configurado todavia — avisame para activar el correo de reenvio'); return; } emModo=modo; try{ localStorage.setItem('email-modo', modo); }catch(e){} emReflectModo(); if(modo==='auto') emFetchAuto(); else emRenderList(); }
@@ -1870,6 +1899,8 @@ function emRenderSlot(slot){
     return; }
   if(who)who.textContent=(t.de||'cliente')+(t.estado==='respondido'?' · respondido':'');
   if(an)an.innerHTML=t.iaRaw?renderContent(t.iaRaw):'';
+  const cliEl=$(isMail?'emMailCli':'emChatCli');
+  if(cliEl){ if(t.cliente){ const cc=t.cliente; cliEl.innerHTML='<span class="em-clichip" title="Clic para quitar" onclick="event.stopPropagation();emDetachCliente(\''+slot+'\')">'+escapeHtml(cc.nombre)+' · '+cc.pais+' · '+fmtMon(cc.saldo,cc.pais)+' · KYC '+((cc.kyc&&cc.kyc.verificado)?'ok':'pend')+'</span>'; } else { cliEl.innerHTML=''; } }
   if(isMail){
     const cli=(t.mensajes||[]).find(function(m){return m.from==='cliente';})||{text:''};
     if($('emMailHead'))$('emMailHead').innerHTML='<b>De:</b> '+escapeHtml(t.de||'cliente')+'<br><b>Asunto:</b> '+escapeHtml(t.asunto||'(sin asunto)');
@@ -1903,10 +1934,11 @@ async function emPedirSugerencia(slot){
   if(gen)gen.textContent='generando...'; const ab=$('emAddBtn'); if(ab)ab.disabled=true;
   try{
     const mensajes=(t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; });
+    if(!t.cliente){ const _ct=(t.mensajes||[]).map(function(m){return m.text;}).join(' '); t.cliente = detectCliente(_ct) || findCliente(t.de) || null; emRenderSlot(slot); }
     const canal=(t.canal==='mensaje'?'mensaje':'email');
     const {data:{session}}=await sb.auth.getSession();
     const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
-      body:JSON.stringify({mensajes:mensajes, canal:canal, pais:turnoPais(), turno:{pais:turnoPais(),vertical:turnoVert()}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
+      body:JSON.stringify({mensajes:mensajes, canal:canal, cliente:t.cliente||null, pais:turnoPais(), turno:{pais:turnoPais(),vertical:turnoVert()}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
     if(!res.ok) throw new Error('Servidor '+res.status);
     let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ j={}; }
     t.iaRaw=(j.respuesta||'').trim(); emRaw=t.iaRaw; emSave();

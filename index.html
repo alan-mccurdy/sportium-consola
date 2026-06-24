@@ -309,12 +309,13 @@
   .em-quad{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0}
   .em-q{display:flex;flex-direction:column;min-height:0;overflow-y:auto;padding:10px 12px;gap:7px}
   .em-q-l{border-right:1px solid var(--line)}
-  .em-quad.em-vert{display:flex;flex-direction:column}
-  .em-vert .em-q{border-right:none;border-bottom:1px solid var(--line)}
-  .em-vert .em-conv{flex:1.3 1 0;min-height:54px}
-  .em-vert .em-ana{flex:0 1 auto;max-height:34%}
-  .em-vert .em-resp{flex:0 0 auto;border-bottom:none}
-  .em-vert .em-resp .em-sug{min-height:64px}
+  .em-quad.em-lr{display:grid;grid-template-columns:1fr 1.5fr;min-height:0}
+  .em-lr .em-leftcol{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}
+  .em-lr .em-leftcol .em-q{flex:1 1 0;border-bottom:1px solid var(--line)}
+  .em-lr .em-leftcol .em-resp{border-bottom:none}
+  .em-lr .em-resp .em-sug{min-height:60px}
+  .em-lr .em-ana{min-height:0}
+  @media(max-width:900px){ .em-quad.em-lr{grid-template-columns:1fr} .em-lr .em-leftcol{border-right:none;border-bottom:1px solid var(--line)} }
   .em-thread{display:flex;flex-direction:column;gap:6px}
   .em-clisearch{padding:0 14px 12px}
   .em-clichip{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer}
@@ -786,18 +787,22 @@ body{background:transparent}
     <div class="em-cockpit">
       <div class="em-slot focus" id="emSlotChat" onclick="emFocusSet('chat')">
         <div class="em-slot-h"><span class="em-badge canal">Mensaje</span><span id="emChatWho">sin chat seleccionado</span><span id="emChatCli" style="margin-left:auto"></span></div>
-        <div class="em-quad em-vert">
-          <div class="em-q em-conv"><div class="em-coltitle">Conversacion del cliente</div><div class="em-thread" id="emChatThread"></div></div>
+        <div class="em-quad em-lr">
+          <div class="em-leftcol">
+            <div class="em-q em-conv"><div class="em-coltitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div></div>
+            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div></div>
+          </div>
           <div class="em-q em-ana" id="emChatAna"><div class="em-coltitle">Para ti (interno) — analisis</div><div class="em-analisis" id="emChatAnalisis"></div></div>
-          <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div></div>
         </div>
       </div>
       <div class="em-slot" id="emSlotMail" onclick="emFocusSet('mail')">
         <div class="em-slot-h"><span class="em-badge canal">Correo</span><span id="emMailWho">sin correo seleccionado</span><span id="emMailCli" style="margin-left:auto"></span></div>
-        <div class="em-quad em-vert">
-          <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div></div>
+        <div class="em-quad em-lr">
+          <div class="em-leftcol">
+            <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div></div>
+            <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div></div>
+          </div>
           <div class="em-q em-ana" id="emMailAna"><div class="em-coltitle">Para ti (interno) — analisis</div><div class="em-analisis" id="emMailAnalisis"></div></div>
-          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div></div>
         </div>
       </div>
     </div>
@@ -1913,8 +1918,8 @@ function emRenderSlot(slot){
     else { if($('emChatThread'))$('emChatThread').innerHTML=''; }
     return; }
   if(who)who.textContent=(t.de||'cliente')+(t.estado==='respondido'?' · respondido':'');
-  if(an)an.innerHTML=t.iaRaw?renderContent(t.iaRaw):'';
-  const anaSec=$(isMail?'emMailAna':'emChatAna'); if(anaSec) anaSec.style.display=t.iaRaw?'':'none';
+  if(an)an.innerHTML=t.iaRaw?renderContent(t.iaRaw):'<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
+  const anaSec=$(isMail?'emMailAna':'emChatAna'); if(anaSec) anaSec.style.display='';
   const cliEl=$(isMail?'emMailCli':'emChatCli');
   if(cliEl){ if(t.cliente){ const cc=t.cliente; cliEl.innerHTML='<span class="em-clichip" title="Clic para quitar" onclick="event.stopPropagation();emDetachCliente(\''+slot+'\')">'+escapeHtml(cc.nombre)+' · '+cc.pais+' · '+fmtMon(cc.saldo,cc.pais)+' · KYC '+((cc.kyc&&cc.kyc.verificado)?'ok':'pend')+'</span>'; } else { cliEl.innerHTML=''; } }
   if(isMail){

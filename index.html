@@ -316,9 +316,10 @@
   .em-lr .em-resp .em-sug{min-height:60px}
   .em-lr .em-ana{min-height:0}
   .em-lr .em-analisis{max-height:none;resize:vertical;overflow:auto;min-height:160px}
-  .em-quad.em-mailonly{display:flex;flex-direction:column;min-height:0}
-  .em-mailonly .em-q{border-bottom:1px solid var(--line)}
-  .em-mailonly .em-resp{border-bottom:none}
+  .em-quad.em-mailonly{display:grid;grid-template-columns:1fr 1fr;min-height:0}
+  .em-mailonly .em-q{border-right:1px solid var(--line)}
+  .em-mailonly .em-resp{border-right:none}
+  @media(max-width:900px){ .em-quad.em-mailonly{grid-template-columns:1fr} .em-mailonly .em-q{border-right:none;border-bottom:1px solid var(--line)} }
   @media(max-width:900px){ .em-quad.em-lr{grid-template-columns:1fr} .em-lr .em-leftcol{border-right:none;border-bottom:1px solid var(--line)} }
   .em-thread{display:flex;flex-direction:column;gap:6px}
   .em-clisearch{padding:0 14px 12px}
@@ -1940,9 +1941,8 @@ function emRenderInterno(){
   let html='';
   if(ct && ct.iaRaw){ html += renderContent(emInterno(ct.iaRaw))||''; }
   if(mt && mt.iaRaw){
-    const sameClient = !!(ct && ct.cliente && mt.cliente && ct.cliente.usuario===mt.cliente.usuario);
-    const sameCtx = !!(ct && ct.iaRaw && norm(emInterno(ct.iaRaw)).slice(0,160)===norm(emInterno(mt.iaRaw)).slice(0,160));
-    if(!(sameClient && sameCtx)){ const mi=renderContent(emInterno(mt.iaRaw)); if(mi) html += '<div class="em-coltitle" style="margin-top:10px">Interno del correo ('+escapeHtml(mt.de||'cliente')+')</div>'+mi; }
+    const sameClient = !!((ct && ct.cliente && mt.cliente && ct.cliente.usuario===mt.cliente.usuario) || (ct && mt && ct.de && (ct.de||'').toLowerCase()===(mt.de||'').toLowerCase()));
+    if(!sameClient){ const mi=renderContent(emInterno(mt.iaRaw)); if(mi) html += '<div class="em-coltitle" style="margin-top:10px">Interno del correo ('+escapeHtml(mt.de||'cliente')+')</div>'+mi; }
   }
   box.innerHTML = html || '<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
 }

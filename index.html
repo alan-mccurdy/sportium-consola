@@ -2169,7 +2169,15 @@ function emCliFiltro(){ const inp=$('emCliInput'), box=$('emCliBox'); if(!inp||!
 function emAttachCliente(usuario){ const c=CLIENTES.find(function(x){return x.usuario===usuario;}); const box=$('emCliBox'), inp=$('emCliInput'); if(box){box.classList.remove('on');box.innerHTML='';} if(inp)inp.value=''; if(!c)return; const t=emActiveThread(); if(!t){ toast('Selecciona primero una conversacion (panel activo)'); return; } t.cliente=c; emSave(); emRenderSlot(emFocus); emTryLink(t); toast('Cliente adjuntado: '+c.nombre); }
 function emDetachCliente(slot){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.cliente=null; emSave(); emRenderSlot(slot); }
 function emClienteDe(x){ if(!x)return null; if(x.cliente)return x.cliente; const ct=(x.mensajes||[]).map(function(m){return m.text;}).join(' '); return detectCliente(ct)||findCliente(x.de)||null; }
-function emInterno(raw){ if(!raw)return ''; const s=''+raw; const i=s.search(/Respuesta\s+(?:sugerida\s+)?al\s+cliente\s*:/i); return (i>=0?s.slice(0,i):'').trim(); }
+function emInterno(raw){ if(!raw)return ''; const s=''+raw;
+  // "Interno" muestra SOLO bloques etiquetados como internos; nunca la respuesta dirigida al cliente.
+  const labels=/(Para ti \(interno\)\s*:|Verificar en el CRM\s*:)/i;
+  if(!labels.test(s)) return '';
+  const ci=s.search(/Respuesta\s+(?:sugerida\s+)?al\s+cliente\s*:/i);
+  let body=(ci>=0?s.slice(0,ci):s).trim();
+  const m=body.search(labels); if(m>0) body=body.slice(m).trim();
+  return labels.test(body)?body:'';
+}
 function emTryLink(t){ if(!t)return; const cli=emClienteDe(t); if(!cli)return; const tIsChat=(t.canal==='mensaje');
   const other=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if(((x.canal==='mensaje'))===tIsChat)return false; const xc=emClienteDe(x); return !!(xc && xc.usuario===cli.usuario); });
   if(!other)return; const oslot=(other.canal==='mensaje')?'chat':'mail'; const cur=(oslot==='mail')?emSelMail:emSelChat;

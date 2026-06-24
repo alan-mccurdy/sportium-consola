@@ -341,6 +341,12 @@
   /* AUTH GATE */
   .auth-gate{position:fixed;inset:0;background:var(--bg);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
   .auth-gate.hide{display:none}
+  .boot-splash{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+  .boot-splash.hide{display:none}
+  .boot-wm{font-weight:800;font-size:34px;letter-spacing:-1px;background:linear-gradient(120deg,var(--txt) 35%,var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .boot-bar{width:120px;height:4px;border-radius:99px;background:var(--line);overflow:hidden;position:relative}
+  .boot-bar i{position:absolute;left:-40%;width:40%;height:100%;border-radius:99px;background:var(--accent);animation:bootslide 1.05s ease-in-out infinite}
+  @keyframes bootslide{0%{left:-40%}100%{left:100%}}
   .auth-card{width:min(380px,100%);background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:30px 28px;text-align:center}
   .auth-card .mark{justify-content:center;font-size:22px;margin-bottom:4px}
   .auth-card .tag{font-size:12.5px;color:var(--txt-2);margin-bottom:22px}
@@ -450,11 +456,12 @@ body{background:transparent}
 </head>
 <body>
 <div class="spatial-canvas" aria-hidden="true"></div>
+<div class="boot-splash" id="bootSplash" aria-hidden="true"><div class="boot-wm">JobAny</div><div class="boot-bar"><i></i></div></div>
 
 <div class="demo-bar" id="demoBar"><span>Vista de demostración — estás viendo la consola como un <b>Agente</b> (sin permisos de admin)</span><button onclick="toggleDemo()">Volver a admin</button></div>
 
 <!-- ===== PANTALLA DE ACCESO ===== -->
-<div class="auth-gate" id="authGate">
+<div class="auth-gate hide" id="authGate">
   <div class="auth-card">
     <div class="auth-brand" id="authBrand">JobAny</div>
     <div class="tag" id="authTag">Sportium · acceso restringido</div>
@@ -807,8 +814,9 @@ const isAdmin=()=>isRealAdmin() && !demoAgent;   // permisos efectivos (demo => 
    AUTENTICACIÓN
    ============================================================ */
 function authMsg(t,err){ const m=$('authMsg'); m.textContent=t||''; m.classList.toggle('err',!!err); }
-function gateShow(){ $('authGate').classList.remove('hide'); }
-function gateHide(){ $('authGate').classList.add('hide'); }
+function bootDone(){ const b=$('bootSplash'); if(b) b.classList.add('hide'); }
+function gateShow(){ bootDone(); $('authGate').classList.remove('hide'); }
+function gateHide(){ bootDone(); $('authGate').classList.add('hide'); }
 
 async function initAuth(){
   if(!sb){ gateShow(); authMsg('Falta configurar Supabase: edita SUPABASE_URL y SUPABASE_ANON en el index.html (ver GUIA-DESPLIEGUE.md).',true); return; }

@@ -1701,7 +1701,7 @@ async function indexFromUrl(){
   try{ const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(FETCHURL_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({url})});
     const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
-    if(!d||!d.ok||!d.text||d.text.length<40){ procesando=procesando.filter(p=>p!==name); kbStatus('No pude leer texto útil de esa página (quizá carga con JavaScript). Copia el texto y pégalo en notas.','err'); return; }
+    if(!d||!d.ok||!d.text||d.text.length<40){ procesando=procesando.filter(p=>p!==name); kbStatus((d&&d.error)||'No pude leer texto útil de esa página. Copia el texto y pégalo en notas.','err'); return; }
     const [n,clas]=await Promise.all([ ingestKB(name,d.text), classifyKB(name,d.text) ]);
     procesando=procesando.filter(p=>p!==name); await loadIndexed();
     const real=IDX.find(x=>x.name===name);

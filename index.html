@@ -340,12 +340,7 @@
   .aviso-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   .leftdock{position:fixed;right:14px;top:20px;display:flex;flex-direction:column;gap:9px;z-index:45;padding:9px 8px;background:var(--glass-strong);-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--glass-brd);border-radius:20px;box-shadow:var(--depth-2),var(--glass-hi);transition:opacity .2s ease, transform .25s cubic-bezier(.2,.8,.3,1.1)}
   .leftdock:empty{display:none}
-  /* minimiza el dock cuando hay un panel/overlay abierto */
-  body:has(.overlay.on) #leftDock,
-  body:has(.email.on) #leftDock,
-  body:has(.copiloto.on) #leftDock,
-  body:has(.retail.on) #leftDock,
-  body:has(.appmodal.on) #leftDock{ opacity:0; pointer-events:none; transform:translateX(135%) }
+  .leftdock.min{ opacity:0; pointer-events:none; transform:translateX(135%) }
   .leftdock .ic{border:none;background:transparent;transition:transform .16s cubic-bezier(.2,.7,.3,1.5);transform-origin:right center;will-change:transform}
   .leftdock .ic:hover{transform:scale(1.7);color:var(--accent)}
   .leftdock .ic:hover+.ic,.leftdock .ic:has(+.ic:hover){transform:scale(1.34)}
@@ -2411,6 +2406,8 @@ loadUsage();
 
 renderAll();
 (function(){ try{ const d=document.getElementById('leftDock'); if(d){ ['teamBtn','retailBtn','demoBtn','emBtn','toolsBtn','transBtn','intelBtn','adminBtn'].forEach(function(id){ const b=document.getElementById(id); if(b)d.appendChild(b); }); } }catch(e){} })();
+function dockUpdate(){ const d=document.getElementById('leftDock'); if(!d)return; const open=document.querySelector('.overlay.on, .email.on, .copiloto.on, .retail.on, .appmodal.on'); d.classList.toggle('min', !!open); }
+try{ new MutationObserver(dockUpdate).observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']}); dockUpdate(); }catch(e){}
 initAuth();
 </script>
 </body>

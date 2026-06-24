@@ -358,8 +358,94 @@
   .auth-brand{font-weight:800;font-size:38px;letter-spacing:-1.2px;line-height:1;margin-bottom:8px;
     background:linear-gradient(120deg,var(--txt) 35%,var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
 </style>
+<style id="spatial-theme">
+/* ===== TEMA SPATIAL (Apple Vision Pro) — capa de overrides, NO toca logica/JS ===== */
+:root[data-theme="light"]{
+  --glass: rgba(255,252,246,.82);
+  --glass-strong: rgba(255,252,246,.90);
+  --glass-brd: rgba(255,255,255,.85);
+  --glass-hi: inset 0 1px 0 rgba(255,255,255,.7);
+  --depth-1: 0 1px 1px rgba(60,45,20,.04), 0 10px 30px -16px rgba(60,45,20,.22);
+  --depth-2: 0 2px 5px rgba(60,45,20,.05), 0 26px 60px -26px rgba(60,45,20,.42);
+  --depth-3: 0 36px 90px -30px rgba(40,30,10,.5);
+  --shadow: var(--depth-1);
+  --accent-glow: 0 10px 26px -12px rgba(226,0,26,.45);
+}
+:root[data-theme="dark"]{
+  --glass: rgba(34,27,18,.66);
+  --glass-strong: rgba(34,27,18,.84);
+  --glass-brd: rgba(255,238,210,.16);
+  --glass-hi: inset 0 1px 0 rgba(255,238,210,.08);
+  --depth-1: 0 1px 1px rgba(0,0,0,.35), 0 12px 32px -16px rgba(0,0,0,.6);
+  --depth-2: 0 2px 6px rgba(0,0,0,.45), 0 28px 64px -26px rgba(0,0,0,.78);
+  --depth-3: 0 40px 100px -30px rgba(0,0,0,.85);
+  --shadow: var(--depth-1);
+  --accent-glow: 0 10px 28px -12px rgba(255,90,77,.5);
+}
+:root{ --blur: 22px; --blur-strong: 34px; }
+
+/* Lienzo spatial: profundidad detras de todo el shell */
+.spatial-canvas{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(900px 620px at 10% -10%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 60%),
+    radial-gradient(820px 700px at 110% 12%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 55%),
+    radial-gradient(760px 640px at 50% 118%, color-mix(in srgb, var(--txt) 8%, transparent), transparent 60%),
+    var(--bg);
+  background-attachment:fixed;}
+body{background:transparent}
+
+/* Shell flotante: sin bordes duros */
+.app{border-left:none;border-right:none}
+
+/* Radios mas generosos + sombras de profundidad en superficies */
+.blk{border-radius:var(--r,20px);box-shadow:var(--depth-1),var(--glass-hi)}
+.tile{border-radius:20px}
+.appmodal .am-card{border-radius:24px;box-shadow:var(--depth-3),var(--glass-hi)}
+.panel{box-shadow:var(--depth-2),var(--glass-hi)}
+.ic{border-radius:13px}
+.toast{border-radius:13px;box-shadow:var(--depth-2)}
+
+/* Overlays: foco por difuminado mas profundo */
+.overlay{background:rgba(20,14,6,.34);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.appmodal{background:rgba(20,14,6,.36);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+
+/* Vidrio esmerilado en las superficies grandes (con fallback solido) */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))){
+  :root{ --surface: var(--glass); }
+  .side,.blk,.tile,.panel,.cbox,.acbox,.appmodal .am-card,
+  .copiloto,.email,.msg.ai,.tab,.chip{
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
+    backdrop-filter: blur(var(--blur)) saturate(150%);
+  }
+  .panel,.appmodal .am-card{
+    -webkit-backdrop-filter: blur(var(--blur-strong)) saturate(165%);
+    backdrop-filter: blur(var(--blur-strong)) saturate(165%);
+  }
+  .copiloto,.email{ background: var(--glass) }
+  .side,.blk,.tile,.panel,.cbox,.acbox,.appmodal .am-card{ border-color: var(--glass-brd) }
+}
+
+/* Botones con relieve y halo de acento */
+.btn{box-shadow:var(--accent-glow)}
+.btn:hover{filter:brightness(1.04)}
+.send{box-shadow:var(--accent-glow)}
+.tile.accent{box-shadow:0 18px 40px -16px var(--accent)}
+
+/* Realce de profundidad en controles al pasar el mouse */
+.ic{transition:.2s, box-shadow .2s}
+.ic:hover{box-shadow:var(--depth-1)}
+.tab{transition:.15s, box-shadow .2s}
+.tab.active{box-shadow:var(--depth-1)}
+
+/* Scrollbars finas translucidas */
+*::-webkit-scrollbar{width:8px;height:8px}
+*::-webkit-scrollbar-thumb{background:color-mix(in srgb, var(--txt) 22%, transparent);border-radius:10px}
+*::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb, var(--txt) 34%, transparent)}
+*::-webkit-scrollbar-track{background:transparent}
+</style>
 </head>
 <body>
+<div class="spatial-canvas" aria-hidden="true"></div>
 
 <div class="demo-bar" id="demoBar"><span>Vista de demostración — estás viendo la consola como un <b>Agente</b> (sin permisos de admin)</span><button onclick="toggleDemo()">Volver a admin</button></div>
 

@@ -2169,7 +2169,7 @@ function emCliFiltro(){ const inp=$('emCliInput'), box=$('emCliBox'); if(!inp||!
 function emAttachCliente(usuario){ const c=CLIENTES.find(function(x){return x.usuario===usuario;}); const box=$('emCliBox'), inp=$('emCliInput'); if(box){box.classList.remove('on');box.innerHTML='';} if(inp)inp.value=''; if(!c)return; const t=emActiveThread(); if(!t){ toast('Selecciona primero una conversacion (panel activo)'); return; } t.cliente=c; emSave(); emRenderSlot(emFocus); emTryLink(t); toast('Cliente adjuntado: '+c.nombre); }
 function emDetachCliente(slot){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.cliente=null; emSave(); emRenderSlot(slot); }
 function emClienteDe(x){ if(!x)return null; if(x.cliente)return x.cliente; const ct=(x.mensajes||[]).map(function(m){return m.text;}).join(' '); return detectCliente(ct)||findCliente(x.de)||null; }
-function emInterno(raw){ if(!raw)return ''; const s=''+raw; const i=s.search(/Respuesta\s+(?:sugerida\s+)?al\s+cliente\s*:/i); return (i>=0?s.slice(0,i):s).trim(); }
+function emInterno(raw){ if(!raw)return ''; const s=''+raw; const i=s.search(/Respuesta\s+(?:sugerida\s+)?al\s+cliente\s*:/i); return (i>=0?s.slice(0,i):'').trim(); }
 function emTryLink(t){ if(!t)return; const cli=emClienteDe(t); if(!cli)return; const tIsChat=(t.canal==='mensaje');
   const other=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if(((x.canal==='mensaje'))===tIsChat)return false; const xc=emClienteDe(x); return !!(xc && xc.usuario===cli.usuario); });
   if(!other)return; const oslot=(other.canal==='mensaje')?'chat':'mail'; const cur=(oslot==='mail')?emSelMail:emSelChat;
@@ -2255,16 +2255,21 @@ async function emPedirSugerencia(slot){
   if(_faq){ var _pais=emThreadPais(t); t.iaRaw='Para ti (interno): Respuesta tomada de una correccion guardada (FAQ), sin IA.\nRespuesta sugerida al cliente: '+_faq.respuesta; t.draft=extraerSugerida(t.iaRaw); var _lk=emEnlaces(_lastCli,_pais); if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n'+_lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); } emSave(); emRenderSlot(slot); return; }
   if(gen)gen.textContent='generando...'; const ab=$('emAddBtn'); if(ab)ab.disabled=true;
   try{
-    const mensajes=(t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; });
-    if(!t.cliente){ const _ct=(t.mensajes||[]).map(function(m){return m.text;}).join(' '); t.cliente = detectCliente(_ct) || findCliente(t.de) || null; emRenderSlot(slot); if(t.cliente) emTryLink(t); }
     const canal=(t.canal==='mensaje'?'mensaje':'email');
+    const pais=emThreadPais(t);
+    if(!t.cliente){ const _ct=(t.mensajes||[]).map(function(m){return m.text;}).join(' '); t.cliente = detectCliente(_ct) || findCliente(t.de) || null; emRenderSlot(slot); if(t.cliente) emTryLink(t); }
+    // El pais MARCADO por el agente manda: si el cliente enganchado es de otro pais, lo alineamos para no traer datos del pais equivocado.
+    let cliente=t.cliente; if(cliente && cliente.pais!==pais){ cliente=Object.assign({}, cliente, {pais:pais}); }
+    // Directiva: el inbox redacta el mensaje FINAL para el CLIENTE (no una ayuda para el agente).
+    const dir='Redacta la respuesta FINAL lista para ENVIAR directamente al cliente por '+(canal==='email'?'correo':'mensaje')+', en nombre del soporte de '+CONFIG.cliente+'. Dirigete al cliente de "usted", con un saludo y un cierre breves. NO escribas instrucciones para el agente ni analisis interno dentro de la respuesta. Usa unicamente la informacion, bonos y promociones del pais '+pais+'.';
+    const mensajes=[{role:'system',content:dir}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
     const {data:{session}}=await sb.auth.getSession();
     const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
-      body:JSON.stringify({mensajes:mensajes, canal:canal, cliente:t.cliente||null, pais:emThreadPais(t), turno:{pais:emThreadPais(t),vertical:turnoVert()}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
+      body:JSON.stringify({mensajes:mensajes, canal:canal, audiencia:'cliente', formato:(canal==='email'?'correo':'mensaje'), instruccion:dir, cliente:cliente||null, pais:pais, turno:{pais:pais,vertical:turnoVert()}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
     if(!res.ok) throw new Error('Servidor '+res.status);
     let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ j={}; }
     t.iaRaw=(j.respuesta||'').trim(); emRaw=t.iaRaw; t.draft=extraerSugerida(t.iaRaw);
-    var _lk=emEnlaces((t.mensajes||[]).map(function(m){return m.text;}).join(' '), emThreadPais(t));
+    var _lk=emEnlaces((t.mensajes||[]).map(function(m){return m.text;}).join(' '), pais);
     if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n' + _lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); }
     emSave();
     emRenderSlot(slot);

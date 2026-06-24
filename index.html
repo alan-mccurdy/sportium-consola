@@ -451,7 +451,7 @@ body{background:transparent}
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))){
   :root{ --surface: var(--glass); }
   .side,.blk,.tile,.panel,.cbox,.acbox,.appmodal .am-card,
-  .copiloto,.email,.msg.ai,.tab,.chip{
+  .copiloto,.email,.msg.ai,.tab,.chip,.em-slot,.em-dbtn{
     -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
     backdrop-filter: blur(var(--blur)) saturate(180%);
   }
@@ -460,7 +460,7 @@ body{background:transparent}
     backdrop-filter: blur(var(--blur-strong)) saturate(190%);
   }
   .copiloto,.email{ background: var(--glass) }
-  .side,.blk,.tile,.panel,.cbox,.acbox,.appmodal .am-card{ border-color: var(--glass-brd) }
+  .side,.blk,.tile,.panel,.cbox,.acbox,.appmodal .am-card,.em-slot,.em-dbtn{ border-color: var(--glass-brd) }
 }
 
 /* Botones con relieve y halo de acento */
@@ -1876,8 +1876,14 @@ function emFocusSet(slot){ emFocus=slot; const sc=$('emSlotChat'), sm=$('emSlotM
 function emReflectCanal(){ const e=$('emCanalEmail'), m=$('emCanalMsg'), as=$('emAsunto'); if(e)e.classList.toggle('sel',emAddCanal==='email'); if(m)m.classList.toggle('sel',emAddCanal==='mensaje'); if(as)as.style.display=emAddCanal==='email'?'':'none'; const de=$('emDe'); if(de)de.placeholder=emAddCanal==='email'?'De: cliente@correo.com':'De: nombre del cliente'; const cu=$('emCuerpo'); if(cu)cu.placeholder=emAddCanal==='email'?'Cuerpo del correo del cliente...':'Mensaje del cliente...'; }
 function emSetCanal(c){ emAddCanal=c; emReflectCanal(); }
 function emCliFiltro(){ const inp=$('emCliInput'), box=$('emCliBox'); if(!inp||!box)return; const q=(inp.value||'').trim().toLowerCase(); if(!q){ box.classList.remove('on'); box.innerHTML=''; return; } const sn=norm(q); const cm=CLIENTES.filter(function(c){ return c.usuario.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)||c.nombre.toLowerCase().includes(q)||(sn.length>2&&norm(c.cedula).includes(sn)); }).slice(0,6); if(!cm.length){ box.classList.remove('on'); box.innerHTML=''; return; } box.innerHTML=cm.map(function(c){ return '<div class="acitem" onclick="emAttachCliente(\''+c.usuario+'\')"><div class="acico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg></div><div><b>'+escapeHtml(c.nombre)+'</b> <small>'+escapeHtml(c.usuario)+' · '+c.pais+'</small></div></div>'; }).join(''); box.classList.add('on'); }
-function emAttachCliente(usuario){ const c=CLIENTES.find(function(x){return x.usuario===usuario;}); const box=$('emCliBox'), inp=$('emCliInput'); if(box){box.classList.remove('on');box.innerHTML='';} if(inp)inp.value=''; if(!c)return; const t=emActiveThread(); if(!t){ toast('Selecciona primero una conversacion (panel activo)'); return; } t.cliente=c; emSave(); emRenderSlot(emFocus); toast('Cliente adjuntado: '+c.nombre); }
+function emAttachCliente(usuario){ const c=CLIENTES.find(function(x){return x.usuario===usuario;}); const box=$('emCliBox'), inp=$('emCliInput'); if(box){box.classList.remove('on');box.innerHTML='';} if(inp)inp.value=''; if(!c)return; const t=emActiveThread(); if(!t){ toast('Selecciona primero una conversacion (panel activo)'); return; } t.cliente=c; emSave(); emRenderSlot(emFocus); emTryLink(t); toast('Cliente adjuntado: '+c.nombre); }
 function emDetachCliente(slot){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.cliente=null; emSave(); emRenderSlot(slot); }
+function emClienteDe(x){ if(!x)return null; if(x.cliente)return x.cliente; const ct=(x.mensajes||[]).map(function(m){return m.text;}).join(' '); return detectCliente(ct)||findCliente(x.de)||null; }
+function emTryLink(t){ if(!t)return; const cli=emClienteDe(t); if(!cli)return; const tIsChat=(t.canal==='mensaje');
+  const other=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if(((x.canal==='mensaje'))===tIsChat)return false; const xc=emClienteDe(x); return !!(xc && xc.usuario===cli.usuario); });
+  if(!other)return; const oslot=(other.canal==='mensaje')?'chat':'mail'; const cur=(oslot==='mail')?emSelMail:emSelChat;
+  if(cur===other.id)return; if(oslot==='chat')emSelChat=other.id; else emSelMail=other.id; emRenderList(); emRenderSlot(oslot);
+  toast('Mismo cliente: cargue su '+(oslot==='mail'?'correo':'chat')+' en el otro panel'); }
 function openEmail(){ if(!me){ gateShow(); return; } emLoad(); emModo=(localStorage.getItem('email-modo')||'manual'); emReflectModo(); emReflectCanal(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); }
 function closeEmail(){ $('emailPanel').classList.remove('on'); }
 function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = emModo==='manual' ? '' : 'none'; }
@@ -1912,7 +1918,7 @@ function emRenderSlot(slot){
   }
   if(sug && !sug.value){ sug.value = t.iaRaw ? extraerSugerida(t.iaRaw) : ''; }
 }
-function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const slot=(t.canal==='mensaje')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emRenderList(); emRenderSlot(slot); emFocusSet(slot); if(t.estado==='nuevo' && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } }
+function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const slot=(t.canal==='mensaje')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(t.estado==='nuevo' && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } }
 function emAddManual(){
   const de=($('emDe')&&$('emDe').value||'').trim();
   const asunto=($('emAsunto')&&$('emAsunto').value||'').trim();
@@ -1920,10 +1926,14 @@ function emAddManual(){
   const esMail=(emAddCanal!=='mensaje');
   if(!cuerpo){ toast(esMail?'Pega el cuerpo del correo':'Escribe el mensaje del cliente'); return; }
   const texto=((esMail&&asunto)?('Asunto: '+asunto+'\n\n'):'')+cuerpo;
+  if($('emDe'))$('emDe').value=''; if($('emAsunto'))$('emAsunto').value=''; if($('emCuerpo'))$('emCuerpo').value='';
+  const slot=esMail?'mail':'chat';
+  // Consolidar reenvios: mismo remitente en el mismo canal -> al hilo existente (cliente reenvio varios)
+  const ex=de?EMBANDEJA.find(function(x){ return x.canal===emAddCanal && (x.de||'').toLowerCase()===de.toLowerCase(); }):null;
+  if(ex){ ex.mensajes.push({from:'cliente',text:texto,t:Date.now()}); ex.estado='nuevo'; if(slot==='chat')emSelChat=ex.id; else emSelMail=ex.id; emSave(); emRenderList(); emRenderSlot(slot); emFocusSet(slot); toast('Se agrego al hilo del cliente (reenvio) — la IA lee todo y responde una vez'); emPedirSugerencia(slot); emTryLink(ex); return; }
   const id='em'+Date.now();
   EMBANDEJA.unshift({ id:id, canal:emAddCanal, de:de||'cliente', asunto:esMail?(asunto||'(sin asunto)'):'', estado:'nuevo', t:Date.now(), mensajes:[{from:'cliente',text:texto,t:Date.now()}] });
-  if($('emDe'))$('emDe').value=''; if($('emAsunto'))$('emAsunto').value=''; if($('emCuerpo'))$('emCuerpo').value='';
-  const slot=esMail?'mail':'chat'; if(slot==='chat')emSelChat=id; else emSelMail=id;
+  if(slot==='chat')emSelChat=id; else emSelMail=id;
   emSave(); emRenderList(); emRenderSlot(slot); emFocusSet(slot); emPedirSugerencia(slot);
 }
 function emNueva(){ emSelChat=null; emSelMail=null; emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); }
@@ -1934,7 +1944,7 @@ async function emPedirSugerencia(slot){
   if(gen)gen.textContent='generando...'; const ab=$('emAddBtn'); if(ab)ab.disabled=true;
   try{
     const mensajes=(t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; });
-    if(!t.cliente){ const _ct=(t.mensajes||[]).map(function(m){return m.text;}).join(' '); t.cliente = detectCliente(_ct) || findCliente(t.de) || null; emRenderSlot(slot); }
+    if(!t.cliente){ const _ct=(t.mensajes||[]).map(function(m){return m.text;}).join(' '); t.cliente = detectCliente(_ct) || findCliente(t.de) || null; emRenderSlot(slot); if(t.cliente) emTryLink(t); }
     const canal=(t.canal==='mensaje'?'mensaje':'email');
     const {data:{session}}=await sb.auth.getSession();
     const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
@@ -2101,6 +2111,14 @@ document.addEventListener('keydown',e=>{
     const idx=parseInt(e.key,10)-1;
     if(sessions[idx]){ e.preventDefault(); switchTo(sessions[idx].id); $('input').focus(); }
   }
+});
+/* ESC cierra el panel/overlay abierto (modal tiene su propio ESC) */
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  if($('appModal')&&$('appModal').classList.contains('on'))return;
+  const em=$('emailPanel'); if(em&&em.classList.contains('on')){ closeEmail(); e.preventDefault(); return; }
+  const cp=$('copilotoPanel'); if(cp&&cp.classList.contains('on')){ try{closeCopiloto();}catch(_){cp.classList.remove('on');} e.preventDefault(); return; }
+  const anyP=document.querySelector('.panel.on'); if(anyP){ anyP.classList.remove('on'); document.querySelectorAll('.overlay.on').forEach(o=>o.classList.remove('on')); if(anyP.id==='teampanel')tcOpen=false; e.preventDefault(); return; }
 });
 
 /* ---- aplicar marca (CONFIG) ---- */

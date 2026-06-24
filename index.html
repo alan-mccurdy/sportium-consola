@@ -332,6 +332,12 @@
   .em-clisearch{padding:0 14px 12px}
   .em-clichip{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer}
   .em-link-badge{display:inline-flex;align-items:center;gap:5px;background:var(--ok);color:#fff;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin-left:8px}
+  .aviso{display:flex;align-items:flex-start;gap:10px;margin:10px 14px 0;padding:11px 13px;border:1px solid var(--glass-brd);border-radius:14px;background:var(--accent-soft);box-shadow:var(--depth-1)}
+  .aviso-ic{color:var(--accent);flex-shrink:0}.aviso-ic svg{width:18px;height:18px}
+  .aviso-body{flex:1;min-width:0}
+  .aviso-tt{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--accent);margin-bottom:2px}
+  .aviso-tx{font-size:13px;line-height:1.5;color:var(--txt);white-space:pre-wrap;word-break:break-word}
+  .aviso-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   .em-pegar-h{cursor:pointer;display:flex;align-items:center;justify-content:space-between}
   .em-pegar-h svg{width:14px;height:14px;transition:transform .2s;color:var(--txt-3)}
   .em-pegar.collapsed #emPegarBody{display:none}
@@ -419,7 +425,7 @@
 <style id="spatial-theme">
 /* ===== TEMA SPATIAL (Apple Vision Pro) — capa de overrides, NO toca logica/JS ===== */
 :root[data-theme="light"]{
-  --glass: rgba(252,249,243,.55);
+  --glass: rgba(252,249,243,.48);
   --glass-strong: rgba(252,249,243,.72);
   --glass-brd: rgba(255,255,255,.95);
   --glass-hi: inset 0 1px 0 rgba(255,255,255,.85), inset 0 0 0 1px rgba(255,255,255,.25);
@@ -430,7 +436,7 @@
   --accent-glow: 0 12px 30px -12px rgba(226,0,26,.5);
 }
 :root[data-theme="dark"]{
-  --glass: rgba(32,25,16,.52);
+  --glass: rgba(32,25,16,.44);
   --glass-strong: rgba(32,25,16,.74);
   --glass-brd: rgba(255,238,210,.22);
   --glass-hi: inset 0 1px 0 rgba(255,238,210,.13), inset 0 0 0 1px rgba(255,238,210,.04);
@@ -440,16 +446,16 @@
   --shadow: var(--depth-1);
   --accent-glow: 0 12px 32px -12px rgba(255,90,77,.55);
 }
-:root{ --blur: 30px; --blur-strong: 44px; }
+:root{ --blur: 36px; --blur-strong: 52px; }
 
 /* Lienzo spatial: profundidad + color vibrante detras de todo el shell */
 .spatial-canvas{position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:
-    radial-gradient(900px 640px at 6% -12%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 58%),
-    radial-gradient(760px 700px at 114% 6%, color-mix(in srgb, #7C5CFF 26%, transparent), transparent 56%),
-    radial-gradient(840px 720px at 96% 116%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 58%),
-    radial-gradient(700px 620px at 24% 122%, color-mix(in srgb, #FFB020 22%, transparent), transparent 58%),
-    radial-gradient(620px 560px at 50% 40%, color-mix(in srgb, #2DC6FF 12%, transparent), transparent 62%),
+    radial-gradient(960px 680px at 4% -14%, color-mix(in srgb, var(--accent) 40%, transparent), transparent 58%),
+    radial-gradient(820px 740px at 116% 4%, color-mix(in srgb, #7C5CFF 34%, transparent), transparent 56%),
+    radial-gradient(900px 760px at 98% 118%, color-mix(in srgb, var(--accent) 32%, transparent), transparent 58%),
+    radial-gradient(760px 660px at 22% 124%, color-mix(in srgb, #FFB020 30%, transparent), transparent 58%),
+    radial-gradient(680px 600px at 50% 38%, color-mix(in srgb, #2DC6FF 18%, transparent), transparent 62%),
     var(--bg);
   background-attachment:fixed;}
 body{background:transparent}
@@ -548,7 +554,7 @@ body{background:transparent}
         <button class="ic" id="teamBtn" title="Chat de equipo" onclick="openTeam()" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span id="teamDot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#E2001A"></span></button>
         <button class="ic" id="retailBtn" title="Salas Retail · IPs / VNC / PuTTY" onclick="openRetail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M6 8l3 2-3 2M13.5 12H17"/></svg></button>
         <button class="ic realadminonly" id="demoBtn" title="Ver como agente (demo)" onclick="toggleDemo()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
-        <button class="ic" id="emBtn" data-pxi="mail" title="Inbox (correo + mensajes)" onclick="openEmail()"></button>
+        <button class="ic" id="emBtn" title="Inbox (correo + mensajes)" onclick="openEmail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-5l-2 3h-6l-2-3H2"/><path d="M5.5 5.5h13a1 1 0 0 1 .9.6L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6l2.6-5.9a1 1 0 0 1 .9-.6z"/></svg></button>
         <button class="ic" id="toolsBtn" title="Mis herramientas" onclick="openTools()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4l-6 6a1.4 1.4 0 0 0 2 2l6-6a4 4 0 0 0 5.4-5.4l-2.5 2.5-2-2z"/></svg></button>
         <button class="ic adminonly" id="transBtn" title="Transcribir llamada" onclick="openTrans()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg></button>
         <button class="ic adminonly" id="intelBtn" title="Panel de Inteligencia" onclick="openIntel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg></button>
@@ -559,6 +565,14 @@ body{background:transparent}
     </header>
 
     <div class="tabs" id="tabs"></div>
+    <div class="aviso" id="avisoBanner" style="display:none">
+      <div class="aviso-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 3-1 4-2 5h18c-1-1-2-2-2-5a7 7 0 0 0-7-7z"/><path d="M10 21h4"/></svg></div>
+      <div class="aviso-body"><div class="aviso-tt">Plan de accion del admin</div><div class="aviso-tx" id="avisoTexto"></div></div>
+      <div class="aviso-actions">
+        <button class="ubtn" id="avisoEdit" onclick="editAviso()" style="display:none">Editar</button>
+        <button class="ic" id="avisoClose" title="Ocultar" onclick="dismissAviso()" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+    </div>
 
     <div class="chat" id="chat"><div class="typing" id="typing"><i></i><i></i><i></i></div></div>
 
@@ -945,6 +959,7 @@ async function handleSession(session){
   await loadKB();
   loadFaqs();
   loadGlosario();
+  loadAviso();
   loadPlantillas();
   loadGlos();
   initTeam();
@@ -961,6 +976,7 @@ function applyRoleUI(){
   const sw=document.querySelector('.searchwrap'); if(sw) sw.style.display=soloChat?'none':'';
   const side=document.querySelector('.side'); if(side) side.style.display=soloChat?'none':'';
   document.body.classList.toggle('solo-chat', soloChat);
+  if(typeof renderAviso==='function') renderAviso();
 }
 /* Admin "ve como agente" para demo (sin crear cuenta real) */
 function toggleDemo(){
@@ -1938,6 +1954,13 @@ function closeRetail(){ $('retailOverlay').classList.remove('on'); $('retailPane
 let intelDias=7;
 function openIntel(){ if(!isAdmin())return; $('intelOverlay').classList.add('on'); $('intelPanel').classList.add('on'); loadIntel(); }
 function closeIntel(){ $('intelOverlay').classList.remove('on'); $('intelPanel').classList.remove('on'); }
+let AVISO={texto:'',updated_at:''};
+async function loadAviso(){ if(!sb)return; try{ const {data}=await sb.from('avisos_agentes').select('texto,updated_at').eq('tenant',CONFIG.tenant).maybeSingle(); AVISO={texto:(data&&data.texto)||'',updated_at:(data&&data.updated_at)||''}; }catch(e){ AVISO={texto:'',updated_at:''}; } renderAviso(); }
+function renderAviso(){ const b=$('avisoBanner'); if(!b)return; const tx=(AVISO.texto||'').trim(); const e=$('avisoEdit'), c=$('avisoClose'), tEl=$('avisoTexto');
+  if(isAdmin()){ b.style.display='flex'; if(tEl)tEl.textContent= tx || 'Sin plan de accion. Toca Agregar para dejar uno que vean los agentes.'; if(e){ e.style.display=''; e.textContent= tx?'Editar':'Agregar'; } if(c)c.style.display='none'; }
+  else { const dismissed = (lsGet('aviso-dismiss')===(AVISO.updated_at||'')); if(tx && !dismissed){ b.style.display='flex'; if(tEl)tEl.textContent=tx; if(e)e.style.display='none'; if(c)c.style.display=''; } else b.style.display='none'; } }
+async function editAviso(){ if(!isAdmin())return; const nuevo=await appPrompt('Plan de accion / feedback para los agentes (lo veran en su pantalla principal):',{value:AVISO.texto,multiline:true}); if(nuevo===null)return; try{ const iso=new Date().toISOString(); await sb.from('avisos_agentes').upsert({tenant:CONFIG.tenant,texto:nuevo,updated_at:iso,updated_by:me.id}); AVISO={texto:nuevo,updated_at:iso}; renderAviso(); toast('Plan de accion guardado'); }catch(e){ toast('No se pudo guardar (falta crear la tabla avisos_agentes?): '+(e.message||e)); } }
+function dismissAviso(){ try{ lsSet('aviso-dismiss', AVISO.updated_at||''); }catch(e){} const b=$('avisoBanner'); if(b)b.style.display='none'; }
 function openTrans(){ if(!isAdmin())return; $('transOverlay').classList.add('on'); $('transPanel').classList.add('on'); const st=$('transStatus'); if(st)st.textContent=''; }
 function closeTrans(){ $('transOverlay').classList.remove('on'); $('transPanel').classList.remove('on'); }
 async function transSubir(){

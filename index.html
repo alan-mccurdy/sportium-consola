@@ -550,6 +550,7 @@ body{background:transparent}
         <button class="ic realadminonly" id="demoBtn" title="Ver como agente (demo)" onclick="toggleDemo()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
         <button class="ic" id="emBtn" data-pxi="mail" title="Inbox (correo + mensajes)" onclick="openEmail()"></button>
         <button class="ic" id="toolsBtn" title="Mis herramientas" onclick="openTools()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4l-6 6a1.4 1.4 0 0 0 2 2l6-6a4 4 0 0 0 5.4-5.4l-2.5 2.5-2-2z"/></svg></button>
+        <button class="ic adminonly" id="transBtn" title="Transcribir llamada" onclick="openTrans()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg></button>
         <button class="ic adminonly" id="intelBtn" title="Panel de Inteligencia" onclick="openIntel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg></button>
         <button class="ic adminonly" id="adminBtn" title="Panel de administración" onclick="openPanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
         <button class="ic" id="clearBtn" title="Limpiar esta conversación" onclick="limpiarChat()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg></button>
@@ -693,6 +694,29 @@ body{background:transparent}
   <div class="sec"><div id="intelMetricas"></div></div>
   <div class="sec"><div class="fld">Huecos de conocimiento</div><div id="intelHuecos"></div></div>
   <div class="sec"><div class="fld">Cobertura de la base (por país × vertical × audiencia)</div><div id="intelCobertura"></div></div>
+</aside>
+
+<!-- ===== TRANSCRIBIR LLAMADA (admin) ===== -->
+<div class="overlay" id="transOverlay" onclick="closeTrans()"></div>
+<aside class="panel wide" id="transPanel">
+  <div class="phead"><b>Transcribir llamada</b><span class="rm" onclick="closeTrans()" style="margin-left:auto;cursor:pointer">&times;</span></div>
+  <div class="sec">
+    <div class="fld">1. Sube el audio de la llamada</div>
+    <div class="hint">Graba la llamada (grabadora del cel o del sistema) y sube el archivo (m4a/mp3/wav/ogg). Maximo ~24MB; si es larga, trocea.</div>
+    <input type="file" id="transFile" accept="audio/*" class="in" style="margin:6px 0">
+    <button class="btn" onclick="transSubir()">Transcribir con Whisper</button>
+  </div>
+  <div class="sec">
+    <div class="fld">2. Revisa la transcripcion (quita datos personales del cliente)</div>
+    <textarea class="ta" id="transText" rows="8" placeholder="Aqui aparece la transcripcion. Editala antes de indexar (quita nombres, cedulas, telefonos)."></textarea>
+    <button class="btn ghost" onclick="transExtraer()" style="margin-top:6px">Extraer soluciones (IA)</button>
+  </div>
+  <div class="sec">
+    <div class="fld">3. Indexar a la base (RAG)</div>
+    <input class="in" id="transNombre" placeholder="Nombre del documento (ej. Llamada retiros CO)" style="margin-bottom:6px">
+    <button class="btn" onclick="transIndexar()">Indexar al RAG</button>
+    <div class="hint" id="transStatus" style="margin-top:8px"></div>
+  </div>
 </aside>
 
 <!-- ===== MIS HERRAMIENTAS (todos los agentes) ===== -->
@@ -861,6 +885,7 @@ const WEBHOOK       = "https://n8n-production-aff6.up.railway.app/webhook/sporti
 const EMAIL_AUTO = { on:false, tabla:'correos_entrantes' }; // A (IMAP) dormido hasta activar; lee de Supabase via sb
 const ADMIN_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/sportium-admin";
 const INGEST_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/kb-ingest";
+const TRANSCRIBIR_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/transcribir";
 const REPORTE_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/intel-reporte";
 const CLASSIFY_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/kb-classify";
 const LOGIN_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/request-login";
@@ -1913,6 +1938,42 @@ function closeRetail(){ $('retailOverlay').classList.remove('on'); $('retailPane
 let intelDias=7;
 function openIntel(){ if(!isAdmin())return; $('intelOverlay').classList.add('on'); $('intelPanel').classList.add('on'); loadIntel(); }
 function closeIntel(){ $('intelOverlay').classList.remove('on'); $('intelPanel').classList.remove('on'); }
+function openTrans(){ if(!isAdmin())return; $('transOverlay').classList.add('on'); $('transPanel').classList.add('on'); const st=$('transStatus'); if(st)st.textContent=''; }
+function closeTrans(){ $('transOverlay').classList.remove('on'); $('transPanel').classList.remove('on'); }
+async function transSubir(){
+  const inp=$('transFile'); if(!inp||!inp.files||!inp.files[0]){ toast('Elige un archivo de audio'); return; }
+  const f=inp.files[0]; if(f.size>24*1024*1024){ toast('Audio muy grande (max ~24MB). Trocea la llamada.'); return; }
+  const st=$('transStatus'); if(st)st.textContent='Transcribiendo... (puede tardar segun el largo)';
+  try{
+    const dataURL=await new Promise(function(res,rej){ const fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsDataURL(f); });
+    const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(TRANSCRIBIR_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({audio:dataURL, mime:f.type||'audio/m4a', nombre:f.name})});
+    let j={}; try{ j=JSON.parse((await r.text())||'{}'); }catch(e){ j={}; }
+    const txt=(j.texto||'').trim();
+    if(!txt){ if(st)st.textContent='No se obtuvo texto (revisa el audio, el formato o el tamano).'; return; }
+    if($('transText'))$('transText').value=txt; if(st)st.textContent='Transcripcion lista. Revisa y quita datos personales antes de indexar.';
+  }catch(e){ if(st)st.textContent='Error al transcribir: '+(e.message||e); }
+}
+async function transExtraer(){
+  const t=($('transText')&&$('transText').value||'').trim(); if(!t){ toast('Primero transcribe o pega texto'); return; }
+  const st=$('transStatus'); if(st)st.textContent='Extrayendo soluciones con la IA...';
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const instr='De esta transcripcion de una llamada de soporte, extrae SOLO los pares pregunta del cliente -> solucion dada por el agente, en limpio, SIN muletillas y SIN datos personales (nombres, cedulas, telefonos, correos). Una linea por par como "P: ... | R: ...". Transcripcion:\n'+t;
+    const r=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({mensajes:[{role:'user',content:instr}], canal:'extraccion', pais:turnoPais(), turno:{pais:turnoPais(),vertical:turnoVert()}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
+    let j={}; try{ j=JSON.parse((await r.text())||'{}'); }catch(e){ j={}; }
+    const out=(j.respuesta||'').trim();
+    if(out){ if($('transText'))$('transText').value=$('transText').value+'\n\n--- Soluciones extraidas (revisa) ---\n'+extraerSugerida(out); if(st)st.textContent='Soluciones agregadas abajo. Revisa/edita y luego indexa.'; }
+    else if(st)st.textContent='La IA no devolvio extraccion; puedes indexar el texto revisado.';
+  }catch(e){ if(st)st.textContent='Error al extraer: '+(e.message||e); }
+}
+async function transIndexar(){
+  const t=($('transText')&&$('transText').value||'').trim(); if(!t){ toast('No hay texto para indexar'); return; }
+  const nombre=($('transNombre')&&$('transNombre').value||'').trim()||('Llamada '+new Date().toISOString().slice(0,10));
+  const st=$('transStatus'); if(st)st.textContent='Indexando al RAG...';
+  try{ const n=await ingestKB(nombre, t, turnoPais(), turnoVert()); if(st)st.textContent='Indexado al RAG ('+n+' fragmentos). Ya lo usara la IA en las respuestas.'; toast('Indexado al RAG'); }
+  catch(e){ if(st)st.textContent='Error al indexar: '+(e.message||e); }
+}
 let CPCONV=[]; let cpRaw='';
 // Enlaces de autoservicio (apartados donde el cliente revisa sus datos). Rutas placeholder — ajustar a las reales.
 const LINK_BASE={ MX:'https://www.sportium.com.mx', PA:'https://www.sportium.com.pa', CO:'https://sportium.com.co' };

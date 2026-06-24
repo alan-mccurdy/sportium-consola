@@ -302,19 +302,20 @@
   .em-dbtn:hover:not(:disabled){color:var(--accent);box-shadow:var(--depth-1);transform:translateY(-1px)}
   .em-dbtn:disabled{opacity:.4;cursor:not-allowed}
   .em-dock-sep{width:24px;height:1px;background:var(--line);margin:2px 0}
-  .em-cockpit{display:grid;grid-template-rows:1.3fr 1fr;min-height:0;gap:10px;padding:10px}
+  .em-cockpit{display:grid;grid-template-rows:1fr 1fr;min-height:0;gap:10px;padding:10px}
   .em-slot{display:flex;flex-direction:column;min-height:0;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--surface)}
   .em-slot.focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .em-slot-h{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--txt-2)}
   .em-quad{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0}
   .em-q{display:flex;flex-direction:column;min-height:0;overflow-y:auto;padding:10px 12px;gap:7px}
   .em-q-l{border-right:1px solid var(--line)}
-  .em-quad.em-lr{display:grid;grid-template-columns:1fr 1.5fr;min-height:0}
+  .em-quad.em-lr{display:grid;grid-template-columns:1.5fr 1fr;min-height:0}
   .em-lr .em-leftcol{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}
   .em-lr .em-leftcol .em-q{flex:1 1 0;border-bottom:1px solid var(--line)}
   .em-lr .em-leftcol .em-resp{border-bottom:none}
   .em-lr .em-resp .em-sug{min-height:60px}
   .em-lr .em-ana{min-height:0}
+  .em-lr .em-analisis{max-height:none;resize:vertical;overflow:auto;min-height:160px}
   @media(max-width:900px){ .em-quad.em-lr{grid-template-columns:1fr} .em-lr .em-leftcol{border-right:none;border-bottom:1px solid var(--line)} }
   .em-thread{display:flex;flex-direction:column;gap:6px}
   .em-clisearch{padding:0 14px 12px}
@@ -1893,6 +1894,7 @@ function emCliFiltro(){ const inp=$('emCliInput'), box=$('emCliBox'); if(!inp||!
 function emAttachCliente(usuario){ const c=CLIENTES.find(function(x){return x.usuario===usuario;}); const box=$('emCliBox'), inp=$('emCliInput'); if(box){box.classList.remove('on');box.innerHTML='';} if(inp)inp.value=''; if(!c)return; const t=emActiveThread(); if(!t){ toast('Selecciona primero una conversacion (panel activo)'); return; } t.cliente=c; emSave(); emRenderSlot(emFocus); emTryLink(t); toast('Cliente adjuntado: '+c.nombre); }
 function emDetachCliente(slot){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.cliente=null; emSave(); emRenderSlot(slot); }
 function emClienteDe(x){ if(!x)return null; if(x.cliente)return x.cliente; const ct=(x.mensajes||[]).map(function(m){return m.text;}).join(' '); return detectCliente(ct)||findCliente(x.de)||null; }
+function emInterno(raw){ if(!raw)return ''; const s=''+raw; const i=s.search(/Respuesta\s+(?:sugerida\s+)?al\s+cliente\s*:/i); return (i>=0?s.slice(0,i):s).trim(); }
 function emTryLink(t){ if(!t)return; const cli=emClienteDe(t); if(!cli)return; const tIsChat=(t.canal==='mensaje');
   const other=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if(((x.canal==='mensaje'))===tIsChat)return false; const xc=emClienteDe(x); return !!(xc && xc.usuario===cli.usuario); });
   if(!other)return; const oslot=(other.canal==='mensaje')?'chat':'mail'; const cur=(oslot==='mail')?emSelMail:emSelChat;
@@ -1920,6 +1922,7 @@ function emRenderSlot(slot){
   if(who)who.textContent=(t.de||'cliente')+(t.estado==='respondido'?' · respondido':'');
   if(an)an.innerHTML=t.iaRaw?renderContent(t.iaRaw):'<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
   const anaSec=$(isMail?'emMailAna':'emChatAna'); if(anaSec) anaSec.style.display='';
+  if(isMail && an && t.iaRaw){ const ct=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(ct && ct.iaRaw && t.cliente && ct.cliente && ct.cliente.usuario===t.cliente.usuario && norm(emInterno(ct.iaRaw)).slice(0,160)===norm(emInterno(t.iaRaw)).slice(0,160)){ an.innerHTML='<small style="color:var(--txt-2)">Mismo analisis interno que el chat (mismo cliente y consulta) — revisalo en el panel de arriba.</small>'; } }
   const cliEl=$(isMail?'emMailCli':'emChatCli');
   if(cliEl){ if(t.cliente){ const cc=t.cliente; cliEl.innerHTML='<span class="em-clichip" title="Clic para quitar" onclick="event.stopPropagation();emDetachCliente(\''+slot+'\')">'+escapeHtml(cc.nombre)+' · '+cc.pais+' · '+fmtMon(cc.saldo,cc.pais)+' · KYC '+((cc.kyc&&cc.kyc.verificado)?'ok':'pend')+'</span>'; } else { cliEl.innerHTML=''; } }
   if(isMail){

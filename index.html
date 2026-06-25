@@ -896,6 +896,7 @@ body{background:transparent}
         <button class="em-fbtn" data-f="nuevo" onclick="emSetFiltro('nuevo')">Nuevo</button>
         <button class="em-fbtn" data-f="leido" onclick="emSetFiltro('leido')">Leido</button>
         <button class="em-fbtn" data-f="respondido" onclick="emSetFiltro('respondido')">Respondido</button>
+        <button class="em-fbtn" data-f="sintomar" onclick="emSetFiltro('sintomar')">Sin tomar</button>
       </div>
       <div id="emItems"></div>
     </div>
@@ -2248,7 +2249,7 @@ function emRenderClaim(slot){
   bar.innerHTML = (otro?('⚠ La está atendiendo <b>'+escapeHtml(t.tomado_email)+'</b> — evita responder doble.'+((typeof isAdmin==='function'&&isAdmin())?' <a href="#" onclick="event.preventDefault();emTomar(\''+slot+'\')">Tomar de todos modos</a>':''))
     : ('La tomaste tú. <a href="#" onclick="event.preventDefault();emLiberar(\''+slot+'\')">Liberar</a>'));
 }
-function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); return ch===emBandeja && (emFiltro==='todos' || (t.estado||'nuevo')===emFiltro); }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); var sub=(t.canal==='mensaje')?((t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'').slice(0,40)):(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='leido'?'leido':'nuevo')); var bl=(est==='respondido'?'resp':est); return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span>'+escapeHtml(t.de||'cliente')+'</span><span><span class="em-badge canal">'+cn+'</span><span class="em-badge '+bc+'">'+bl+'</span></span></div><div class="em-as">'+escapeHtml(sub)+'</div><div class="em-fr">'+escapeHtml((t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'').slice(0,60))+'</div>'+(t.tomado_email?('<div class="em-fr" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+'</div>'; }).join('')||'<div class="em-empty">Sin conversaciones en este filtro.</div>'; }
+function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var fok=(emFiltro==='todos')||(emFiltro==='sintomar'?!t.tomado_por:(t.estado||'nuevo')===emFiltro); return ch===emBandeja && fok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); var sub=(t.canal==='mensaje')?((t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'').slice(0,40)):(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='leido'?'leido':'nuevo')); var bl=(est==='respondido'?'resp':est); return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span>'+escapeHtml(t.de||'cliente')+'</span><span><span class="em-badge canal">'+cn+'</span><span class="em-badge '+bc+'">'+bl+'</span></span></div><div class="em-as">'+escapeHtml(sub)+'</div><div class="em-fr">'+escapeHtml((t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'').slice(0,60))+'</div>'+(t.tomado_email?('<div class="em-fr" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+'</div>'; }).join('')||'<div class="em-empty">Sin conversaciones en este filtro.</div>'; }
 function emRenderSlot(slot){
   const isMail=(slot==='mail');
   const id=isMail?emSelMail:emSelChat;
@@ -2318,6 +2319,7 @@ async function emPedirSugerencia(slot){
   var _faq=(typeof matchFaq==='function')?matchFaq(_lastCli):null;
   if(_faq && typeof faqConfident==='function' && !faqConfident(_faq,_lastCli)) _faq=null; // no dejar que una FAQ suelta secuestre un correo largo
   if(_faq){ var _pais=emThreadPais(t); t.iaRaw='Para ti (interno): Respuesta tomada de una correccion guardada (FAQ), sin IA.\nRespuesta sugerida al cliente: '+_faq.respuesta; t.draft=extraerSugerida(t.iaRaw); var _lk=emEnlaces(_lastCli,_pais); if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n'+_lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); } emSave(); emPush(t); emRenderSlot(slot); return; }
+  if(!iaThrottle()) return;
   if(gen)gen.textContent='generando...'; const ab=$('emAddBtn'); if(ab)ab.disabled=true;
   try{
     const canal=(t.canal==='mensaje'?'mensaje':'email');
@@ -2503,6 +2505,9 @@ $('input').addEventListener('paste',e=>{ const items=(e.clipboardData&&e.clipboa
 ['dragover','dragenter'].forEach(ev=>$('input').addEventListener(ev,e=>e.preventDefault()));
 $('input').addEventListener('drop',e=>{ if(e.dataTransfer&&e.dataTransfer.files.length){ e.preventDefault(); addPendingFiles(e.dataTransfer.files); } });
 
+/* ---- throttle anti-abuso: evita que un agente con bucle/spam queme el cupo de todos ---- */
+let _iaHits=[];
+function iaThrottle(){ const now=Date.now(); _iaHits=_iaHits.filter(x=>now-x<60000); if(_iaHits.length>=25){ toast('Demasiadas consultas en un minuto — espera unos segundos'); return false; } _iaHits.push(now); return true; }
 /* ---- enviar ---- */
 async function sendMsg(){
   const t=$('input').value.trim(); const imgs=pendingImgs.slice();
@@ -2514,6 +2519,7 @@ async function sendMsg(){
   s.mensajes.push({role:'user',content:t||'(imagen adjunta)', imgs}); renderChat();
   // RESPUESTA RÁPIDA: si la pregunta coincide con una FAQ, responde al instante SIN gastar IA
   if(t && !imgs.length){ const faq=matchFaq(t); if(faq){ s.mensajes.push({role:'assistant',content:faq.respuesta}); renderChat(); if(autocopy){ const sug=extraerSugerida(faq.respuesta); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); } return; } }
+  if(!iaThrottle()) return;
   $('send').disabled=true; $('typing').classList.add('on'); $('chat').scrollTop=$('chat').scrollHeight;
   try{
     const {data:{session}}=await sb.auth.getSession();

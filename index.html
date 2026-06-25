@@ -780,7 +780,7 @@ body{background:transparent}
     <div class="hint">Graba la llamada (grabadora del cel o del sistema) y sube el archivo (m4a/mp3/wav/ogg). Maximo ~24MB; si es larga, trocea.</div>
     <input type="file" id="transFile" accept="audio/*" class="in" style="margin:6px 0">
     <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="transSubir()">Transcribir archivo (Whisper)</button><button class="btn ghost" id="transVivoBtn" onclick="transVivo()">En vivo (solo micrófono)</button><button class="btn ghost" id="transVivoSisBtn" onclick="transVivoSistema()">En vivo + cliente (compartir audio)</button></div>
-    <div class="hint" style="margin-top:5px"><b>En vivo + cliente</b> capta la llamada y la separa: al pulsarlo, elige <b>«Toda la pantalla»</b> y activa <b>«Compartir audio del sistema»</b> (la llamada es una app de la PC). La voz del <b>cliente</b> (audio del sistema) y la tuya de <b>agente</b> (micro) salen etiquetadas. Usa <b>audífonos</b> para que no se mezclen. Funciona en Edge/Chrome de escritorio; el texto aparece cada ~12s.</div>
+    <div class="hint" style="margin-top:5px"><b>En vivo + cliente</b> capta la llamada y la separa. <b>Solo usa el audio: la pantalla NO se graba ni se ve</b> (el video se descarta al instante). El navegador obliga a mostrar el selector de pantalla una vez para habilitar el audio: elige <b>«Toda la pantalla»</b> y activa <b>«Compartir audio del sistema»</b> (la llamada es una app de la PC). La voz del <b>cliente</b> (audio del sistema) y la tuya de <b>agente</b> (micro) salen etiquetadas. Usa <b>audífonos</b> para que no se mezclen. Funciona en Edge/Chrome de escritorio; el texto aparece cada ~12s.</div>
   </div>
   <div class="sec">
     <div class="fld">2. Revisa la transcripcion (quita datos personales del cliente)</div>
@@ -2145,15 +2145,20 @@ async function transVivoSistema(){
   const st=$('transStatus');
   if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia||!window.MediaRecorder){ toast('Tu navegador no soporta compartir audio (usa Edge o Chrome de escritorio)'); return; }
   let sys, mic=null;
-  // Por defecto: TODA LA PANTALLA + audio del sistema (la llamada es una app de la PC)
-  try{ sys=await navigator.mediaDevices.getDisplayMedia({ video:{displaySurface:'monitor'}, audio:true, systemAudio:'include' }); }
-  catch(e){ if(st)st.textContent='No se compartio la pantalla (cancelado).'; return; }
+  // El navegador EXIGE getDisplayMedia para entregar audio del sistema (no existe API de "solo audio
+  // del sistema"). Pedimos pantalla SOLO para que salga la casilla «Compartir audio del sistema»;
+  // el video se DESCARTA al instante: nunca se graba, se muestra ni se envia la pantalla, solo el audio.
+  try{ sys=await navigator.mediaDevices.getDisplayMedia({ video:{displaySurface:'monitor',width:1,height:1,frameRate:1}, audio:true, systemAudio:'include' }); }
+  catch(e){ if(st)st.textContent='No se compartio el audio (cancelado).'; return; }
   if(!sys.getAudioTracks().length){ try{ sys.getTracks().forEach(function(t){t.stop();}); }catch(_){}
     if(st)st.textContent='Falta el audio: vuelve a pulsar, elige «Toda la pantalla» y activa «Compartir audio del sistema».'; toast('Falta «Compartir audio del sistema»'); return; }
+  // DESCARTAR el video ya mismo: solo conservamos el audio del sistema (voz del cliente)
+  try{ sys.getVideoTracks().forEach(function(tr){ tr.stop(); try{ sys.removeTrack(tr); }catch(_){} }); }catch(_){}
   try{ mic=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(e){ mic=null; }  // tu voz (Agente)
   const mime=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg'].find(function(m){ try{ return MediaRecorder.isTypeSupported(m); }catch(e){ return false; } })||'';
   _live={on:true,want:true,streams:[sys,mic].filter(Boolean),recs:[],mime:mime};
-  sys.getVideoTracks().forEach(function(tr){ tr.onended=function(){ _live.want=false; _stopLive(); }; });
+  // si cortas el audio compartido desde la barra del navegador, se detiene
+  sys.getAudioTracks().forEach(function(tr){ tr.onended=function(){ _live.want=false; _stopLive(); }; });
   const b=$('transVivoSisBtn'); if(b)b.textContent='Detener (cliente + agente)';
   if(st)st.textContent='Escuchando: Cliente = audio del sistema'+(mic?', Agente = tu micro (usa audifonos para que no se mezclen)':'')+'. El texto aparece etiquetado cada ~12s.';
   // DOS pistas SEPARADAS -> se transcriben y etiquetan por separado

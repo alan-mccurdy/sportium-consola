@@ -1920,7 +1920,7 @@ function faqConfident(faq, text){
   // pregunta corta (<=4 palabras clave): basta el match normal; pregunta larga: exige cubrir >=60%
   return qw.length<=4 ? true : (cov/qw.length)>=0.6;
 }
-function renderFaqs(){ const L=$('faqList'); if(!L)return; L.innerHTML=FAQS.map(f=>'<div class="uitem"><div style="flex:1;min-width:0"><div class="nm">'+escapeHtml(f.disparador)+'</div><small style="color:var(--txt-2)">'+escapeHtml((f.respuesta||'').slice(0,70))+'…</small></div><button class="ubtn" onclick="delFaq('+f.id+')">Quitar</button></div>').join('')||'<small style="color:var(--txt-2)">Aún no hay respuestas rápidas.</small>'; }
+function renderFaqs(){ const L=$('faqList'); if(!L)return; if(!FAQS.length){ L.innerHTML='<small style="color:var(--txt-2)">Aún no hay respuestas rápidas.</small>'; return; } L.innerHTML=collapsibleList(FAQS, f=>'<div class="uitem"><div style="flex:1;min-width:0"><div class="nm">'+escapeHtml(f.disparador)+'</div><small style="color:var(--txt-2)">'+escapeHtml((f.respuesta||'').slice(0,70))+'…</small></div><button class="ubtn" onclick="delFaq('+f.id+')">Quitar</button></div>', 'faqs', renderFaqs); }
 async function addFaq(){
   if(!isAdmin())return; const disparador=$('faqTrigger').value.trim(); const respuesta=$('faqAnswer').value.trim();
   if(!disparador||!respuesta){ $('faqMsg').textContent='Escribe disparador y respuesta'; return; }
@@ -1934,7 +1934,7 @@ async function addFaq(){
 }
 async function delFaq(id){ if(!isAdmin())return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_delete',id})}); await loadFaqs(); }catch(e){} }
 async function loadGlos(){ if(!isAdmin())return; try{ const {data:{session}}=await sb.auth.getSession(); const r=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'glos_list',tenant:CONFIG.tenant})}); const j=await r.json(); renderGlos(j.glosario||[]); }catch(e){} }
-function renderGlos(arr){ const el=$('glosList'); if(!el)return; el.innerHTML=(arr||[]).map(g=>'<div class="uitem"><div style="flex:1;min-width:0"><div class="nm">'+escapeHtml(g.termino)+' &rarr; '+(g.equivalentes||[]).map(escapeHtml).join(', ')+'</div></div><button class="ubtn" onclick="delGlos('+g.id+')">Quitar</button></div>').join('')||'<small style="color:var(--txt-2)">Aún no hay sinónimos.</small>'; }
+function renderGlos(arr){ const el=$('glosList'); if(!el)return; if(arr)window.__glosArr=arr; const data=window.__glosArr||[]; if(!data.length){ el.innerHTML='<small style="color:var(--txt-2)">Aún no hay sinónimos.</small>'; return; } el.innerHTML=collapsibleList(data, g=>'<div class="uitem"><div style="flex:1;min-width:0"><div class="nm">'+escapeHtml(g.termino)+' &rarr; '+(g.equivalentes||[]).map(escapeHtml).join(', ')+'</div></div><button class="ubtn" onclick="delGlos('+g.id+')">Quitar</button></div>', 'glos', function(){renderGlos();}); }
 async function saveGlos(){ if(!isAdmin())return; const termino=$('glosTerm').value.trim(); const eq=$('glosEq').value.split(',').map(s=>s.trim()).filter(Boolean); if(!termino)return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'glos_save',tenant:CONFIG.tenant,termino,equivalentes:eq})}); $('glosTerm').value='';$('glosEq').value=''; await loadGlos(); await loadGlosario(); }catch(e){} }
 async function delGlos(id){ if(!isAdmin())return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'glos_delete',id})}); await loadGlos(); await loadGlosario(); }catch(e){} }
 $('drop').onclick=()=>$('kbFile').click(); $('kbFile').onchange=e=>{ addFiles(e.target.files); e.target.value=''; };
@@ -2135,7 +2135,10 @@ const LINKS_CLIENTE=[
  {kw:['acceso','contraseña','contrasena','login','entrar','ingresar','bloque'], label:'Recuperar el acceso a mi cuenta', path:'/recuperar-acceso'},
  {kw:['autoexclu','juego responsable','reabrir','reapertura'], label:'Juego responsable / reapertura', path:'/juego-responsable'}
 ];
-function emEnlaces(texto, pais){ const low=(texto||'').toLowerCase(); const base=LINK_BASE[pais]||LINK_BASE.MX; const out=[]; LINKS_CLIENTE.forEach(function(L){ if(L.kw.some(function(k){return low.indexOf(k)>=0;})){ out.push({label:L.label, url:base+L.path}); } }); return out.slice(0,3); }
+// Preproduccion: NO inyectar enlaces adivinados. La IA incluye los enlaces REALES desde el RAG/notas que cargue Alan.
+// Cuando se confirmen las rutas reales: poner LINKS_REALES=true y ajustar LINK_BASE/paths arriba.
+const LINKS_REALES=false;
+function emEnlaces(texto, pais){ if(!LINKS_REALES) return []; const low=(texto||'').toLowerCase(); const base=LINK_BASE[pais]||LINK_BASE.MX; const out=[]; LINKS_CLIENTE.forEach(function(L){ if(L.kw.some(function(k){return low.indexOf(k)>=0;})){ out.push({label:L.label, url:base+L.path}); } }); return out.slice(0,3); }
 const EM_DEMO=[
  {canal:'mensaje', de:'Juan Perez', texto:'Hola, hice mi deposito con el codigo MAXSPORT pero no veo el bono reflejado en mi cuenta. Me pueden ayudar?'},
  {canal:'correo', de:'juan@mail.com', asunto:'Bono no acreditado', texto:'Buenas tardes, depositE 225 y use MAXSPORT pero el bono no aparece. Quedo atento.'},

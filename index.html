@@ -906,7 +906,7 @@ body{background:transparent}
         <div class="em-slot-h"><span class="em-badge canal">Correo</span><span id="emMailWho">sin correo seleccionado</span><select class="em-pais-sel" id="emMailPais" style="display:none" title="País de esta conversación" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadPais('mail',this.value)"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select><span id="emMailLink"></span><span id="emMailCli" style="margin-left:auto"></span></div>
         <div class="em-quad em-mailonly">
           <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div></div>
-          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
+          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
         </div>
       </div>
     </div>
@@ -2309,6 +2309,17 @@ function emCopiar(slot){
   slot=slot||emFocus; const isMail=(slot==='mail'); const sug=$(isMail?'emMailSug':'emChatSug'); if(!sug)return; const t=(sug.value||'').trim(); if(!t){ toast('No hay respuesta para copiar'); return; }
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){ toast(isMail?'Respuesta copiada — pegala en Outlook':'Respuesta copiada — pegala en el chat'); }, function(){ sug.focus(); sug.select(); toast('Selecciona y copia (Ctrl+C)'); }); }
   else { sug.focus(); sug.select(); toast('Selecciona y copia (Ctrl+C)'); }
+}
+function emOutlook(){
+  const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); const sug=$('emMailSug');
+  if(!t||!sug){ toast('Selecciona un correo'); return; }
+  const cuerpo=(sug.value||'').trim(); if(!cuerpo){ toast('No hay respuesta para enviar'); return; }
+  const para=((($('emPara')&&$('emPara').value)||t.de||'')+'').trim();
+  let asunto=((($('emAsuntoOut')&&$('emAsuntoOut').value)||'')+'').trim(); if(!asunto){ asunto=t.asunto||''; if(asunto&&!/^re:/i.test(asunto)) asunto='Re: '+asunto; }
+  const href='mailto:'+encodeURIComponent(para)+'?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(cuerpo);
+  const a=document.createElement('a'); a.href=href; a.style.display='none'; document.body.appendChild(a); a.click(); setTimeout(function(){ a.remove(); },0);
+  if(cuerpo.length>1800){ if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(cuerpo); toast('Abriendo Outlook. El correo es largo: tambien lo copie por si se corta (Ctrl+V).'); }
+  else toast('Abriendo Outlook con el correo listo. Revisa y envialo tu.');
 }
 function emResponder(slot){
   slot=slot||emFocus; const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); const sug=$(isMail?'emMailSug':'emChatSug'); if(!t||!sug){ toast('Selecciona una conversacion'); return; }

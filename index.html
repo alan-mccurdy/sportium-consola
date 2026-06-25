@@ -2181,12 +2181,15 @@ async function _liveSend(blob,label){
   try{
     const dataURL=await new Promise(function(res,rej){ const fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsDataURL(blob); });
     const {data:{session}}=await sb.auth.getSession();
-    const r=await fetch(TRANSCRIBIR_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({audio:dataURL, mime:_live.mime||'audio/webm', nombre:'live-chunk'})});
+    const _mime=_live.mime||'audio/webm';
+    const _ext=/ogg/.test(_mime)?'ogg':(/mp4|m4a/.test(_mime)?'m4a':'webm');  // Groq Whisper detecta el formato por la EXTENSION del nombre
+    const r=await fetch(TRANSCRIBIR_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({audio:dataURL, mime:_mime, nombre:'live-chunk.'+_ext})});
     const raw=(await r.text())||'';
     if(!r.ok){ if(st&&_live.want)st.textContent='El servidor de transcripcion respondio '+r.status+(raw?': '+raw.slice(0,120):'')+'. (Revisa el workflow «transcribir» en n8n.)'; return; }
     let j={}; try{ j=JSON.parse(raw||'{}'); }catch(e){ j={}; }
     const txt=(j.texto||'').trim();
     if(txt && $('transText')){ const ta=$('transText'); let cur=ta.value; if(cur && !/\n$/.test(cur)) cur+='\n'; ta.value=cur+(label?label+': ':'')+txt+'\n'; ta.scrollTop=ta.scrollHeight; }
+    else if(!txt && st && _live.want){ st.textContent='Audio recibido pero el transcriptor devolvio vacio (¿silencio, o formato que Groq Whisper no acepto?). Sigo escuchando...'; }
   }catch(e){ if(st&&_live.want)st.textContent='Error de red al transcribir: '+((e&&e.message)||e); }
 }
 function _stopLive(){
@@ -2308,6 +2311,7 @@ function emSetModo(modo){ if(modo==='auto' && !EMAIL_AUTO.on){ toast('Modo autom
 // stubs (se implementan en Tasks 3-4 y 5):
 function emLoad(){ try{ EMBANDEJA=JSON.parse(localStorage.getItem('email-bandeja')||'[]')||[]; }catch(e){ EMBANDEJA=[]; } }
 function emSave(){ try{ localStorage.setItem('email-bandeja', JSON.stringify(EMBANDEJA)); }catch(e){} }
+let _emDraftT=null; function emSaveDraftDebounced(){ clearTimeout(_emDraftT); _emDraftT=setTimeout(function(){ emSave(); }, 500); }
 /* ===== COLA COMPARTIDA (Supabase + tiempo real). Degradacion suave: si no existe la tabla, sigue en localStorage ===== */
 let emCloudReady=false, emChan=null; const emPushT={};
 function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
@@ -2371,7 +2375,11 @@ function emRenderSlot(slot){
   } else {
     const th=$('emChatThread'); if(th) th.innerHTML=(t.mensajes||[]).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+escapeHtml(m.text)+'</div>'; }).join('');
   }
-  if(sug){ sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):''); }
+  if(sug){
+    sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):'');
+    const _tid=t.id;
+    sug.oninput=function(){ const tt=EMBANDEJA.find(function(x){return x.id===_tid;}); if(tt){ tt.draft=sug.value; emSaveDraftDebounced(); } };  // guarda lo que escribes para que NO se borre al re-renderizar (cambiar de panel / tiempo real)
+  }
   emRenderInterno(); emRenderClaim(slot);
 }
 function emRenderInterno(){

@@ -668,6 +668,18 @@ body{background:transparent}
     <div class="ulist" id="userList"></div>
   </div>
 
+  <!-- 2FA / seguridad -->
+  <div class="sec">
+    <h4 data-pxi="bulb">Seguridad · verificación en dos pasos (2FA)</h4>
+    <div class="hint" id="mfaStatus">Protege tu cuenta de admin con una app de autenticación.</div>
+    <div class="btnrow"><button class="btn" id="mfaBtn" onclick="mfaStart()" style="display:none">Activar 2FA</button><button class="btn" id="mfaOff" onclick="mfaDisable()" style="display:none">Desactivar 2FA</button></div>
+    <div id="mfaEnroll" style="display:none;margin-top:8px">
+      <div id="mfaQR" style="text-align:center"></div>
+      <input class="in" id="mfaCode" placeholder="Código de 6 dígitos" style="margin-top:8px">
+      <div class="btnrow"><button class="btn" onclick="mfaConfirm()">Confirmar y activar</button></div>
+    </div>
+  </div>
+
   <!-- Copiloto para Chatra (extension) -->
   <div class="sec">
     <h4 data-pxi="bolt">Copiloto para Chatra (extensión)</h4>
@@ -1008,8 +1020,9 @@ const sb = sbReady ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) :
 function emptyPaises(){ return { MX:{online:'',retail:''}, PA:{online:'',retail:''}, CO:{online:'',retail:''} }; }
 let me=null, myProfile={role:'agent'}, ctxCache={system_prompt:'',bonos_notes:'',reglas_calculo:'',paises:emptyPaises()};
 let demoAgent=false;  // cuando un admin "ve como agente" (demo)
+let mfaOk=true, _mfaEnrollId=null, _mfaFactor=null;  // 2FA: mfaOk=true si no hay 2FA o si la sesion ya alcanzo aal2
 const isRealAdmin=()=>myProfile && myProfile.role==='admin';
-const isAdmin=()=>isRealAdmin() && !demoAgent;   // permisos efectivos (demo => agente)
+const isAdmin=()=>isRealAdmin() && !demoAgent && mfaOk;   // permisos efectivos (demo => agente; 2FA sin verificar => limitado)
 
 /* ============================================================
    AUTENTICACIÓN
@@ -1032,6 +1045,7 @@ async function handleSession(session){
   catch(e){ myProfile={role:'agent',email:me.email}; }
   // cuenta bloqueada por el admin -> cerrar sesión
   if(myProfile && myProfile.active===false){ authMsg('Tu cuenta está bloqueada. Contacta al administrador.',true); try{ await sb.auth.signOut(); }catch(e){} me=null; myProfile={role:'agent'}; gateShow(); return; }
+  if(isRealAdmin()){ await mfaGate(); }   // 2FA: si el admin tiene 2FA activo, pide el codigo antes de dar permisos
   gateHide(); applyRoleUI();
   $('who').innerHTML=(me.email||'')+(isAdmin()?' · <b>admin</b>':'');
   await loadContext();
@@ -1047,6 +1061,49 @@ async function handleSession(session){
   try{ const v=localStorage.getItem('sptm-view'); if(v==='inbox')openEmail(); else if(v==='retail')openRetail(); else if(v==='copiloto')openCopiloto(); }catch(e){}
 }
 function setView(v){ try{ localStorage.setItem('sptm-view', v||'chat'); }catch(e){} }
+/* ===== 2FA (verificacion en dos pasos, MFA TOTP de Supabase) ===== */
+async function mfaGate(){
+  if(!sb||!me){ mfaOk=true; return; }
+  try{
+    const {data:fl}=await sb.auth.mfa.listFactors();
+    const v=((fl&&fl.totp)||[]).find(f=>f.status==='verified');
+    if(!v){ mfaOk=true; _mfaFactor=null; return; }   // no tiene 2FA -> no se exige
+    _mfaFactor=v;
+    const {data:aal}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    if(aal&&aal.currentLevel==='aal2'){ mfaOk=true; return; }
+    mfaOk=false;
+    for(let i=0;i<3 && !mfaOk;i++){
+      const code=await appPrompt('Verificación en dos pasos: ingresa el código de 6 dígitos de tu app de autenticación:',{placeholder:'123456'});
+      if(code===null) break;
+      try{ const {data:ch}=await sb.auth.mfa.challenge({factorId:v.id}); const {error}=await sb.auth.mfa.verify({factorId:v.id,challengeId:ch.id,code:(code||'').trim()}); if(!error){ mfaOk=true; toast('2FA verificado'); } else toast('Código incorrecto, reintenta'); }catch(e){ toast('Código incorrecto, reintenta'); }
+    }
+    if(!mfaOk) toast('2FA sin verificar: tu acceso de admin queda limitado hasta completarlo (recarga para reintentar).');
+  }catch(e){ mfaOk=true; }   // si MFA no esta disponible, no bloquear
+}
+async function mfaRefresh(){
+  const st=$('mfaStatus'), bt=$('mfaBtn'), off=$('mfaOff'), en=$('mfaEnroll'); if(!st)return;
+  try{ const {data:fl}=await sb.auth.mfa.listFactors(); const v=((fl&&fl.totp)||[]).find(f=>f.status==='verified');
+    if(v){ _mfaFactor=v; st.textContent='✓ 2FA activado en esta cuenta.'; if(bt)bt.style.display='none'; if(off)off.style.display=''; if(en)en.style.display='none'; }
+    else { st.textContent='2FA no activado (recomendado para administradores).'; if(bt)bt.style.display=''; if(off)off.style.display='none'; if(en)en.style.display='none'; }
+  }catch(e){ st.textContent='MFA no disponible — actívalo en Supabase → Authentication.'; }
+}
+async function mfaStart(){
+  try{
+    const {data:fl}=await sb.auth.mfa.listFactors(); for(const f of (((fl&&fl.totp)||[]).filter(x=>x.status!=='verified'))){ try{ await sb.auth.mfa.unenroll({factorId:f.id}); }catch(e){} }
+    const {data,error}=await sb.auth.mfa.enroll({factorType:'totp'}); if(error)throw error;
+    _mfaEnrollId=data.id; const qr=data.totp.qr_code||'';
+    $('mfaQR').innerHTML=(qr.indexOf('<svg')>=0?qr:('<img alt="QR" style="width:170px;height:170px" src="'+qr+'">'))+'<div class="hint" style="margin-top:6px">Escanéalo con Google Authenticator / Authy. O ingresa esta clave manual: <code>'+(data.totp.secret||'')+'</code></div>';
+    $('mfaEnroll').style.display=''; if($('mfaBtn'))$('mfaBtn').style.display='none';
+  }catch(e){ toast('No se pudo iniciar 2FA: '+(e.message||e)); }
+}
+async function mfaConfirm(){
+  const code=($('mfaCode')&&$('mfaCode').value||'').trim(); if(!code){ toast('Ingresa el código de 6 dígitos'); return; }
+  try{ const {data:ch}=await sb.auth.mfa.challenge({factorId:_mfaEnrollId}); const {error}=await sb.auth.mfa.verify({factorId:_mfaEnrollId,challengeId:ch.id,code}); if(error)throw error; mfaOk=true; if($('mfaCode'))$('mfaCode').value=''; toast('2FA activado'); await mfaRefresh(); applyRoleUI(); }catch(e){ toast('Código incorrecto'); }
+}
+async function mfaDisable(){
+  if(!await appConfirm('¿Desactivar la verificación en dos pasos de esta cuenta?',{danger:true}))return;
+  try{ if(_mfaFactor){ await sb.auth.mfa.unenroll({factorId:_mfaFactor.id}); } _mfaFactor=null; await mfaRefresh(); toast('2FA desactivado'); }catch(e){ toast('No se pudo: '+(e.message||e)); }
+}
 function applyRoleUI(){
   document.querySelectorAll('.adminonly').forEach(el=>el.style.display=isAdmin()?'grid':'none');
   document.querySelectorAll('.realadminonly').forEach(el=>el.style.display=isRealAdmin()?'grid':'none');
@@ -1986,7 +2043,7 @@ if($('ctxAdd')) $('ctxAdd').onclick=agregarContexto;
 if($('kbUrlBtn')) $('kbUrlBtn').onclick=indexFromUrl;
 ['dragover','dragenter'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();}));
 $('drop').addEventListener('drop',e=>{e.preventDefault(); if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);});
-function openPanel(){ if(!isAdmin())return; $('overlay').classList.add('on');$('cpanel').classList.add('on'); loadUsers(); loadReportes(); }
+function openPanel(){ if(!isAdmin())return; $('overlay').classList.add('on');$('cpanel').classList.add('on'); loadUsers(); loadReportes(); mfaRefresh(); }
 if($('repLoad')) $('repLoad').onclick=loadReportes;
 function closePanel(){$('overlay').classList.remove('on');$('cpanel').classList.remove('on')}
 
@@ -2536,6 +2593,9 @@ $('input').addEventListener('paste',e=>{ const items=(e.clipboardData&&e.clipboa
 ['dragover','dragenter'].forEach(ev=>$('input').addEventListener(ev,e=>e.preventDefault()));
 $('input').addEventListener('drop',e=>{ if(e.dataTransfer&&e.dataTransfer.files.length){ e.preventDefault(); addPendingFiles(e.dataTransfer.files); } });
 
+/* ---- guarda anti-bucle: bloquea reenvios mas rapidos que 0.7s (un bug-loop), nunca a un humano ---- */
+let _iaLast=0;
+function iaGuard(){ const now=Date.now(); if(now-_iaLast<700) return false; _iaLast=now; return true; }
 /* ---- enviar ---- */
 async function sendMsg(){
   const t=$('input').value.trim(); const imgs=pendingImgs.slice();
@@ -2547,6 +2607,7 @@ async function sendMsg(){
   s.mensajes.push({role:'user',content:t||'(imagen adjunta)', imgs}); renderChat();
   // RESPUESTA RÁPIDA: si la pregunta coincide con una FAQ, responde al instante SIN gastar IA
   if(t && !imgs.length){ const faq=matchFaq(t); if(faq){ s.mensajes.push({role:'assistant',content:faq.respuesta}); renderChat(); if(autocopy){ const sug=extraerSugerida(faq.respuesta); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); } return; } }
+  if(!iaGuard()) return;   // anti-bucle (no afecta uso real)
   $('send').disabled=true; $('typing').classList.add('on'); $('chat').scrollTop=$('chat').scrollHeight;
   try{
     const {data:{session}}=await sb.auth.getSession();

@@ -2275,7 +2275,18 @@ async function emPedirSugerencia(slot){
     // El pais MARCADO por el agente manda: si el cliente enganchado es de otro pais, lo alineamos para no traer datos del pais equivocado.
     let cliente=t.cliente; if(cliente && cliente.pais!==pais){ cliente=Object.assign({}, cliente, {pais:pais}); }
     // Directiva: el inbox redacta el mensaje FINAL para el CLIENTE (no una ayuda para el agente).
-    const dir='Manten tu formato habitual con las secciones internas para el agente ("Para ti (interno):" con los pasos a seguir y "Verificar en el CRM:"). En la seccion "Respuesta sugerida al cliente:" escribe el mensaje FINAL listo para ENVIAR al cliente por '+(canal==='email'?'correo':'mensaje')+': dirigete al cliente de "usted", con saludo y cierre breves, SIN instrucciones para el agente dentro de esa respuesta. Usa unicamente la informacion, bonos y promociones del pais '+pais+'.';
+    const nombreCli=(cliente&&(cliente.nombre||cliente.usuario))||'cliente';
+    const emp=(CONFIG.cliente||'Sportium');
+    const dir=[
+      'Devuelve SIEMPRE estas TRES secciones EXACTAS, cada una iniciando su propia linea con el encabezado tal cual:',
+      '"Para ti (interno):" diagnostico, causa y pasos para el AGENTE (aqui van los datos internos: IPs, comandos, multicuenta, montos de referencia).',
+      '"Verificar en el CRM:" 2 a 4 datos a confirmar.',
+      '"Respuesta sugerida al cliente:" el mensaje FINAL listo para ENVIAR al cliente, de "usted", SIN ningun dato interno ni instrucciones para el agente.',
+      (canal==='email'
+        ? ('Esa respuesta al cliente es un CORREO: empieza con "Estimado/a '+nombreCli+'," en su propia linea, luego el cuerpo, y cierra con "Atentamente," y en la linea siguiente "Equipo de Soporte de '+emp+'".')
+        : 'Esa respuesta al cliente es un MENSAJE de chat: breve y conversacional, con saludo corto y SIN firma ni "Atentamente".'),
+      'PAIS: usa UNICAMENTE informacion, bonos, codigos y promociones de '+pais+'. NO mezcles ni uses datos de otros paises; si no tienes el dato de '+pais+', dilo y no lo inventes.'
+    ].join(' ');
     const mensajes=[{role:'system',content:dir}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
     const {data:{session}}=await sb.auth.getSession();
     const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},

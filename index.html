@@ -577,7 +577,7 @@ body{background:transparent}
         <button class="ic" id="themeBtn" title="Tema" onclick="toggleTheme()">
           <svg id="iM" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
           <svg id="iS" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
-        <button class="ic" id="teamBtn" title="Chat de equipo" onclick="openTeam()" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span id="teamDot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#E2001A"></span></button>
+        <button class="ic" id="teamBtn" title="Chat de equipo" onclick="openTeam()" style="position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span id="teamDot" style="display:none;position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#E2001A;color:#fff;font-size:10px;font-weight:800;place-items:center;line-height:16px;box-sizing:border-box"></span></button>
         <button class="ic" id="retailBtn" title="Salas Retail · IPs / VNC / PuTTY" onclick="openRetail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M6 8l3 2-3 2M13.5 12H17"/></svg></button>
         <button class="ic realadminonly" id="demoBtn" title="Ver como agente (demo)" onclick="toggleDemo()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
         <button class="ic" id="emBtn" title="Inbox (correo + mensajes)" onclick="openEmail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-5l-2 3h-6l-2-3H2"/><path d="M5.5 5.5h13a1 1 0 0 1 .9.6L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6l2.6-5.9a1 1 0 0 1 .9-.6z"/></svg></button>
@@ -798,6 +798,33 @@ body{background:transparent}
   #teampanel .tc-top{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
   #teampanel .tc-top h3{margin:0;font-size:16px;flex:1}
   #tcMsgs{flex:1;overflow-y:auto;padding:18px 18px 22px;display:flex;flex-direction:column;gap:12px;background:transparent}
+  /* Bandeja de mensajes (lista) */
+  .tc-search{margin:0 14px 8px;width:calc(100% - 28px)}
+  #tcList{flex:1;overflow-y:auto;padding:4px 8px 12px;display:flex;flex-direction:column;gap:2px}
+  .tc-li{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:12px;cursor:pointer;transition:background .15s}
+  .tc-li:hover{background:var(--surface)}
+  .tc-av{width:38px;height:38px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:800;flex:none}
+  .tc-av.team{background:var(--accent);color:#fff}
+  .tc-li-b{flex:1;min-width:0}
+  .tc-li-n{font-weight:700;font-size:14px;display:flex;align-items:center;gap:7px}
+  .tc-li-l{font-size:12px;color:var(--txt-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tc-badge{background:var(--accent);color:#fff;font-size:10px;font-weight:800;border-radius:999px;padding:1px 6px;min-width:16px;text-align:center}
+  /* Ventanas flotantes estilo Messenger */
+  #fbwins{position:fixed;right:16px;bottom:16px;z-index:46;display:flex;flex-direction:row-reverse;gap:12px;align-items:flex-end;pointer-events:none}
+  .fbwin{pointer-events:auto;width:300px;height:430px;display:flex;flex-direction:column;background:var(--glass-strong);-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--glass-brd);border-radius:16px 16px 12px 12px;box-shadow:var(--depth-3),var(--glass-hi);overflow:hidden}
+  .fbwin.min{height:auto}
+  .fbwin.min .fbwin-msgs,.fbwin.min .fbwin-in{display:none}
+  .fbwin-h{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--glass-brd);cursor:pointer;background:var(--accent-soft)}
+  .fbwin-name{font-weight:800;font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fbwin-acts{display:flex;gap:2px}
+  .fbwin-acts button{width:24px;height:24px;border:none;background:transparent;color:var(--txt-2);cursor:pointer;border-radius:6px;display:grid;place-items:center}
+  .fbwin-acts button:hover{background:var(--surface)}
+  .fbwin-acts svg{width:15px;height:15px}
+  .fbwin-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+  .fbwin-in{display:flex;gap:6px;padding:8px;border-top:1px solid var(--glass-brd);align-items:flex-end}
+  .fbwin-in textarea{flex:1;resize:none;border:1px solid var(--glass-brd);border-radius:12px;padding:7px 10px;background:var(--surface);color:var(--txt);font-family:inherit;font-size:13px;max-height:80px}
+  .fbwin-in .send{width:34px;height:34px;flex:none}
+  @media(max-width:600px){ #fbwins{right:10px;left:10px;bottom:10px;flex-direction:column} .fbwin{width:100%;height:56vh} }
   .tcm{max-width:86%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.5;word-wrap:break-word;white-space:pre-wrap;position:relative}
   .tcdel{position:absolute;top:-7px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--bad);font-size:12px;line-height:16px;text-align:center;cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow)}
   .tcm:hover .tcdel{opacity:1} @media(hover:none){.tcdel{opacity:.5}}
@@ -932,19 +959,14 @@ body{background:transparent}
 </div>
 <aside class="panel" id="teampanel">
   <div class="tc-top">
-    <select class="tc-convsel" id="tcConvSel" onchange="tcSetConv(this.value)"><option value="team">Chat de equipo</option></select>
-    <button class="ic adminonly" id="tcClearBtn" title="Borrar toda la conversación" onclick="clearTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+    <b style="flex:1;font-size:15px">Mensajes</b>
+    <button class="ic adminonly" id="tcClearBtn" title="Borrar el chat de equipo (general)" onclick="clearTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     <button class="ic" title="Cerrar" onclick="closeTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
   </div>
-  <div id="tcMsgs"></div>
-  <div class="tc-att" id="tcAtt"></div>
-  <div class="tc-composer">
-    <button class="att-btn" id="tcAttBtn" title="Adjuntar imagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 11.05 12.25 20.2a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.19 9.19a1 1 0 0 1-1.41-1.41l8.48-8.49"/></svg></button>
-    <input type="file" id="tcFile" accept="image/*" multiple style="display:none">
-    <textarea id="tcInput" rows="1" placeholder="Escribe al equipo… (pega imágenes con Ctrl+V)"></textarea>
-    <button class="send" id="tcSend" onclick="sendTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-  </div>
+  <input class="in tc-search" id="tcSearch" placeholder="Buscar agente o abrir un chat…" oninput="tcSearch()">
+  <div id="tcList"></div>
 </aside>
+<div id="fbwins"></div>
 
 <script>
 /* ============================================================
@@ -2214,7 +2236,7 @@ function emTryLink(t){ if(!t)return; const cli=emClienteDe(t); if(!cli)return; c
   if(cur===other.id)return; if(oslot==='chat')emSelChat=other.id; else emSelMail=other.id; emRenderList(); emRenderSlot(oslot);
   if(other.estado==='nuevo' && !other.iaRaw && !(other.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(oslot); }
   toast('Mismo cliente: cargue su '+(oslot==='mail'?'correo':'chat')+' en el otro panel'); }
-function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'todos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); }
+function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'todos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); var _epg=$('emPegar'); if(_epg)_epg.style.display=isAdmin()?'':'none'; var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); }
 function closeEmail(){ $('emailPanel').classList.remove('on'); setView('chat'); }
 function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = emModo==='manual' ? '' : 'none'; }
 function emSetModo(modo){ if(modo==='auto' && !EMAIL_AUTO.on){ toast('Modo automatico no configurado todavia — avisame para activar el correo de reenvio'); return; } emModo=modo; try{ localStorage.setItem('email-modo', modo); }catch(e){} emReflectModo(); if(modo==='auto') emFetchAuto(); else emRenderList(); }
@@ -2578,39 +2600,51 @@ function applyBrand(){
 /* ============================================================
    CHAT DE EQUIPO (privado, en vivo via Supabase Realtime)
    ============================================================ */
-let tcMsgsArr=[], tcPending=[], tcChan=null, tcOpen=false, tcConv='team', tcAgentes=[];
-async function tcLoadAgentes(){ if(!sb||!me)return; try{ const {data}=await sb.from('profiles').select('id,full_name,email').neq('id',me.id); tcAgentes=(data||[]).map(function(p){ return {id:p.id, nombre:p.full_name||p.email||'agente'}; }); }catch(e){ tcAgentes=[]; } tcRenderConvSel(); }
-function tcRenderConvSel(){ const s=$('tcConvSel'); if(!s)return; const cur=tcConv||'team'; let h='<option value="team">Chat de equipo</option>'; tcAgentes.forEach(function(a){ h+='<option value="'+a.id+'">Privado · '+tcEsc(a.nombre)+'</option>'; }); s.innerHTML=h; s.value=cur; }
-function tcSetConv(v){ tcConv=v||'team'; const td=$('teamDot'); if(td)td.style.display='none'; renderTeam(); const m=$('tcMsgs'); if(m)setTimeout(function(){m.scrollTop=m.scrollHeight;},40); const inp=$('tcInput'); if(inp)inp.placeholder=(tcConv==='team')?'Escribe al equipo… (pega imágenes con Ctrl+V)':'Mensaje privado…'; }
-function openTeam(){ if(!me){ authMsg&&authMsg('Inicia sesión primero.',true); return; } tcOpen=true; $('teamOverlay').classList.add('on'); $('teampanel').classList.add('on'); $('teamDot').style.display='none'; renderTeam(); setTimeout(()=>{const m=$('tcMsgs'); if(m)m.scrollTop=m.scrollHeight;},60); }
-function closeTeam(){ tcOpen=false; $('teamOverlay').classList.remove('on'); $('teampanel').classList.remove('on'); }
+/* ===== CHAT DE EQUIPO estilo Messenger: bandeja + ventanas flotantes + badges ===== */
+let tcMsgsArr=[], tcChan=null, tcOpen=false, tcAgentes=[], tcUnread={}, tcWins={};
 function tcEsc(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
-function renderTeam(){ const L=$('tcMsgs'); if(!L)return; const _cv=tcConv||'team'; L.innerHTML=tcMsgsArr.filter(function(m){ const to=m.to_id||null; return _cv==='team'?!to:((me&&m.from_id===me.id&&to===_cv)||(m.from_id===_cv&&me&&to===me.id)); }).map(m=>{ const mine=me&&m.from_id===me.id; const img=m.image_url?'<img src="'+m.image_url+'" onclick="window.open(this.src)">':''; const who=mine?'':'<div class="who">'+tcEsc(m.from_name||'agente')+'</div>'; const del=(m.id&&(mine||isAdmin()))?'<span class="tcdel" title="Borrar mensaje" onclick="delTeamMsg('+m.id+','+(mine?1:0)+')">×</span>':''; return '<div class="tcm '+(mine?'mine':'their')+'">'+who+tcEsc(m.body||'')+img+del+'</div>'; }).join(''); L.scrollTop=L.scrollHeight; }
-async function loadTeam(){ if(!sb)return; try{ const {data}=await sb.from('team_messages').select('*').eq('tenant',CONFIG.tenant).order('created_at',{ascending:true}).limit(200); tcMsgsArr=data||[]; renderTeam(); }catch(e){} }
+async function tcLoadAgentes(){ if(!sb||!me)return; try{ const {data}=await sb.from('profiles').select('id,full_name,email').neq('id',me.id); tcAgentes=(data||[]).map(p=>({id:p.id,nombre:p.full_name||p.email||'agente'})); }catch(e){ tcAgentes=[]; } if(tcOpen)tcRenderList(); }
+function tcConvName(conv){ if(conv==='team')return 'Equipo (todos)'; const a=tcAgentes.find(x=>x.id===conv); return a?a.nombre:'Agente'; }
+function tcConvMsgs(conv){ return tcMsgsArr.filter(m=>{ const to=m.to_id||null; return conv==='team'? !to : ((me&&m.from_id===me.id&&to===conv)||(m.from_id===conv&&me&&to===me.id)); }); }
+function tcLastMsg(conv){ const a=tcConvMsgs(conv); const m=a[a.length-1]; if(!m)return ''; return (m.image_url&&!m.body?'[imagen] ':'')+(m.body||''); }
+function tcConvOfMsg(m){ const to=m.to_id||null; if(!to)return 'team'; return (me&&m.from_id===me.id)? to : m.from_id; }
+function openTeam(){ if(!me){ authMsg&&authMsg('Inicia sesión primero.',true); return; } tcOpen=true; $('teamOverlay').classList.add('on'); $('teampanel').classList.add('on'); tcRenderList(); const s=$('tcSearch'); if(s){ s.value=''; setTimeout(()=>s.focus(),60); } }
+function closeTeam(){ tcOpen=false; $('teamOverlay').classList.remove('on'); $('teampanel').classList.remove('on'); }
+function tcSearch(){ tcRenderList(); }
+function tcRenderList(){ const L=$('tcList'); if(!L)return; const q=(($('tcSearch')&&$('tcSearch').value)||'').trim().toLowerCase();
+  let convs=[{id:'team',nombre:'Equipo (todos)'}].concat(tcAgentes);
+  if(q) convs=convs.filter(c=>c.nombre.toLowerCase().includes(q));
+  L.innerHTML=convs.map(c=>{ const u=tcUnread[c.id]||0; const last=tcEsc(tcLastMsg(c.id).slice(0,42)); const ini=(c.id==='team'?'#':((c.nombre[0]||'A').toUpperCase()));
+    return '<div class="tc-li" onclick="tcOpenConv(\''+c.id+'\')"><div class="tc-av'+(c.id==='team'?' team':'')+'">'+tcEsc(ini)+'</div><div class="tc-li-b"><div class="tc-li-n">'+tcEsc(c.nombre)+(u?'<span class="tc-badge">'+u+'</span>':'')+'</div><div class="tc-li-l">'+(last||'—')+'</div></div></div>'; }).join('')||'<div class="em-empty" style="padding:14px;color:var(--txt-2)">Sin resultados.</div>';
+}
+function tcBadges(){ const tot=Object.keys(tcUnread).reduce((a,k)=>a+(tcUnread[k]||0),0); const el=$('teamDot'); if(el){ if(tot){ el.style.display='grid'; el.textContent=tot>99?'99+':String(tot); } else { el.style.display='none'; el.textContent=''; } } if(tcOpen)tcRenderList(); }
+function tcOpenConv(conv){
+  tcUnread[conv]=0; tcBadges();
+  if(!tcWins[conv]){
+    const el=document.createElement('div'); el.className='fbwin'; el.id='fbwin-'+conv;
+    el.innerHTML='<div class="fbwin-h" onclick="tcToggleMin(\''+conv+'\')"><span class="fbwin-name">'+tcEsc(tcConvName(conv))+'</span><span class="fbwin-acts"><button title="Minimizar" onclick="event.stopPropagation();tcToggleMin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button><button title="Cerrar" onclick="event.stopPropagation();tcCloseWin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span></div><div class="fbwin-msgs" id="fbmsgs-'+conv+'"></div><div class="fbwin-in"><textarea id="fbin-'+conv+'" rows="1" placeholder="Escribe…"></textarea><button class="send" onclick="tcSendWin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>';
+    $('fbwins').appendChild(el); tcWins[conv]=el;
+    const ta=el.querySelector('#fbin-'+conv);
+    ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); tcSendWin(conv); } });
+    ta.addEventListener('input',()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,80)+'px'; });
+    ta.addEventListener('paste',e=>{ const items=(e.clipboardData&&e.clipboardData.items)||[]; for(const it of items){ if(it.type&&it.type.startsWith('image/')){ const f=it.getAsFile(); if(f){ e.preventDefault(); tcDownscale(f).then(d=>{ if(d) tcSendWin(conv,d); }); } } } });
+  }
+  tcWins[conv].classList.remove('min'); tcRenderWin(conv);
+  setTimeout(()=>{ const t=document.getElementById('fbin-'+conv); if(t)t.focus(); },60);
+}
+function tcCloseWin(conv){ const w=tcWins[conv]; if(w){ w.remove(); delete tcWins[conv]; } }
+function tcToggleMin(conv){ const w=tcWins[conv]; if(!w)return; w.classList.toggle('min'); if(!w.classList.contains('min')){ tcUnread[conv]=0; tcBadges(); tcRenderWin(conv); } }
+function tcRenderWin(conv){ const L=document.getElementById('fbmsgs-'+conv); if(!L)return; L.innerHTML=tcConvMsgs(conv).map(m=>{ const mine=me&&m.from_id===me.id; const img=m.image_url?'<img src="'+m.image_url+'" onclick="window.open(this.src)">':''; const who=(mine||conv!=='team')?'':'<div class="who">'+tcEsc(m.from_name||'agente')+'</div>'; const del=(m.id&&(mine||isAdmin()))?'<span class="tcdel" title="Borrar" onclick="delTeamMsg('+m.id+','+(mine?1:0)+')">×</span>':''; return '<div class="tcm '+(mine?'mine':'their')+'">'+who+tcEsc(m.body||'')+img+del+'</div>'; }).join(''); L.scrollTop=L.scrollHeight; }
+async function tcSendWin(conv,imgData){ if(!me||!sb)return; const ta=document.getElementById('fbin-'+conv); const t=ta?ta.value.trim():''; if(!t&&!imgData)return; if(ta){ ta.value=''; ta.style.height='auto'; } const name=(myProfile&&myProfile.full_name)||me.email; const _to=(conv!=='team')?conv:null; const row={tenant:CONFIG.tenant,from_id:me.id,from_name:name,to_id:_to,body:t,image_url:imgData||null}; try{ const {data,error}=await sb.from('team_messages').insert([row]).select(); if(error)throw error; (data||[]).forEach(m=>{ if(!tcMsgsArr.some(x=>x.id===m.id)) tcMsgsArr.push(m); }); tcRenderWin(conv); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo enviar: '+(e.message||e)); } }
+async function loadTeam(){ if(!sb)return; try{ const {data}=await sb.from('team_messages').select('*').eq('tenant',CONFIG.tenant).order('created_at',{ascending:true}).limit(300); tcMsgsArr=data||[]; }catch(e){} }
 function subTeam(){ if(!sb||tcChan)return; tcChan=sb.channel('team-'+CONFIG.tenant)
-  .on('postgres_changes',{event:'INSERT',schema:'public',table:'team_messages',filter:'tenant=eq.'+CONFIG.tenant},payload=>{ const m=payload.new; if(tcMsgsArr.some(x=>x.id===m.id))return; tcMsgsArr.push(m); if(tcOpen) renderTeam(); else if(!me||m.from_id!==me.id) $('teamDot').style.display='block'; })
-  .on('postgres_changes',{event:'DELETE',schema:'public',table:'team_messages'},payload=>{ const id=payload.old&&payload.old.id; if(id){ const n=tcMsgsArr.length; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); if(tcMsgsArr.length!==n) renderTeam(); } })
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'team_messages',filter:'tenant=eq.'+CONFIG.tenant},payload=>{ const m=payload.new; if(tcMsgsArr.some(x=>x.id===m.id))return; if(m.to_id && !(me&&(m.from_id===me.id||m.to_id===me.id)))return; tcMsgsArr.push(m); const conv=tcConvOfMsg(m); const win=tcWins[conv]; if(win && !win.classList.contains('min')){ tcRenderWin(conv); } else if(!me||m.from_id!==me.id){ tcUnread[conv]=(tcUnread[conv]||0)+1; } tcBadges(); })
+  .on('postgres_changes',{event:'DELETE',schema:'public',table:'team_messages'},payload=>{ const id=payload.old&&payload.old.id; if(id){ const n=tcMsgsArr.length; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); if(tcMsgsArr.length!==n){ Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); } } })
   .subscribe(); }
-async function delTeamMsg(id,mine){
-  if(!await appConfirm('¿Borrar este mensaje?',{danger:true}))return;
-  try{
-    if(mine){ await sb.from('team_messages').delete().eq('id',id); }
-    else if(isAdmin()){ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_delete',id})}); }
-    else return;
-    tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); renderTeam();
-  }catch(e){ toast('No se pudo borrar: '+(e.message||e)); }
-}
-async function clearTeam(){
-  if(!isAdmin())return; if(!await appConfirm('¿Borrar TODA la conversación del chat de equipo (para todos)?',{danger:true}))return;
-  try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_clear',tenant:CONFIG.tenant})}); tcMsgsArr=[]; renderTeam(); }catch(e){ toast('No se pudo: '+(e.message||e)); }
-}
-async function initTeam(){ await loadTeam(); subTeam(); tcLoadAgentes(); }
+async function delTeamMsg(id,mine){ if(!await appConfirm('¿Borrar este mensaje?',{danger:true}))return; try{ if(mine){ await sb.from('team_messages').delete().eq('id',id); } else if(isAdmin()){ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_delete',id})}); } else return; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo borrar: '+(e.message||e)); } }
+async function clearTeam(){ if(!isAdmin())return; if(!await appConfirm('¿Borrar TODO el chat de equipo (general, para todos)?',{danger:true}))return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_clear',tenant:CONFIG.tenant})}); tcMsgsArr=[]; Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo: '+(e.message||e)); } }
 function tcDownscale(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=1280; let w=img.width,h=img.height; if(w>max||h>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);} const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); res(c.toDataURL('image/jpeg',0.6)); }; img.onerror=()=>res(null); img.src=r.result; }; r.onerror=()=>res(null); r.readAsDataURL(file); }); }
-async function tcAddFiles(files){ for(const f of files){ if(f.type&&f.type.startsWith('image/')){ const d=await tcDownscale(f); if(d) tcPending.push(d); } } tcRenderAtt(); }
-function tcRenderAtt(){ const a=$('tcAtt'); if(!a)return; a.innerHTML=tcPending.map((d,i)=>'<img src="'+d+'" onclick="tcRmAtt('+i+')" title="Quitar">').join(''); }
-function tcRmAtt(i){ tcPending.splice(i,1); tcRenderAtt(); }
-async function sendTeam(){ if(!me||!sb)return; const t=$('tcInput').value.trim(); const imgs=tcPending.slice(); if(!t&&!imgs.length)return; $('tcInput').value=''; $('tcInput').style.height='auto'; tcPending=[]; tcRenderAtt(); const name=(myProfile&&myProfile.full_name)||me.email; const _to=(tcConv&&tcConv!=='team')?tcConv:null; const rows = imgs.length ? imgs.map((d,i)=>({tenant:CONFIG.tenant,from_id:me.id,from_name:name,to_id:_to,body:i===0?t:'',image_url:d})) : [{tenant:CONFIG.tenant,from_id:me.id,from_name:name,to_id:_to,body:t,image_url:null}]; try{ const {data,error}=await sb.from('team_messages').insert(rows).select(); if(error)throw error; (data||[]).forEach(m=>{ if(!tcMsgsArr.some(x=>x.id===m.id)) tcMsgsArr.push(m); }); renderTeam(); }catch(e){ tcMsgsArr.push({from_id:me.id,from_name:name,body:'(no se pudo enviar: '+(e.message||e)+')'}); renderTeam(); } }
-if($('tcAttBtn')){ $('tcAttBtn').onclick=()=>$('tcFile').click(); $('tcFile').onchange=e=>{ tcAddFiles(e.target.files); e.target.value=''; }; $('tcInput').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendTeam(); } }); $('tcInput').addEventListener('input',()=>{ const i=$('tcInput'); i.style.height='auto'; i.style.height=Math.min(i.scrollHeight,90)+'px'; }); $('tcInput').addEventListener('paste',e=>{ const items=(e.clipboardData&&e.clipboardData.items)||[]; let got=false; for(const it of items){ if(it.type&&it.type.startsWith('image/')){ const f=it.getAsFile(); if(f){ tcAddFiles([f]); got=true; } } } if(got)e.preventDefault(); }); }
+async function initTeam(){ await loadTeam(); subTeam(); tcLoadAgentes(); }
 
 applyBrand();
 loadComandosExtra();

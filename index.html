@@ -343,7 +343,13 @@
   .em-clisearch{padding:0 14px 12px}
   .em-clichip{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer}
   .em-link-badge{display:inline-flex;align-items:center;gap:5px;background:var(--ok);color:#fff;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin-left:8px}
-  .aviso{display:flex;align-items:flex-start;gap:10px;margin:10px 14px 0;padding:11px 13px;border:1px solid var(--glass-brd);border-radius:14px;background:var(--accent-soft);box-shadow:var(--depth-1)}
+  .aviso{position:fixed;right:16px;bottom:16px;z-index:44;width:380px;max-width:calc(100vw - 32px);display:flex;align-items:flex-start;gap:10px;padding:13px 15px;border:1px solid var(--glass-brd);border-radius:18px;background:var(--accent-soft);box-shadow:var(--depth-2),var(--glass-hi);-webkit-backdrop-filter:blur(22px) saturate(160%);backdrop-filter:blur(22px) saturate(160%)}
+  .aviso.min{width:auto;align-items:center;cursor:pointer;padding:9px 13px}
+  .aviso.min .aviso-tx,.aviso.min #avisoEdit,.aviso.min #avisoClose{display:none!important}
+  .aviso.min .aviso-tt{margin-bottom:0}
+  .aviso #avisoMin svg{transition:transform .2s}
+  .aviso.min #avisoMin svg{transform:rotate(180deg)}
+  @media(max-width:600px){.aviso{right:8px;bottom:8px;left:8px;width:auto}}
   .aviso-ic{color:var(--accent);flex-shrink:0}.aviso-ic svg{width:18px;height:18px}
   .aviso-body{flex:1;min-width:0}
   .aviso-tt{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--accent);margin-bottom:2px}
@@ -585,12 +591,13 @@ body{background:transparent}
     </header>
 
     <div class="tabs" id="tabs"></div>
-    <div class="aviso" id="avisoBanner" style="display:none">
+    <div class="aviso" id="avisoBanner" style="display:none" onclick="if(this.classList.contains('min'))toggleAviso()">
       <div class="aviso-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 3-1 4-2 5h18c-1-1-2-2-2-5a7 7 0 0 0-7-7z"/><path d="M10 21h4"/></svg></div>
       <div class="aviso-body"><div class="aviso-tt">Plan de accion del admin</div><div class="aviso-tx" id="avisoTexto"></div></div>
       <div class="aviso-actions">
-        <button class="ubtn" id="avisoEdit" onclick="editAviso()" style="display:none">Editar</button>
-        <button class="ic" id="avisoClose" title="Ocultar" onclick="dismissAviso()" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        <button class="ubtn" id="avisoEdit" onclick="event.stopPropagation();editAviso()" style="display:none">Editar</button>
+        <button class="ic" id="avisoMin" title="Minimizar / expandir" onclick="event.stopPropagation();toggleAviso()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+        <button class="ic" id="avisoClose" title="Ocultar" onclick="event.stopPropagation();dismissAviso()" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
     </div>
 
@@ -2029,7 +2036,9 @@ let AVISO={texto:'',updated_at:''};
 async function loadAviso(){ if(!sb)return; try{ const {data}=await sb.from('avisos_agentes').select('texto,updated_at').eq('tenant',CONFIG.tenant).maybeSingle(); AVISO={texto:(data&&data.texto)||'',updated_at:(data&&data.updated_at)||''}; }catch(e){ AVISO={texto:'',updated_at:''}; } renderAviso(); }
 function renderAviso(){ const b=$('avisoBanner'); if(!b)return; const tx=(AVISO.texto||'').trim(); const e=$('avisoEdit'), c=$('avisoClose'), tEl=$('avisoTexto');
   if(isAdmin()){ b.style.display='flex'; if(tEl)tEl.textContent= tx || 'Sin plan de accion. Toca Agregar para dejar uno que vean los agentes.'; if(e){ e.style.display=''; e.textContent= tx?'Editar':'Agregar'; } if(c)c.style.display='none'; }
-  else { const dismissed = (lsGet('aviso-dismiss')===(AVISO.updated_at||'')); if(tx && !dismissed){ b.style.display='flex'; if(tEl)tEl.textContent=tx; if(e)e.style.display='none'; if(c)c.style.display=''; } else b.style.display='none'; } }
+  else { const dismissed = (lsGet('aviso-dismiss')===(AVISO.updated_at||'')); if(tx && !dismissed){ b.style.display='flex'; if(tEl)tEl.textContent=tx; if(e)e.style.display='none'; if(c)c.style.display=''; } else b.style.display='none'; }
+  b.classList.toggle('min', lsGet('aviso-min')==='1'); }
+function toggleAviso(){ const b=$('avisoBanner'); if(!b)return; const min=!b.classList.contains('min'); b.classList.toggle('min',min); try{ lsSet('aviso-min', min?'1':'0'); }catch(e){} }
 async function editAviso(){ if(!isAdmin())return; const nuevo=await appPrompt('Plan de accion / feedback para los agentes (lo veran en su pantalla principal):',{value:AVISO.texto,multiline:true}); if(nuevo===null)return; try{ const iso=new Date().toISOString(); await sb.from('avisos_agentes').upsert({tenant:CONFIG.tenant,texto:nuevo,updated_at:iso,updated_by:me.id}); AVISO={texto:nuevo,updated_at:iso}; renderAviso(); toast('Plan de accion guardado'); }catch(e){ toast('No se pudo guardar (falta crear la tabla avisos_agentes?): '+(e.message||e)); } }
 function dismissAviso(){ try{ lsSet('aviso-dismiss', AVISO.updated_at||''); }catch(e){} const b=$('avisoBanner'); if(b)b.style.display='none'; }
 let _rec=null, _recOn=false, _recWant=false;
@@ -2080,7 +2089,7 @@ function _liveCycle(){
   catch(e){ toast('No se pudo grabar el audio'); _live.want=false; _stopLive(); return; }
   _live.rec=rec;
   rec.ondataavailable=function(e){ if(e.data&&e.data.size) chunks.push(e.data); };
-  rec.onstop=function(){ const blob=new Blob(chunks,{type:_live.mime||'audio/webm'}); chunks=[]; if(blob.size>1500) _liveSend(blob); if(_live.want) _liveCycle(); };
+  rec.onstop=function(){ const blob=new Blob(chunks,{type:_live.mime||'audio/webm'}); chunks=[]; if(_live.want) _liveCycle(); if(blob.size>1500) _liveSend(blob); };  // reinicia la grabacion ANTES de enviar -> casi no pierde palabras entre trozos
   try{ rec.start(); }catch(e){ _live.want=false; _stopLive(); return; }
   setTimeout(function(){ try{ if(rec.state!=='inactive') rec.stop(); }catch(e){} }, 12000);
 }

@@ -1694,7 +1694,7 @@ function renderMeter(){ const el=$('useMeter'); if(!el)return; const m=iaUsage.l
 let autocopy=lsGet('sptm-autocopy')==='1';
 function applyAutocopy(){ $('copyToggle').classList.toggle('on',autocopy); $('copyToggle').title=autocopy?'Auto-copiar: ACTIVADO':'Auto-copiar: desactivado'; }
 function toggleAutocopy(){ autocopy=!autocopy; lsSet('sptm-autocopy',autocopy?'1':'0'); applyAutocopy(); }
-function extraerSugerida(t){ const m=(t||'').match(/Respuesta sugerida al cliente:\s*([\s\S]*?)(?:\n\s*Para ti|\n\s*Verificar|$)/i); return (m?m[1]:(t||'')).trim(); }
+function extraerSugerida(t){ const m=(t||'').match(/Respuesta\s+(?:sugerida\s+)?al\s+cliente\s*:?\s*([\s\S]*?)(?:\n\s*Para ti|\n\s*Verificar|$)/i); return (m?m[1]:(t||'')).trim(); }
 applyAutocopy();
 
 /* ---- base de conocimientos (persistente en Supabase) ---- */

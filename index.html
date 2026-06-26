@@ -8,6 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="crm-core.js"></script>
+<script src="crm-ui.js"></script>
 <style>
   /* Paleta calida de baja luz azul (eye-care): sin blancos puros ni negros azulados */
   :root[data-theme="light"]{--bg:#FAF6EE;--surface:#FFFCF6;--line:#ECE5D7;--txt:#241F18;--txt-2:#726A5C;--txt-3:#ABA290;
@@ -587,6 +590,7 @@ body{background:transparent}
         <button class="ic" id="emBtn" title="Inbox (correo + mensajes)" onclick="openEmail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-5l-2 3h-6l-2-3H2"/><path d="M5.5 5.5h13a1 1 0 0 1 .9.6L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6l2.6-5.9a1 1 0 0 1 .9-.6z"/></svg></button>
         <button class="ic" id="toolsBtn" title="Mis herramientas" onclick="openTools()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4l-6 6a1.4 1.4 0 0 0 2 2l6-6a4 4 0 0 0 5.4-5.4l-2.5 2.5-2-2z"/></svg></button>
         <button class="ic adminonly" id="transBtn" title="Transcribir llamada" onclick="openTrans()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg></button>
+        <button class="ic adminonly" id="crmBtn" title="Datos del CRM (local)" onclick="openCrm()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
         <button class="ic adminonly" id="intelBtn" title="Panel de Inteligencia" onclick="openIntel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg></button>
         <button class="ic adminonly" id="adminBtn" title="Panel de administración" onclick="openPanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
         <button class="ic" id="clearBtn" title="Limpiar esta conversación" onclick="limpiarChat()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg></button>
@@ -775,6 +779,25 @@ body{background:transparent}
   <div class="sec"><div class="fld">Cobertura de la base (por país × vertical × audiencia)</div><div id="intelCobertura"></div></div>
 </aside>
 
+<div class="overlay" id="crmOverlay" onclick="closeCrm()"></div>
+<aside class="panel wide" id="crmPanel">
+  <div class="phead"><b>Datos del CRM (local)</b><span class="rm" onclick="closeCrm()" style="margin-left:auto;cursor:pointer">&times;</span></div>
+  <div class="sec">
+    <div class="fld">Cargar Excel (se procesa local, nada se sube)</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label style="font-size:12px">Clientes <input type="file" id="crmFileClientes" accept=".xlsx,.xls,.csv" class="in"></label>
+      <label style="font-size:12px">Transacciones <input type="file" id="crmFileTrans" accept=".xlsx,.xls,.csv" class="in"></label>
+      <button class="btn ghost" onclick="crmClear()">Limpiar datos del CRM</button>
+    </div>
+    <div class="hint" id="crmStatus" style="margin-top:5px">Sin datos cargados.</div>
+    <div id="crmMapBox" style="margin-top:8px"></div>
+  </div>
+  <div class="sec">
+    <div class="fld">Buscar cliente</div>
+    <div class="searchwrap"><input id="crmBuscarInput" placeholder="usuario, cédula, correo o nombre..." autocomplete="off" oninput="crmBuscar(this.value)"></div>
+    <div id="crmResultados"></div>
+  </div>
+</aside>
 <!-- ===== TRANSCRIBIR LLAMADA (admin) ===== -->
 <div class="overlay" id="transOverlay" onclick="closeTrans()"></div>
 <aside class="panel wide" id="transPanel">
@@ -2468,6 +2491,9 @@ async function emPedirSugerencia(slot){
       'PAIS: usa UNICAMENTE informacion, bonos, codigos y promociones de '+pais+'. NO mezcles ni uses datos de otros paises; si no tienes el dato de '+pais+', dilo y no lo inventes.'
     ].join(' ');
     const mensajes=[{role:'system',content:dir}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
+    // GUARDIA DE PRIVACIDAD (capa CRM local): este payload va a una IA EXTERNA. NO agregar nunca
+    // datos de crmStore / CRM.getClient (saldo, KYC, cedula, retiros). La ficha real solo se usa
+    // para plantillas locales (fases posteriores), jamas se envia aqui.
     const {data:{session}}=await sb.auth.getSession();
     const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
       body:JSON.stringify({mensajes:mensajes, canal:canal, audiencia:'cliente', formato:(canal==='email'?'correo':'mensaje'), instruccion:dir, cliente:cliente||null, pais:pais, turno:{pais:pais,vertical:turnoVert()}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});

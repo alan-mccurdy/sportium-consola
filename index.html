@@ -1885,7 +1885,7 @@ async function agregarContexto(){
   const body = '[Aplica a: '+label+' — '+vlabel+']\n'+text;
   $('ctxAdd').disabled=true; $('ctxAddMsg').textContent='Agregando e indexando…';
   try{
-    const [n,clas]=await Promise.all([ ingestKB(name,body), classifyKB(name,body) ]);
+    const [n,clas]=await Promise.all([ ingestKB(name,body,pais,vert), classifyKB(name,body) ]);
     await loadIndexed();
     const real=IDX.find(d=>d.name===name);
     if(real&&real.chunks>0){ $('ctxAddMsg').textContent='Agregado a '+label+(clas?' · FAQs creadas':''); $('ctxBonos').value=''; }
@@ -1920,7 +1920,7 @@ async function addFiles(files){
 async function ingestKB(name,text,pais,vertical){
   try{ const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(INGEST_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
-      body:JSON.stringify({tenant:CONFIG.tenant,doc_name:name,text:text,pais:pais||curPais(),vertical:vertical||curVert()})});
+      body:JSON.stringify({tenant:CONFIG.tenant,doc_name:name,text:text,pais:pais||'*',vertical:vertical||'*'})});
     const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
     return (d&&d.chunks)||0;
   }catch(e){ return 0; }
@@ -2263,7 +2263,7 @@ async function transIndexar(){
   const t=($('transText')&&$('transText').value||'').trim(); if(!t){ toast('No hay texto para indexar'); return; }
   const nombre=($('transNombre')&&$('transNombre').value||'').trim()||('Llamada '+new Date().toISOString().slice(0,10));
   const st=$('transStatus'); if(st)st.textContent='Indexando al RAG...';
-  try{ const n=await ingestKB(nombre, t, turnoPais(), turnoVert()); if(st)st.textContent='Indexado al RAG ('+n+' fragmentos). Ya lo usara la IA en las respuestas.'; toast('Indexado al RAG'); }
+  try{ const n=await ingestKB(nombre, t); if(st)st.textContent='Indexado al RAG ('+n+' fragmentos, todos los países). Ya lo usara la IA en las respuestas.'; toast('Indexado al RAG'); }
   catch(e){ if(st)st.textContent='Error al indexar: '+(e.message||e); }
 }
 let CPCONV=[]; let cpRaw='';

@@ -287,12 +287,15 @@
   .em-item{padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer}
   .em-item:hover{background:var(--surface)}
   .em-item.sel{background:var(--accent-soft)}
-  .em-item .em-de{font-size:12.5px;font-weight:700;color:var(--txt);display:flex;justify-content:space-between;gap:8px}
-  .em-item .em-as{font-size:12.5px;color:var(--txt);margin:2px 0}
-  .em-item .em-fr{font-size:11.5px;color:var(--txt-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .em-item .em-de{font-size:12.5px;font-weight:700;color:var(--txt);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .em-item .em-de>.em-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .em-item .em-de>.em-tags{flex-shrink:0;display:flex;align-items:center;gap:4px;white-space:nowrap}
+  .em-item .em-as{font-size:12.5px;color:var(--txt);margin:2px 0;font-weight:600;overflow-wrap:anywhere}
+  .em-item .em-fr{font-size:11.5px;color:var(--txt-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35;overflow-wrap:anywhere}
+  .em-item .em-claimline{font-size:11px;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .em-badge{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:6px}
   .em-badge.nuevo{background:var(--accent);color:#fff}
-  .em-badge.resp{background:var(--surface);border:1px solid var(--line);color:var(--txt-2)}
+  .em-badge.resp{background:var(--ok);color:#fff}
   .em-pane{display:grid;grid-template-columns:1fr 1fr;min-height:0}
   .em-col{display:flex;flex-direction:column;min-height:0;min-width:0;overflow-y:auto;padding:14px 16px;gap:10px}
   .em-col.em-left{border-right:1px solid var(--line)}
@@ -2352,7 +2355,7 @@ let _emDraftT=null; function emSaveDraftDebounced(){ clearTimeout(_emDraftT); _e
 let emCloudReady=false, emChan=null; const emPushT={};
 function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
 function emThreadToRow(t){ return { id:t.id, tenant:CONFIG.tenant, canal:t.canal, de:t.de||'cliente', asunto:t.asunto||'', pais:emThreadPais(t), estado:t.estado||'nuevo', mensajes:t.mensajes||[], cliente:t.cliente||null, draft:t.draft||'', ia_raw:t.iaRaw||'', tomado_por:t.tomado_por||null, tomado_email:t.tomado_email||'', tomado_at:t.tomado_at||null, updated_by:me?me.id:null, updated_at:new Date().toISOString() }; }
-async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; if(Array.isArray(data)) EMBANDEJA=data.map(emRowToThread); return true; }catch(e){ emCloudReady=false; return false; } }
+async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(l && l.draftEdited && l.draft!=null){ n.draft=l.draft; n.draftEdited=true; } }); EMBANDEJA=incoming; } return true; }catch(e){ emCloudReady=false; return false; } }
 async function emPush(t){ if(!emCloudReady||!sb||!t)return; try{ await sb.from('inbox_conversaciones').upsert(emThreadToRow(t)); }catch(e){} }
 function emPushDebounced(t){ if(!emCloudReady||!t)return; clearTimeout(emPushT[t.id]); emPushT[t.id]=setTimeout(function(){ emPush(t); }, 700); }
 async function emCloudDelete(id){ if(!emCloudReady||!sb||!id)return; try{ await sb.from('inbox_conversaciones').delete().eq('id',id); }catch(e){} }
@@ -2365,7 +2368,7 @@ function emOnRealtime(p){
   const idx=EMBANDEJA.findIndex(function(x){return x.id===r.id;});
   const open=(r.id===emSelChat||r.id===emSelMail);
   if(idx<0){ EMBANDEJA.unshift(inc); }
-  else { if(open) inc.draft=EMBANDEJA[idx].draft; /* no pisar lo que escribo */ EMBANDEJA[idx]=inc; }
+  else { const l=EMBANDEJA[idx]; if(open || l.draftEdited){ inc.draft=l.draft; if(l.draftEdited) inc.draftEdited=true; } /* no pisar lo que escribo */ EMBANDEJA[idx]=inc; }
   emRenderList();
   if(r.id===emSelChat) emRenderClaim('chat'); if(r.id===emSelMail) emRenderClaim('mail');
 }
@@ -2393,7 +2396,7 @@ function emRenderClaimTop(){
   top.innerHTML = (otro?('<b>'+canal+':</b> ⚠ la atiende <b>'+escapeHtml(t.tomado_email)+'</b> — evita responder doble.'+((typeof isAdmin==='function'&&isAdmin())?' <a href="#" onclick="event.preventDefault();emTomar(\''+slot+'\')">Tomar de todos modos</a>':''))
     : ('<b>'+canal+':</b> la tomaste tú. <a href="#" onclick="event.preventDefault();emLiberar(\''+slot+'\')">Liberar</a>'));
 }
-function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var fok=(emFiltro==='todos')||(emFiltro==='sintomar'?!t.tomado_por:(t.estado||'nuevo')===emFiltro); return ch===emBandeja && fok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); var sub=(t.canal==='mensaje')?((t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'').slice(0,40)):(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='leido'?'leido':'nuevo')); var bl=(est==='respondido'?'resp':est); return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span>'+escapeHtml(t.de||'cliente')+'</span><span><span class="em-badge canal">'+cn+'</span><span class="em-badge '+bc+'">'+bl+'</span></span></div><div class="em-as">'+escapeHtml(sub)+'</div><div class="em-fr">'+escapeHtml((t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'').slice(0,60))+'</div>'+(t.tomado_email?('<div class="em-fr" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+'</div>'; }).join('')||'<div class="em-empty">Sin conversaciones en este filtro.</div>'; }
+function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var fok=(emFiltro==='todos')||(emFiltro==='sintomar'?!t.tomado_por:(t.estado||'nuevo')===emFiltro); return ch===emBandeja && fok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); var body=(t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'')||''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='leido'?'leido':'nuevo')); var bl=est; return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags"><span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+'</div>'; }).join('')||'<div class="em-empty">Sin conversaciones en este filtro.</div>'; }
 function emRenderSlot(slot){
   const isMail=(slot==='mail');
   const id=isMail?emSelMail:emSelChat;
@@ -2421,7 +2424,7 @@ function emRenderSlot(slot){
   if(sug){
     sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):'');
     const _tid=t.id;
-    sug.oninput=function(){ const tt=EMBANDEJA.find(function(x){return x.id===_tid;}); if(tt){ tt.draft=sug.value; emSaveDraftDebounced(); } };  // guarda lo que escribes para que NO se borre al re-renderizar (cambiar de panel / tiempo real)
+    sug.oninput=function(){ const tt=EMBANDEJA.find(function(x){return x.id===_tid;}); if(tt){ tt.draft=sug.value; tt.draftEdited=true; emSave(); emPushDebounced(tt); } };  // marca tu edicion y la sube a la nube (debounced) para que recargar la bandeja / tiempo real NO la pisen
   }
   emRenderInterno(); emRenderClaim(slot);
 }
@@ -2466,7 +2469,7 @@ async function emPedirSugerencia(slot){
   var _lastCli=''; for(var _k=(t.mensajes||[]).length-1;_k>=0;_k--){ if(t.mensajes[_k].from==='cliente'){ _lastCli=t.mensajes[_k].text||''; break; } }
   var _faq=(typeof matchFaq==='function')?matchFaq(_lastCli):null;
   if(_faq && typeof faqConfident==='function' && !faqConfident(_faq,_lastCli)) _faq=null; // no dejar que una FAQ suelta secuestre un correo largo
-  if(_faq){ var _pais=emThreadPais(t); t.iaRaw='Para ti (interno): Respuesta tomada de una correccion guardada (FAQ), sin IA.\nRespuesta sugerida al cliente: '+_faq.respuesta; t.draft=extraerSugerida(t.iaRaw); var _lk=emEnlaces(_lastCli,_pais); if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n'+_lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); } emSave(); emPush(t); emRenderSlot(slot); return; }
+  if(_faq){ var _pais=emThreadPais(t); t.iaRaw='Para ti (interno): Respuesta tomada de una correccion guardada (FAQ), sin IA.\nRespuesta sugerida al cliente: '+_faq.respuesta; t.draft=extraerSugerida(t.iaRaw); t.draftEdited=false; var _lk=emEnlaces(_lastCli,_pais); if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n'+_lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); } emSave(); emPush(t); emRenderSlot(slot); return; }
   if(gen)gen.textContent='generando...'; const ab=$('emAddBtn'); if(ab)ab.disabled=true;
   try{
     const canal=(t.canal==='mensaje'?'mensaje':'email');
@@ -2499,7 +2502,7 @@ async function emPedirSugerencia(slot){
       body:JSON.stringify({mensajes:mensajes, canal:canal, audiencia:'cliente', formato:(canal==='email'?'correo':'mensaje'), instruccion:dir, cliente:cliente||null, pais:pais, turno:{pais:pais,vertical:turnoVert()}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
     if(!res.ok) throw new Error('Servidor '+res.status);
     let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ j={}; }
-    t.iaRaw=(j.respuesta||'').trim(); emRaw=t.iaRaw; t.draft=extraerSugerida(t.iaRaw);
+    t.iaRaw=(j.respuesta||'').trim(); emRaw=t.iaRaw; t.draft=extraerSugerida(t.iaRaw); t.draftEdited=false;
     var _lk=emEnlaces((t.mensajes||[]).map(function(m){return m.text;}).join(' '), pais);
     if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n' + _lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); }
     emSave(); emPush(t);
@@ -2507,7 +2510,7 @@ async function emPedirSugerencia(slot){
   }catch(e){ toast('No se pudo generar la sugerencia'); }
   finally{ if(gen)gen.textContent=''; const ab2=$('emAddBtn'); if(ab2)ab2.disabled=false; }
 }
-function emResugerir(){ const t=emActiveThread(); if(!t){ toast('Selecciona una conversacion'); return; } emPedirSugerencia(emFocus); }
+function emResugerir(){ const t=emActiveThread(); if(!t){ toast('Selecciona una conversacion'); return; } t.draftEdited=false; emPedirSugerencia(emFocus); }
 function emCopiar(slot){
   slot=slot||emFocus; const isMail=(slot==='mail'); const sug=$(isMail?'emMailSug':'emChatSug'); if(!sug)return; const t=(sug.value||'').trim(); if(!t){ toast('No hay respuesta para copiar'); return; }
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){ toast(isMail?'Respuesta copiada — pegala en Outlook':'Respuesta copiada — pegala en el chat'); }, function(){ sug.focus(); sug.select(); toast('Selecciona y copia (Ctrl+C)'); }); }

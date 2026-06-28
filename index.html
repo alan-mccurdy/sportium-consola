@@ -2549,15 +2549,29 @@ async function emPedirSugerencia(slot){
 function emResugerir(){ const t=emActiveThread(); if(!t){ toast('Selecciona una conversacion'); return; } t.draftEdited=false; emPedirSugerencia(emFocus); }
 function emEscalar(slot, funciono){
   slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t){ toast('Selecciona una conversacion'); return; }
-  if(funciono){ // los pasos resolvieron -> mensaje de cierre a sala, sin gastar IA
-    t.escalar=false;
-    const sug=$(slot==='mail'?'emMailSug':'emChatSug');
-    const msg='Listo, ya lo revise del lado tecnico. Por favor confirma que el equipo ya funciona correctamente. Si sigue igual, avisame y lo escalo. Quedo atento.';
-    t.draft=msg; t.draftEdited=true; if(sug)sug.value=msg; emSave(); emPushDebounced(t);
-    toast('Resuelto: mensaje de cierre listo para enviar a sala.');
-  } else { // no resolvieron -> la IA decide escalamiento (N2 vs SAT) y arma que enviar + mensaje a sala
-    t.escalar=true; toast('Generando escalamiento...'); emPedirSugerencia(slot);
+  const sug=$(slot==='mail'?'emMailSug':'emChatSug');
+  if(funciono){ // los pasos resolvieron -> cierre a sala (0 tokens)
+    const msg='Listo, ya lo revise del lado tecnico. Por favor confirma que el equipo ya funciona correctamente; si sigue igual, avisame. Quedo atento.';
+    t.iaRaw='Para ti (interno): caso resuelto de forma remota.\nRespuesta sugerida al cliente: '+msg;
+    t.draft=msg; t.draftEdited=true; if(sug)sug.value=msg; emSave(); emPushDebounced(t); emRenderSlot(slot);
+    toast('Resuelto: mensaje de cierre listo para sala.'); return;
   }
+  // No funcionaron -> el agente (que YA hizo los pasos) indica fisico/internet; el sistema decide N2 vs SAT (sin IA)
+  const fisico = confirm('Escalamiento\n\n¿Es un problema FISICO (hay que cambiar o configurar componentes en el sitio)?\n\nAceptar = Si (fisico)   /   Cancelar = No');
+  var internet = true;
+  if(!fisico) internet = confirm('¿El equipo TIENE conexion a internet?\n\nAceptar = Si   /   Cancelar = No');
+  const dest = (fisico || !internet) ? 'SAT' : 'N2';
+  var interno, msgSala;
+  if(dest==='N2'){
+    interno='Escalar a N2 (no es fisico y el equipo tiene internet -> se resuelve en remoto). Enviar a N2: equipo/terminal e IP, descripcion del fallo, pasos ya intentados, hora y evidencias/logs.';
+    msgSala='Tu caso fue escalado a nuestro equipo de Nivel 2 (N2) para revision remota. Te confirmaremos en cuanto haya novedades. Gracias por tu paciencia.';
+  } else {
+    interno='Escalar a SAT (es fisico o el equipo NO tiene internet -> requiere tecnico en sitio). Enviar a SAT: equipo/terminal e IP, descripcion del fallo, pasos ya intentados, ubicacion/sala y hora.';
+    msgSala='Tu caso fue escalado a SAT: un tecnico acudira al sitio para revisar o cambiar el componente. Coordinaremos la visita. Gracias por tu paciencia.';
+  }
+  t.iaRaw='Para ti (interno): '+interno+'\nRespuesta sugerida al cliente: '+msgSala;
+  t.draft=msgSala; t.draftEdited=true; if(sug)sug.value=msgSala; emSave(); emPushDebounced(t); emRenderSlot(slot);
+  toast('Escalado a '+dest+': revisa el bloque interno y el mensaje para sala.');
 }
 function emCopiar(slot){
   slot=slot||emFocus; const isMail=(slot==='mail'); const sug=$(isMail?'emMailSug':'emChatSug'); if(!sug)return; const t=(sug.value||'').trim(); if(!t){ toast('No hay respuesta para copiar'); return; }

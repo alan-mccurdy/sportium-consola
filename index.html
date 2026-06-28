@@ -1066,7 +1066,16 @@ function gateHide(){ bootDone(); $('authGate').classList.add('hide'); }
 async function initAuth(){
   if(!sb){ gateShow(); authMsg('Falta configurar Supabase: edita SUPABASE_URL y SUPABASE_ANON en el index.html (ver GUIA-DESPLIEGUE.md).',true); return; }
   const { data:{ session } } = await sb.auth.getSession();
-  sb.auth.onAuthStateChange((_e,s)=>handleSession(s));
+  // Solo re-inicializar cuando CAMBIA el usuario (login/logout). Supabase emite TOKEN_REFRESHED
+  // (y a veces SIGNED_IN) al recuperar el foco de la pestaña del navegador; re-inicializar ahi
+  // recargaba el inbox desde la nube y BORRABA el borrador del correo que estabas escribiendo.
+  let _authedUid = (session && session.user && session.user.id) || null;
+  sb.auth.onAuthStateChange((ev,s)=>{
+    const uid=(s && s.user && s.user.id) || null;
+    if(ev==='TOKEN_REFRESHED' || (uid && uid===_authedUid)) return;  // mismo usuario / refresco de token -> NO recargar
+    _authedUid=uid;
+    handleSession(s);
+  });
   handleSession(session);
 }
 async function handleSession(session){

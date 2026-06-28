@@ -2577,7 +2577,9 @@ function emResponder(slot){
   const txt=(sug.value||'').trim(); if(!txt){ toast('Escribe o genera una respuesta primero'); return; }
   if(!emPuedeResponder(t)){ toast('La está atendiendo '+(t.tomado_email||'otro agente')+'. Pulsa "Tomar" si te la asignas (o pide al admin).'); return; }
   if(!t.tomado_por && me){ t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); }
-  t.mensajes.push({from:'agente',text:txt,t:Date.now()}); t.estado='respondido'; t.draft=''; t.aprendido=true; sug.value=''; emSave(); emPush(t); emRenderList(); emRenderSlot(slot);
+  t.mensajes.push({from:'agente',text:txt,t:Date.now()}); t.estado='respondido'; t.draft=''; t.aprendido=true; sug.value=''; emSave(); emPush(t);
+  if(slot==='mail')emSelMail=null; else emSelChat=null; emSaveSel();   // al responder se quita del panel; queda en la bandeja por si lo buscas
+  emRenderList(); emRenderSlot(slot); emRenderInterno();
   emAprender(t, txt);
 }
 /* Aprender de una respuesta aprobada: la indexa en el RAG (siempre) y, si la pregunta es corta, la guarda como FAQ (0 tokens). */

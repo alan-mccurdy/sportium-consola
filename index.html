@@ -2509,9 +2509,9 @@ async function emPedirSugerencia(slot){
     ].join(' ');
     // PERSONAL DE SALA (retail): NO es cliente externo -> comunicacion interna con pasos/comandos, sin "Respuesta al cliente".
     const dirRetail=[
-      'Quien escribe es PERSONAL INTERNO de una sala/casino fisico (retail) de '+pais+', NO un cliente final. Puedes y debes incluir datos internos (IPs, usuarios root/n1, comandos).',
-      'Redacta una respuesta para ese companero de sala: diagnostico breve + los PASOS/comandos concretos en orden para resolver el problema (POS/SSBT/decodificador/red/conexion: ping <ip>, putty -ssh user@<ip>, vncviewer <ip>:5900, systemctl restart <servicio>, reboot, etc.) y que deberia ver.',
-      'NO uses el formato "Respuesta sugerida al cliente" ni firmes como soporte a cliente: es comunicacion INTERNA entre personal de sala.',
+      'Quien escribe es PERSONAL DE SALA (casino fisico, retail) de '+pais+'. NOSOTROS somos su soporte tecnico (no es un cliente final). Devuelve DOS secciones EXACTAS, cada una iniciando su propia linea con el encabezado tal cual:',
+      '"Para ti (interno):" SOLO para el agente de soporte: diagnostico, posibles causas y los PASOS/comandos que ejecuta el AGENTE (IPs, usuarios root/n1, putty -ssh user@<ip>, vncviewer <ip>:5900, systemctl restart <servicio>, reboot, etc.) y que deberia ver. El personal de sala NO ve esto.',
+      '"Respuesta sugerida al cliente:" el mensaje que se le ENVIA al personal de sala. PROHIBIDO incluir comandos, IPs, usuarios o datos tecnicos internos. Lenguaje sencillo de soporte: confirma que estas revisando/ya revisaste el equipo y dile el siguiente paso concreto de su lado (ej.: "Ya revise el equipo de forma remota; por favor intenta imprimir de nuevo en unos minutos y confirmame si funciono. Si sigue igual, avisame."). Tono cordial de companero.',
       'PAIS: usa UNICAMENTE informacion de '+pais+'; no mezcles datos de otros paises.'
     ].join(' ');
     const dirFinal = (vert==='retail') ? dirRetail : dir;

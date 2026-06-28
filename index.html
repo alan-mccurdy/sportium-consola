@@ -979,7 +979,7 @@ body{background:transparent}
     </div>
     <div class="em-cockpit">
       <div class="em-slot focus" id="emSlotChat" onclick="emFocusSet('chat')">
-        <div class="em-slot-h"><span class="em-badge canal">Mensaje</span><span id="emChatWho">sin chat seleccionado</span><select class="em-pais-sel" id="emChatPais" style="display:none" title="País de esta conversación" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadPais('chat',this.value)"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select><span id="emChatLink"></span><span id="emChatCli" style="margin-left:auto"></span></div>
+        <div class="em-slot-h"><span class="em-badge canal">Mensaje</span><span id="emChatWho">sin chat seleccionado</span><select class="em-pais-sel" id="emChatPais" style="display:none" title="País de esta conversación" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadPais('chat',this.value)"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select><select class="em-pais-sel" id="emChatVert" style="display:none" title="¿Es un cliente o personal de sala (retail)?" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadVert('chat',this.value)"><option value="online">Cliente</option><option value="retail">Sala</option></select><span id="emChatLink"></span><span id="emChatCli" style="margin-left:auto"></span></div>
         <div class="em-claim" id="emChatClaim" style="display:none"></div>
         <div class="em-quad em-lr">
           <div class="em-leftcol">
@@ -990,7 +990,7 @@ body{background:transparent}
         </div>
       </div>
       <div class="em-slot" id="emSlotMail" onclick="emFocusSet('mail')">
-        <div class="em-slot-h"><span class="em-badge canal">Correo</span><span id="emMailWho">sin correo seleccionado</span><select class="em-pais-sel" id="emMailPais" style="display:none" title="País de esta conversación" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadPais('mail',this.value)"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select><span id="emMailLink"></span><span id="emMailCli" style="margin-left:auto"></span></div>
+        <div class="em-slot-h"><span class="em-badge canal">Correo</span><span id="emMailWho">sin correo seleccionado</span><select class="em-pais-sel" id="emMailPais" style="display:none" title="País de esta conversación" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadPais('mail',this.value)"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select><select class="em-pais-sel" id="emMailVert" style="display:none" title="¿Es un cliente o personal de sala (retail)?" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadVert('mail',this.value)"><option value="online">Cliente</option><option value="retail">Sala</option></select><span id="emMailLink"></span><span id="emMailCli" style="margin-left:auto"></span></div>
         <div class="em-claim" id="emMailClaim" style="display:none"></div>
         <div class="em-quad em-mailonly">
           <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div></div>
@@ -2323,6 +2323,8 @@ function emSetBandeja(b){ emBandeja=b; try{ localStorage.setItem('inbox-bandeja-
 function emActiveThread(){ const id=(emFocus==='mail')?emSelMail:emSelChat; return EMBANDEJA.find(function(x){return x.id===id;}); }
 function emThreadPais(t){ return (t&&t.pais) || (t&&t.cliente&&t.cliente.pais) || turnoPais(); }
 function emSetThreadPais(slot,val){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.pais=val; emSave(); emPush(t); emRenderSlot(slot); toast('País de la conversación: '+((typeof PAISN!=='undefined'&&PAISN[val])||val)); }
+function emThreadVert(t){ return (t&&t.vertical) || 'online'; }   // online = cliente externo; retail = personal interno de sala
+function emSetThreadVert(slot,val){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.vertical=val; emSave(); emRenderSlot(slot); toast(val==='retail'?'Marcado como PERSONAL DE SALA (retail): la IA dará pasos internos, sin respuesta de cliente.':'Marcado como CLIENTE.'); }
 function emSaveSel(){ try{ localStorage.setItem('inbox-sel', JSON.stringify({chat:emSelChat,mail:emSelMail,focus:emFocus})); }catch(e){} }
 function emFocusSet(slot){ emFocus=slot; const sc=$('emSlotChat'), sm=$('emSlotMail'); if(sc)sc.classList.toggle('focus',slot==='chat'); if(sm)sm.classList.toggle('focus',slot==='mail'); emSaveSel(); emRenderClaimTop(); }
 function emReflectCanal(){ const e=$('emCanalEmail'), m=$('emCanalMsg'), as=$('emAsunto'); if(e)e.classList.toggle('sel',emAddCanal==='email'); if(m)m.classList.toggle('sel',emAddCanal==='mensaje'); if(as)as.style.display=emAddCanal==='email'?'':'none'; const de=$('emDe'); if(de)de.placeholder=emAddCanal==='email'?'De: cliente@correo.com':'De: nombre del cliente'; const cu=$('emCuerpo'); if(cu)cu.placeholder=emAddCanal==='email'?'Cuerpo del correo del cliente...':'Mensaje del cliente...'; }
@@ -2364,7 +2366,7 @@ let _emDraftT=null; function emSaveDraftDebounced(){ clearTimeout(_emDraftT); _e
 let emCloudReady=false, emChan=null; const emPushT={};
 function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
 function emThreadToRow(t){ return { id:t.id, tenant:CONFIG.tenant, canal:t.canal, de:t.de||'cliente', asunto:t.asunto||'', pais:emThreadPais(t), estado:t.estado||'nuevo', mensajes:t.mensajes||[], cliente:t.cliente||null, draft:t.draft||'', ia_raw:t.iaRaw||'', tomado_por:t.tomado_por||null, tomado_email:t.tomado_email||'', tomado_at:t.tomado_at||null, updated_by:me?me.id:null, updated_at:new Date().toISOString() }; }
-async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(l && l.draftEdited && l.draft!=null){ n.draft=l.draft; n.draftEdited=true; } }); EMBANDEJA=incoming; } return true; }catch(e){ emCloudReady=false; return false; } }
+async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(l && l.draftEdited && l.draft!=null){ n.draft=l.draft; n.draftEdited=true; } if(l && l.vertical){ n.vertical=l.vertical; } }); EMBANDEJA=incoming; } return true; }catch(e){ emCloudReady=false; return false; } }
 async function emPush(t){ if(!emCloudReady||!sb||!t)return; try{ await sb.from('inbox_conversaciones').upsert(emThreadToRow(t)); }catch(e){} }
 function emPushDebounced(t){ if(!emCloudReady||!t)return; clearTimeout(emPushT[t.id]); emPushT[t.id]=setTimeout(function(){ emPush(t); }, 700); }
 async function emCloudDelete(id){ if(!emCloudReady||!sb||!id)return; try{ await sb.from('inbox_conversaciones').delete().eq('id',id); }catch(e){} }
@@ -2377,7 +2379,7 @@ function emOnRealtime(p){
   const idx=EMBANDEJA.findIndex(function(x){return x.id===r.id;});
   const open=(r.id===emSelChat||r.id===emSelMail);
   if(idx<0){ EMBANDEJA.unshift(inc); }
-  else { const l=EMBANDEJA[idx]; if(open || l.draftEdited){ inc.draft=l.draft; if(l.draftEdited) inc.draftEdited=true; } /* no pisar lo que escribo */ EMBANDEJA[idx]=inc; }
+  else { const l=EMBANDEJA[idx]; if(open || l.draftEdited){ inc.draft=l.draft; if(l.draftEdited) inc.draftEdited=true; } if(l.vertical) inc.vertical=l.vertical; /* no pisar lo que escribo ni el tipo cliente/sala */ EMBANDEJA[idx]=inc; }
   emRenderList();
   if(r.id===emSelChat) emRenderClaim('chat'); if(r.id===emSelMail) emRenderClaim('mail');
 }
@@ -2414,6 +2416,8 @@ function emRenderSlot(slot){
   const sug=$(isMail?'emMailSug':'emChatSug');
   const psel=$(isMail?'emMailPais':'emChatPais');
   if(psel){ if(t){ psel.style.display=''; psel.value=emThreadPais(t); } else { psel.style.display='none'; } }
+  const vsel=$(isMail?'emMailVert':'emChatVert');
+  if(vsel){ if(t){ vsel.style.display=''; vsel.value=emThreadVert(t); } else { vsel.style.display='none'; } }
   if(!t){ if(who)who.textContent=isMail?'sin correo seleccionado':'sin chat seleccionado'; if(sug)sug.value='';
     if(isMail){ if($('emMailHead'))$('emMailHead').innerHTML=''; if($('emMailBody'))$('emMailBody').textContent=''; if($('emPara'))$('emPara').value=''; if($('emAsuntoOut'))$('emAsuntoOut').value=''; }
     else { if($('emChatThread'))$('emChatThread').innerHTML=''; }
@@ -2483,6 +2487,7 @@ async function emPedirSugerencia(slot){
   try{
     const canal=(t.canal==='mensaje'?'mensaje':'email');
     const pais=emThreadPais(t);
+    const vert=emThreadVert(t);   // 'online'=cliente externo · 'retail'=personal interno de sala
     if(!t.cliente){ const _ct=(t.mensajes||[]).map(function(m){return m.text;}).join(' '); t.cliente = detectCliente(_ct) || findCliente(t.de) || null; emRenderSlot(slot); if(t.cliente) emTryLink(t); }
     // El pais MARCADO por el agente manda: si el cliente enganchado es de otro pais, lo alineamos para no traer datos del pais equivocado.
     let cliente=t.cliente; if(cliente && cliente.pais!==pais){ cliente=Object.assign({}, cliente, {pais:pais}); }
@@ -2502,17 +2507,25 @@ async function emPedirSugerencia(slot){
         : 'Esa respuesta al cliente es un MENSAJE de chat: breve y conversacional, con saludo corto y SIN firma ni "Atentamente".'),
       'PAIS: usa UNICAMENTE informacion, bonos, codigos y promociones de '+pais+'. NO mezcles ni uses datos de otros paises; si no tienes el dato de '+pais+', dilo y no lo inventes.'
     ].join(' ');
-    const mensajes=[{role:'system',content:dir}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
+    // PERSONAL DE SALA (retail): NO es cliente externo -> comunicacion interna con pasos/comandos, sin "Respuesta al cliente".
+    const dirRetail=[
+      'Quien escribe es PERSONAL INTERNO de una sala/casino fisico (retail) de '+pais+', NO un cliente final. Puedes y debes incluir datos internos (IPs, usuarios root/n1, comandos).',
+      'Redacta una respuesta para ese companero de sala: diagnostico breve + los PASOS/comandos concretos en orden para resolver el problema (POS/SSBT/decodificador/red/conexion: ping <ip>, putty -ssh user@<ip>, vncviewer <ip>:5900, systemctl restart <servicio>, reboot, etc.) y que deberia ver.',
+      'NO uses el formato "Respuesta sugerida al cliente" ni firmes como soporte a cliente: es comunicacion INTERNA entre personal de sala.',
+      'PAIS: usa UNICAMENTE informacion de '+pais+'; no mezcles datos de otros paises.'
+    ].join(' ');
+    const dirFinal = (vert==='retail') ? dirRetail : dir;
+    const mensajes=[{role:'system',content:dirFinal}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
     // GUARDIA DE PRIVACIDAD (capa CRM local): este payload va a una IA EXTERNA. NO agregar nunca
     // datos de crmStore / CRM.getClient (saldo, KYC, cedula, retiros). La ficha real solo se usa
     // para plantillas locales (fases posteriores), jamas se envia aqui.
     const {data:{session}}=await sb.auth.getSession();
     const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
-      body:JSON.stringify({mensajes:mensajes, canal:canal, audiencia:'cliente', formato:(canal==='email'?'correo':'mensaje'), instruccion:dir, cliente:cliente||null, pais:pais, turno:{pais:pais,vertical:turnoVert()}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
+      body:JSON.stringify({mensajes:mensajes, canal:canal, audiencia:(vert==='retail'?'interno':'cliente'), formato:(canal==='email'?'correo':'mensaje'), instruccion:dirFinal, cliente:(vert==='retail'?null:(cliente||null)), pais:pais, turno:{pais:pais,vertical:vert}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
     if(!res.ok) throw new Error('Servidor '+res.status);
     let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ j={}; }
-    t.iaRaw=(j.respuesta||'').trim(); emRaw=t.iaRaw; t.draft=extraerSugerida(t.iaRaw); t.draftEdited=false;
-    var _lk=emEnlaces((t.mensajes||[]).map(function(m){return m.text;}).join(' '), pais);
+    t.iaRaw=(j.respuesta||'').trim(); emRaw=t.iaRaw; t.draft=(vert==='retail')?(extraerSugerida(t.iaRaw)||t.iaRaw):extraerSugerida(t.iaRaw); t.draftEdited=false;
+    var _lk=(vert==='retail')?[]:emEnlaces((t.mensajes||[]).map(function(m){return m.text;}).join(' '), pais);   // sin enlaces de autoservicio para personal de sala
     if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n' + _lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); }
     emSave(); emPush(t);
     emRenderSlot(slot);

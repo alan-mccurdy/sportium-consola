@@ -2120,17 +2120,18 @@ function renderSalas(q){
 // descarta titulos/categorias que NO son un comando real (ej. "Alias", "Comandos", "Red", "Alias:")
 function esComandoReal(cmd){ cmd=(cmd||'').trim(); if(!cmd) return false; if(cmd.endsWith(':')) return false; if(/^[A-ZÁÉÍÓÚÑ][^\s]*$/.test(cmd)) return false; return true; }
 // "alias nombre='comando real'" -> muestra solo "nombre" (lo que el tecnico teclea) y deja el comando real en la descripcion
-function desalias(c){ const m=(c.cmd||'').trim().match(/^alias\s+([^\s=]+)\s*=\s*['"]?(.+?)['"]?\s*$/i); if(m){ const real=(m[2]||'').trim(); c.cmd=m[1].trim(); if(real && (c.desc||'').indexOf(real)<0) c.desc=(c.desc?c.desc+' ':'')+'→ '+real; } return c; }
+function desalias(c){ c.cmd=(c.cmd||'').replace(/^\s*(?:bash|sh|\$|#)\s+/i,'').trim(); const m=(c.cmd||'').trim().match(/^alias\s+([^\s=]+)\s*=\s*['"]?(.+?)['"]?\s*$/i); if(m){ const real=(m[2]||'').trim(); c.cmd=m[1].trim(); if(real && (c.desc||'').indexOf(real)<0) c.desc=(c.desc?c.desc+' ':'')+'→ '+real; } return c; }
 // Regla del negocio: un comando es de SSBT SOLO si usa el usuario/acceso n1; si no, es de POS.
 function tipoCmd(cmd,desc){ return /\bn1\b/i.test((cmd||'')+' '+(desc||'')) ? 'ssbt' : 'pos'; }
+let CMD_HIDDEN={}; try{ CMD_HIDDEN=JSON.parse(lsGet('sptm-cmd-hidden')||'{}')||{}; }catch(e){ CMD_HIDDEN={}; }   // comandos que el admin elimino (no se muestran ni se re-agregan)
 function loadComandosExtra(){ try{ let e=JSON.parse(lsGet('sptm-comandos')||'[]'); if(!Array.isArray(e))return;
   const limpio=e.filter(c=>c&&c.cmd).map(c=>desalias({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',tipo:c.tipo})).filter(c=>esComandoReal(c.cmd));
   if(JSON.stringify(limpio)!==JSON.stringify(e)){ lsSet('sptm-comandos',JSON.stringify(limpio)); }   // limpia "alias..." y titulos guardados antes
   const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase()));
-  limpio.forEach(c=>{ const k=(c.cmd||'').trim().toLowerCase(); if(k&&!have.has(k)){ COMANDOS.push({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',tipo:tipoCmd(c.cmd,c.desc),nuevo:true}); have.add(k); } });
+  limpio.forEach(c=>{ const k=(c.cmd||'').trim().toLowerCase(); if(k&&!have.has(k)&&!CMD_HIDDEN[k]){ COMANDOS.push({cmd:c.cmd,desc:c.desc||'',salida:c.salida||'',tipo:tipoCmd(c.cmd,c.desc),nuevo:true}); have.add(k); } });
 }catch(e){} }
 function mergeComandos(arr){ if(!Array.isArray(arr)||!arr.length)return 0; let add=0; const have=new Set(COMANDOS.map(c=>(c.cmd||'').trim().toLowerCase())); const store=[]; try{ store.push(...JSON.parse(lsGet('sptm-comandos')||'[]')); }catch(e){}
-  arr.forEach(c0=>{ const c=desalias({cmd:(c0&&c0.cmd||''),desc:(c0&&c0.desc||''),salida:(c0&&c0.salida||''),tipo:c0&&c0.tipo}); const cmd=(c.cmd||'').trim(); if(!cmd||!esComandoReal(cmd))return; const k=cmd.toLowerCase(); if(have.has(k))return; have.add(k); const tipo=tipoCmd(c.cmd,c.desc); const obj={cmd,desc:c.desc||'',salida:c.salida||'(sin salida de ejemplo)',tipo,nuevo:true}; COMANDOS.push(obj); store.push({cmd,desc:obj.desc,salida:obj.salida,tipo}); add++; });
+  arr.forEach(c0=>{ const c=desalias({cmd:(c0&&c0.cmd||''),desc:(c0&&c0.desc||''),salida:(c0&&c0.salida||''),tipo:c0&&c0.tipo}); const cmd=(c.cmd||'').trim(); if(!cmd||!esComandoReal(cmd))return; const k=cmd.toLowerCase(); if(have.has(k)||CMD_HIDDEN[k])return; have.add(k); const tipo=tipoCmd(c.cmd,c.desc); const obj={cmd,desc:c.desc||'',salida:c.salida||'(sin salida de ejemplo)',tipo,nuevo:true}; COMANDOS.push(obj); store.push({cmd,desc:obj.desc,salida:obj.salida,tipo}); add++; });
   if(add){ lsSet('sptm-comandos',JSON.stringify(store)); renderComandos(); }
   return add;
 }
@@ -2138,15 +2139,20 @@ function mergeComandos(arr){ if(!Array.isArray(arr)||!arr.length)return 0; let a
 let CMD_OVR={}; try{ CMD_OVR=JSON.parse(lsGet('sptm-cmd-overrides')||'{}')||{}; }catch(e){ CMD_OVR={}; }
 function tipoEff(c){ const o=CMD_OVR[(c.cmd||'').trim().toLowerCase()]; return (o==='pos'||o==='ssbt'||o==='general')?o:(c.tipo||'pos'); }
 function setCmdTipo(cmd,tipo){ if(!isAdmin())return; CMD_OVR[(cmd||'').trim().toLowerCase()]=tipo; lsSet('sptm-cmd-overrides',JSON.stringify(CMD_OVR)); renderComandos($('cmdSearch')?$('cmdSearch').value:''); }
+function delCmd(cmd){ if(!isAdmin())return; const k=(cmd||'').trim().toLowerCase(); if(!k)return; if(typeof confirm==='function' && !confirm('¿Eliminar este comando de la lista?\n\n'+cmd))return;
+  CMD_HIDDEN[k]=true; try{ lsSet('sptm-cmd-hidden',JSON.stringify(CMD_HIDDEN)); }catch(e){}
+  COMANDOS=COMANDOS.filter(function(c){ return (c.cmd||'').trim().toLowerCase()!==k; });
+  try{ let st=JSON.parse(lsGet('sptm-comandos')||'[]'); st=st.filter(function(c){ return ((c&&c.cmd)||'').trim().toLowerCase()!==k; }); lsSet('sptm-comandos',JSON.stringify(st)); }catch(e){}
+  renderComandos($('cmdSearch')?$('cmdSearch').value:''); toast('Comando eliminado'); }
 function renderComandos(q){
   const el=$('cmdList'); if(!el)return; q=(q||'').trim().toLowerCase();
   const match=c=>!q||(((c.cmd||'')+' '+(c.desc||'')+' '+tipoEff(c)).toLowerCase().includes(q));
   const tagOf=t=> t==='pos'?'<span class="cmd-tag pos">POS</span>' : t==='ssbt'?'<span class="cmd-tag ssbt">SSBT</span>' : '<span class="cmd-tag gen">General</span>';
   const sel=c=>{ if(!isAdmin())return ''; const t=tipoEff(c); const o=(v,l)=>'<option value="'+v+'"'+(t===v?' selected':'')+'>'+l+'</option>'; const cc=(c.cmd||'').replace(/'/g,"\\'"); return '<select class="cmd-sel" title="Reclasificar este comando" onclick="event.stopPropagation()" onchange="setCmdTipo(\''+cc+'\',this.value)">'+o('pos','POS')+o('ssbt','SSBT')+o('general','General')+'</select>'; };
-  const cmdHtml=c=>'<div class="cmd" onclick="this.classList.toggle(\'on\')"><div class="cmd-l">$ '+c.cmd+' '+tagOf(tipoEff(c))+sel(c)+(c.nuevo?' <span style="color:var(--accent);font-size:10px">● nuevo</span>':'')+'</div><div class="cmd-d">'+c.desc+'</div><div class="cmd-out">'+(c.salida||'').replace(/\\n/g,String.fromCharCode(10))+'</div></div>';
+  const cmdHtml=c=>{ const cc=(c.cmd||'').replace(/'/g,"\\'"); return '<div class="cmd" onclick="this.classList.toggle(\'on\')"><div class="cmd-l">$ '+c.cmd+' '+tagOf(tipoEff(c))+sel(c)+(c.nuevo?' <span style="color:var(--accent);font-size:10px">● nuevo</span>':'')+(isAdmin()?' <button title="Eliminar comando" onclick="event.stopPropagation();delCmd(\''+cc+'\')" style="margin-left:6px;background:none;border:0;color:var(--bad);cursor:pointer;font-size:15px;line-height:1">×</button>':'')+'</div><div class="cmd-d">'+c.desc+'</div><div class="cmd-out">'+(c.salida||'').replace(/\\n/g,String.fromCharCode(10))+'</div></div>'; };
   const GRUPOS=[['pos','POS · Punto de venta'],['ssbt','SSBT · Autoservicio (acceso con n1)'],['general','Generales (red/sistema)']];
   let html='';
-  GRUPOS.forEach(g=>{ const items=COMANDOS.filter(c=>tipoEff(c)===g[0] && match(c)); if(items.length){ html+='<div class="cmd-grp">'+g[1]+'</div>'+items.map(cmdHtml).join(''); } });
+  GRUPOS.forEach(g=>{ const items=COMANDOS.filter(c=>!CMD_HIDDEN[(c.cmd||'').trim().toLowerCase()] && tipoEff(c)===g[0] && match(c)); if(items.length){ html+='<div class="cmd-grp">'+g[1]+'</div>'+items.map(cmdHtml).join(''); } });
   el.innerHTML=html||'<div class="cmd-d" style="padding:8px 0">Sin comandos para "'+q+'".</div>';
 }
 function openRetail(){ if(!me){ gateShow(); return; } $('retailOverlay').classList.add('on'); $('retailPanel').classList.add('on'); setView('retail'); $('retailRole').textContent=isAdmin()?'(admin · puedes editar notas)':'(solo lectura)'; renderSalas(''); renderComandos(); loadSalas(); const ss=$('salaSearch'); if(ss){ ss.value=''; ss.focus(); ss.oninput=()=>renderSalas(ss.value); } const cs=$('cmdSearch'); if(cs){ cs.value=''; cs.oninput=()=>renderComandos(cs.value); } }

@@ -2389,7 +2389,7 @@ function emClaimTxt(t){ if(!t||!t.tomado_email)return ''; return (t.tomado_por==
 function emTomar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t){ toast('Selecciona una conversacion'); return; }
   if(emTomadaPorOtro(t) && !(typeof isAdmin==='function'&&isAdmin())){ toast('Ya la está atendiendo '+(t.tomado_email||'otro agente')); return; }
   t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); if((t.estado||'nuevo')==='nuevo')t.estado='leido'; emSave(); emPush(t); emRenderList(); emRenderSlot(slot); toast('La tomaste: '+t.tomado_email); }
-function emLiberar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.tomado_por=null; t.tomado_email=''; t.tomado_at=null; emSave(); emPush(t); emRenderList(); emRenderSlot(slot); toast('Liberada'); }
+function emLiberar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.tomado_por=null; t.tomado_email=''; t.tomado_at=null; emSave(); emPush(t); if(slot==='mail')emSelMail=null; else emSelChat=null; emSaveSel(); emRenderList(); emRenderSlot(slot); emRenderInterno(); toast('Liberada y quitada de tu panel'); }
 function emRenderClaim(slot){
   // el aviso vive ahora ARRIBA (header del inbox). Ocultamos la barra por panel y reflejamos el panel activo.
   const bar=$((slot==='mail')?'emMailClaim':'emChatClaim'); if(bar)bar.style.display='none';

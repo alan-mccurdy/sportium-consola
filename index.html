@@ -984,7 +984,7 @@ body{background:transparent}
         <div class="em-quad em-lr">
           <div class="em-leftcol">
             <div class="em-q em-conv"><div class="em-coltitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div></div>
-            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('chat')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
+            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('chat')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
           </div>
           <div class="em-q em-ana" id="emChatAna"><div class="em-coltitle">Interno (chat y correo)</div><div class="em-analisis" id="emChatAnalisis"></div></div>
         </div>
@@ -994,7 +994,7 @@ body{background:transparent}
         <div class="em-claim" id="emMailClaim" style="display:none"></div>
         <div class="em-quad em-mailonly">
           <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div></div>
-          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
+          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
         </div>
       </div>
     </div>
@@ -2418,6 +2418,9 @@ function emRenderSlot(slot){
   if(psel){ if(t){ psel.style.display=''; psel.value=emThreadPais(t); } else { psel.style.display='none'; } }
   const vsel=$(isMail?'emMailVert':'emChatVert');
   if(vsel){ if(t){ vsel.style.display=''; vsel.value=emThreadVert(t); } else { vsel.style.display='none'; } }
+  // botones de escalamiento de sala: solo cuando la conversacion es retail (personal de sala)
+  const _esRetail=!!(t && emThreadVert(t)==='retail'); const eok=$(isMail?'emMailEscOk':'emChatEscOk'), eno=$(isMail?'emMailEscNo':'emChatEscNo');
+  if(eok)eok.style.display=_esRetail?'':'none'; if(eno)eno.style.display=_esRetail?'':'none';
   if(!t){ if(who)who.textContent=isMail?'sin correo seleccionado':'sin chat seleccionado'; if(sug)sug.value='';
     if(isMail){ if($('emMailHead'))$('emMailHead').innerHTML=''; if($('emMailBody'))$('emMailBody').textContent=''; if($('emPara'))$('emPara').value=''; if($('emAsuntoOut'))$('emAsuntoOut').value=''; }
     else { if($('emChatThread'))$('emChatThread').innerHTML=''; }
@@ -2514,14 +2517,21 @@ async function emPedirSugerencia(slot){
       '"Respuesta sugerida al cliente:" el mensaje que se le ENVIA al personal de sala. PROHIBIDO incluir comandos, IPs, usuarios o datos tecnicos internos. Lenguaje sencillo de soporte: confirma que estas revisando/ya revisaste el equipo y dile el siguiente paso concreto de su lado (ej.: "Ya revise el equipo de forma remota; por favor intenta imprimir de nuevo en unos minutos y confirmame si funciono. Si sigue igual, avisame."). Tono cordial de companero.',
       'PAIS: usa UNICAMENTE informacion de '+pais+'; no mezcles datos de otros paises.'
     ].join(' ');
-    const dirFinal = (vert==='retail') ? dirRetail : dir;
+    const dirEscala=[
+      'Los pasos remotos NO resolvieron el problema del equipo de sala. Decide el ESCALAMIENTO con esta regla EXACTA:',
+      '- Escalar a N2 si NO es un problema fisico Y el equipo/sala SI tiene conexion a internet (se resuelve en remoto).',
+      '- Escalar a SAT (un tecnico va fisicamente al sitio) si es un problema FISICO (cambiar o configurar componentes) O si el equipo NO tiene conexion a internet.',
+      'Si por el caso NO queda claro si es problema fisico o si el equipo tiene internet, PRIMERO pregunta esos dos puntos y NO decidas todavia.',
+      'Cuando decidas, devuelve DOS secciones: "Para ti (interno):" a quien escalar (N2 o SAT), por que segun la regla, y QUE informacion enviar (equipo/terminal, IP, descripcion del fallo, lo ya intentado, evidencias/logs). "Respuesta sugerida al cliente:" mensaje para el personal de sala avisando que su caso fue escalado (a N2, o que ira un tecnico al sitio) y el siguiente paso, SIN datos internos.'
+    ].join(' ');
+    const dirFinal = (vert==='retail') ? (t.escalar ? dirEscala : dirRetail) : dir;
     const mensajes=[{role:'system',content:dirFinal}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
     // GUARDIA DE PRIVACIDAD (capa CRM local): este payload va a una IA EXTERNA. NO agregar nunca
     // datos de crmStore / CRM.getClient (saldo, KYC, cedula, retiros). La ficha real solo se usa
     // para plantillas locales (fases posteriores), jamas se envia aqui.
     const {data:{session}}=await sb.auth.getSession();
     const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
-      body:JSON.stringify({mensajes:mensajes, canal:canal, audiencia:(vert==='retail'?'interno':'cliente'), formato:(canal==='email'?'correo':'mensaje'), instruccion:dirFinal, cliente:(vert==='retail'?null:(cliente||null)), pais:pais, turno:{pais:pais,vertical:vert}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
+      body:JSON.stringify({mensajes:mensajes, canal:canal, audiencia:(vert==='retail'?'interno':'cliente'), formato:(canal==='email'?'correo':'mensaje'), instruccion:dirFinal, cliente:(vert==='retail'?null:(cliente||null)), pais:pais, turno:{pais:pais,vertical:vert}, escalar:(vert==='retail'&&!!t.escalar), tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
     if(!res.ok) throw new Error('Servidor '+res.status);
     let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ j={}; }
     t.iaRaw=(j.respuesta||'').trim(); emRaw=t.iaRaw; t.draft=(vert==='retail')?(extraerSugerida(t.iaRaw)||t.iaRaw):extraerSugerida(t.iaRaw); t.draftEdited=false;
@@ -2533,6 +2543,18 @@ async function emPedirSugerencia(slot){
   finally{ if(gen)gen.textContent=''; const ab2=$('emAddBtn'); if(ab2)ab2.disabled=false; }
 }
 function emResugerir(){ const t=emActiveThread(); if(!t){ toast('Selecciona una conversacion'); return; } t.draftEdited=false; emPedirSugerencia(emFocus); }
+function emEscalar(slot, funciono){
+  slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t){ toast('Selecciona una conversacion'); return; }
+  if(funciono){ // los pasos resolvieron -> mensaje de cierre a sala, sin gastar IA
+    t.escalar=false;
+    const sug=$(slot==='mail'?'emMailSug':'emChatSug');
+    const msg='Listo, ya lo revise del lado tecnico. Por favor confirma que el equipo ya funciona correctamente. Si sigue igual, avisame y lo escalo. Quedo atento.';
+    t.draft=msg; t.draftEdited=true; if(sug)sug.value=msg; emSave(); emPushDebounced(t);
+    toast('Resuelto: mensaje de cierre listo para enviar a sala.');
+  } else { // no resolvieron -> la IA decide escalamiento (N2 vs SAT) y arma que enviar + mensaje a sala
+    t.escalar=true; toast('Generando escalamiento...'); emPedirSugerencia(slot);
+  }
+}
 function emCopiar(slot){
   slot=slot||emFocus; const isMail=(slot==='mail'); const sug=$(isMail?'emMailSug':'emChatSug'); if(!sug)return; const t=(sug.value||'').trim(); if(!t){ toast('No hay respuesta para copiar'); return; }
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){ toast(isMail?'Respuesta copiada — pegala en Outlook':'Respuesta copiada — pegala en el chat'); }, function(){ sug.focus(); sug.select(); toast('Selecciona y copia (Ctrl+C)'); }); }

@@ -2362,8 +2362,10 @@ function emInterno(raw){ if(!raw)return ''; const s=''+raw;
 function emTryLink(t){ if(!t)return; const cli=emClienteDe(t); if(!cli)return; const tIsChat=(t.canal==='mensaje');
   const other=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if(((x.canal==='mensaje'))===tIsChat)return false; const xc=emClienteDe(x); return !!(xc && xc.usuario===cli.usuario); });
   if(!other)return;
-  // ANTES auto-cargaba y auto-respondia el otro canal -> descoordinacion correo/mensaje. Ahora SOLO avisa; el agente decide abrirlo.
-  toast('Este cliente tambien tiene un '+(other.canal==='mensaje'?'chat':'correo')+' en la bandeja.'); }
+  t._linkOtro=other.id; other._linkOtro=t.id;   // CRUCE: la IA usara el contexto de AMBOS canales para responder coherente
+  const oslot=(other.canal==='mensaje')?'chat':'mail'; const cur=(oslot==='mail')?emSelMail:emSelChat;
+  if(cur!==other.id){ if(oslot==='chat')emSelChat=other.id; else emSelMail=other.id; emRenderList(); emRenderSlot(oslot); emFocusSet(t.canal==='mensaje'?'chat':'mail'); }   // trae el otro canal pero deja el foco donde estabas
+  toast('Mismo cliente: traje su '+(oslot==='mail'?'correo':'chat')+' al otro panel; la IA respondera COHERENTE entre ambos canales.'); }
 // Pais automatico: si la conversacion no tiene pais marcado, lo deduce del cliente enganchado o de pistas del texto.
 function emAutoPais(t){ if(!t || t.pais) return; if(t.cliente && t.cliente.pais){ t.pais=t.cliente.pais; return; }
   var x=((t.mensajes||[]).map(function(m){return m.text;}).join(' ')+' '+(t.asunto||'')).toLowerCase();
@@ -2562,7 +2564,13 @@ async function emPedirSugerencia(slot){
     ].join(' ');
     const dirFinal = (vert==='retail') ? (t.escalar ? dirEscala : dirRetail) : dir;
     const dirMulti = ((t.mensajes||[]).filter(function(m){return m.from!=='agente';}).length>1) ? ' IMPORTANTE: el cliente envio VARIOS correos/mensajes; atiende TODAS sus dudas DISTINTAS en una sola respuesta ordenada (si algunos repiten lo mismo, respondelo una vez). No dejes ninguna sin contestar.' : '';
-    const mensajes=[{role:'system',content:dirFinal+dirMulti}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
+    // COHERENCIA ENTRE CANALES: si el MISMO cliente escribio por el otro canal (correo<->chat), pasa ese
+    // contexto para que la respuesta sea coherente (mismo fondo y misma resolucion), solo adaptando el tono.
+    var otro = t._linkOtro ? EMBANDEJA.find(function(x){return x.id===t._linkOtro;}) : null;
+    if(!otro){ var _cli=emClienteDe(t); if(_cli){ otro=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if((x.canal==='mensaje')===(t.canal==='mensaje'))return false; var xc=emClienteDe(x); return !!(xc&&xc.usuario===_cli.usuario); }); } }
+    var dirCoher='';
+    if(otro){ var _om=(otro.mensajes||[]).filter(function(m){return m.from!=='agente';}).map(function(m){return m.text;}).join(' | '); if(_om) dirCoher=' COHERENCIA: este MISMO cliente tambien escribio por '+(otro.canal==='mensaje'?'CHAT':'CORREO')+' lo siguiente: "'+_om.slice(0,600)+'". Da una respuesta COHERENTE con eso (mismo diagnostico y misma resolucion), sin contradecir lo que se le diga por el otro canal; solo adapta el tono al canal actual ('+(t.canal==='mensaje'?'chat: breve y directo':'correo: formal y completo')+').'; }
+    const mensajes=[{role:'system',content:dirFinal+dirMulti+dirCoher}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
     // GUARDIA DE PRIVACIDAD (capa CRM local): este payload va a una IA EXTERNA. NO agregar nunca
     // datos de crmStore / CRM.getClient (saldo, KYC, cedula, retiros). La ficha real solo se usa
     // para plantillas locales (fases posteriores), jamas se envia aqui.
@@ -2752,7 +2760,8 @@ if($('faqAdd')) $('faqAdd').onclick=addFaq;
 let pendingImgs=[];
 function renderPending(){ const a=$('attach'); if(!a)return; a.innerHTML=pendingImgs.map((d,i)=>'<div class="athumb"><img src="'+d+'"><span class="rm" onclick="rmPending('+i+')">×</span></div>').join(''); }
 function rmPending(i){ pendingImgs.splice(i,1); renderPending(); }
-function addPendingFiles(files){ for(const f of files){ if(f.type&&f.type.indexOf('image')===0){ const rd=new FileReader(); rd.onload=()=>{ pendingImgs.push(rd.result); renderPending(); }; rd.readAsDataURL(f); } } }
+function _downscaleImg(dataUrl, cb){ try{ const im=new Image(); im.onload=function(){ const MX=1280; let w=im.naturalWidth||im.width, h=im.naturalHeight||im.height; if(!w||!h){ cb(dataUrl); return; } if(w>MX||h>MX){ const r=Math.min(MX/w,MX/h); w=Math.round(w*r); h=Math.round(h*r); } const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,w,h); x.drawImage(im,0,0,w,h); try{ cb(c.toDataURL('image/jpeg',0.72)); }catch(_){ cb(dataUrl); } }; im.onerror=function(){ cb(dataUrl); }; im.src=dataUrl; }catch(_){ cb(dataUrl); } }
+function addPendingFiles(files){ for(const f of files){ if(f.type&&f.type.indexOf('image')===0){ const rd=new FileReader(); rd.onload=()=>{ _downscaleImg(rd.result, function(small){ pendingImgs.push(small); renderPending(); }); }; rd.readAsDataURL(f); } } }
 $('attBtn').onclick=()=>$('attFile').click();
 $('attFile').onchange=e=>{ addPendingFiles(e.target.files); e.target.value=''; };
 $('input').addEventListener('paste',e=>{ const items=(e.clipboardData&&e.clipboardData.items)||[]; let got=false; for(const it of items){ if(it.type&&it.type.indexOf('image')===0){ const f=it.getAsFile(); if(f){ addPendingFiles([f]); got=true; } } } if(got) e.preventDefault(); });

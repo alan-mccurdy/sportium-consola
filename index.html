@@ -625,6 +625,7 @@ body{background:transparent}
       <div class="chipbar" id="chipbar"></div>
       <div class="cbox">
         <button class="att-btn" id="attBtn" title="Adjuntar imagen (o pega con Ctrl+V)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 11.05 12.25 20.2a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.19 9.19a1 1 0 0 1-1.41-1.41l8.48-8.49"/></svg></button>
+        <button class="att-btn" id="ticketBtn" title="Verificar ticket de apuesta (resultados oficiales)" style="display:none" onclick="verificaTicket()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4z"/><path d="M9 9l2 2 4-4"/></svg></button>
         <input type="file" id="attFile" accept="image/*" multiple style="display:none">
         <textarea id="input" rows="1" placeholder="Escribe la duda o pega una imagen (Ctrl+V)…"></textarea>
         <button class="send" id="send"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
@@ -2758,7 +2759,7 @@ if($('faqAdd')) $('faqAdd').onclick=addFaq;
 
 /* ---- adjuntar / pegar imágenes en el chat (para análisis con visión) ---- */
 let pendingImgs=[];
-function renderPending(){ const a=$('attach'); if(!a)return; a.innerHTML=pendingImgs.map((d,i)=>'<div class="athumb"><img src="'+d+'"><span class="rm" onclick="rmPending('+i+')">×</span></div>').join(''); }
+function renderPending(){ const a=$('attach'); if(!a)return; a.innerHTML=pendingImgs.map((d,i)=>'<div class="athumb"><img src="'+d+'"><span class="rm" onclick="rmPending('+i+')">×</span></div>').join(''); const tb=$('ticketBtn'); if(tb) tb.style.display = pendingImgs.length ? '' : 'none'; }
 function rmPending(i){ pendingImgs.splice(i,1); renderPending(); }
 function _downscaleImg(dataUrl, cb){ try{ const im=new Image(); im.onload=function(){ const MX=1280; let w=im.naturalWidth||im.width, h=im.naturalHeight||im.height; if(!w||!h){ cb(dataUrl); return; } if(w>MX||h>MX){ const r=Math.min(MX/w,MX/h); w=Math.round(w*r); h=Math.round(h*r); } const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,w,h); x.drawImage(im,0,0,w,h); try{ cb(c.toDataURL('image/jpeg',0.72)); }catch(_){ cb(dataUrl); } }; im.onerror=function(){ cb(dataUrl); }; im.src=dataUrl; }catch(_){ cb(dataUrl); } }
 function addPendingFiles(files){ for(const f of files){ if(f.type&&f.type.indexOf('image')===0){ const rd=new FileReader(); rd.onload=()=>{ _downscaleImg(rd.result, function(small){ pendingImgs.push(small); renderPending(); }); }; rd.readAsDataURL(f); } } }
@@ -2798,6 +2799,29 @@ async function sendMsg(){
     s.mensajes.push({role:'assistant',content:r,log_id:(d&&d.log_id)||null, fuentes:(d&&d.fuentes)||[], sin_respaldo:!!(d&&d.sin_respaldo) && !s.cliente && !s.sala});
     if(autocopy){ const sug=extraerSugerida(r); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); }
   }catch(e){ s.mensajes.push({role:'assistant',content:'(No pude responder: '+e.message+')'}); }
+  finally{ $('typing').classList.remove('on'); $('send').disabled=false; renderChat(); }
+}
+const WEBHOOK_TICKET = WEBHOOK.replace('/sportium-chat','/verifica-ticket').replace('/soporte-chat','/verifica-ticket');
+async function verificaTicket(){
+  const imgs=pendingImgs.slice();
+  if(!imgs.length){ toast('Adjunta primero la foto del ticket de apuesta.'); return; }
+  if(!me){ authMsg('Inicia sesión primero.',true); gateShow(); return; }
+  const s=activeS();
+  s.mensajes.push({role:'user',content:'(ticket de apuesta para verificar)', imgs}); renderChat();
+  pendingImgs=[]; renderPending();
+  $('send').disabled=true; $('typing').classList.add('on'); $('chat').scrollTop=$('chat').scrollHeight;
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const res=await fetch(WEBHOOK_TICKET,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
+      body:JSON.stringify({ tenant:CONFIG.tenant, adjuntos:imgs, agente:me.email })});
+    if(!res.ok)throw new Error('Servidor '+res.status);
+    const raw=(await res.text()||'').trim();
+    let data; try{ data=JSON.parse(raw); }catch(_){ data={respuesta:raw}; }
+    const d=Array.isArray(data)?data[0]:data;
+    const r=(d&&d.respuesta)||'No pude verificar el ticket.';
+    s.mensajes.push({role:'assistant',content:r});
+    if(autocopy){ const sug=extraerSugerida(r); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); }
+  }catch(e){ s.mensajes.push({role:'assistant',content:'(No pude verificar el ticket: '+e.message+')'}); }
   finally{ $('typing').classList.remove('on'); $('send').disabled=false; renderChat(); }
 }
 $('send').onclick=sendMsg;

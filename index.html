@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sportium — Consola de soporte</title>
+<title>SINELI — Consola de soporte</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -551,7 +551,7 @@ body{background:transparent}
 </head>
 <body>
 <div class="spatial-canvas" aria-hidden="true"></div>
-<div class="boot-splash" id="bootSplash" aria-hidden="true"><div class="boot-wm">JobAny</div><div class="boot-bar"><i></i></div></div>
+<div class="boot-splash" id="bootSplash" aria-hidden="true"><div class="boot-wm">SINELI</div><div class="boot-bar"><i></i></div></div>
 <div class="leftdock" id="leftDock" aria-label="Paneles"></div>
 
 <div class="demo-bar" id="demoBar"><span>Vista de demostración — estás viendo la consola como un <b>Agente</b> (sin permisos de admin)</span><button onclick="toggleDemo()">Volver a admin</button></div>
@@ -559,7 +559,7 @@ body{background:transparent}
 <!-- ===== PANTALLA DE ACCESO ===== -->
 <div class="auth-gate hide" id="authGate">
   <div class="auth-card">
-    <div class="auth-brand" id="authBrand">JobAny</div>
+    <div class="auth-brand" id="authBrand">SINELI</div>
     <div class="tag" id="authTag">Sportium · acceso restringido</div>
     <input id="authEmail" type="email" placeholder="tu-correo@sportium.com" autocomplete="email">
     <button class="btn" id="authMagic">Enviarme enlace de acceso</button>
@@ -576,7 +576,7 @@ body{background:transparent}
 <div class="app">
   <div class="main">
     <header>
-      <div><div class="mark"><span class="d"></span><span class="brandname">Sportium</span></div><div class="sub">Consola de soporte (interna)</div></div>
+      <div><div class="mark"><span class="d"></span><span class="brandname">SINELI</span></div><div class="sub">Consola de soporte (interna)</div></div>
       <span class="turno" title="Tu turno: pais y vertical que atiendes"><span class="turno-lbl">Turno</span>
         <select id="turnoPais" class="in mini" aria-label="Pais de tu turno"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option><option value="ALL">Todos</option></select>
         <select id="turnoVert" class="in mini" aria-label="Vertical de tu turno"><option value="online">Online</option><option value="retail">Retail</option></select>
@@ -698,7 +698,7 @@ body{background:transparent}
     <h4 data-pxi="bolt">Copiloto para Chatra (extensión)</h4>
     <div class="hint">Extensión de Edge/Chrome que sugiere respuestas sobre Chatra usando esta misma IA. Reusa tu sesión de la consola (inicia sesión aquí primero).</div>
     <div class="btnrow"><a class="btn" href="copiloto-jobany.zip" download>Descargar extensión (.zip)</a></div>
-    <div class="hint" style="margin-top:7px">Instalar: descomprime el .zip → <b>edge://extensions</b> → activa "Modo de desarrollador" → "Cargar desempaquetada" → elige la carpeta. Luego abre Chatra, selecciona el mensaje del cliente y pulsa <b>Sugerir</b> (o clic derecho → "Sugerir respuesta (JobAny)").</div>
+    <div class="hint" style="margin-top:7px">Instalar: descomprime el .zip → <b>edge://extensions</b> → activa "Modo de desarrollador" → "Cargar desempaquetada" → elige la carpeta. Luego abre Chatra, selecciona el mensaje del cliente y pulsa <b>Sugerir</b> (o clic derecho → "Sugerir respuesta (SINELI)").</div>
   </div>
 
   <!-- Respuestas reportadas -->
@@ -1036,11 +1036,11 @@ const FETCHURL_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/fetc
    Plataforma (tu producto) = Jobany · Cliente visible = Sportium.
    ============================================================ */
 const CONFIG = {
-  plataforma: "Jobany",      // tu marca (aparece como "by Jobany")
-  cliente:    "Sportium",    // marca visible para los agentes
+  plataforma: "SINELI",      // tu producto (marca SINELI). Admin/demo ven esto arriba de "Consola de soporte".
+  cliente:    "Sportium",    // tenant/cliente real: SOLO los agentes invitados reales lo ven en el header
   tenant:     "sportium",    // slug que se envia al backend multi-tenant
   acento:     "#E2001A",     // color de acento del cliente (hex)
-  soloChatAgentes: true      // true = los agentes (no-admin) solo ven el chat de consultas general
+  soloChatAgentes: false     // false = los agentes tambien ven datos de cliente/saldos, salas y busqueda
 };
 
 const $=id=>document.getElementById(id);
@@ -1159,6 +1159,7 @@ function applyRoleUI(){
   const side=document.querySelector('.side'); if(side) side.style.display=soloChat?'none':'';
   document.body.classList.toggle('solo-chat', soloChat);
   if(typeof renderAviso==='function') renderAviso();
+  if(typeof applyBrand==='function') applyBrand();   // refresca la marca del header segun el rol (admin/demo=SINELI, agente real=Sportium)
 }
 /* Admin "ve como agente" para demo (sin crear cuenta real) */
 function toggleDemo(){
@@ -2360,10 +2361,15 @@ function emInterno(raw){ if(!raw)return ''; const s=''+raw;
 }
 function emTryLink(t){ if(!t)return; const cli=emClienteDe(t); if(!cli)return; const tIsChat=(t.canal==='mensaje');
   const other=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if(((x.canal==='mensaje'))===tIsChat)return false; const xc=emClienteDe(x); return !!(xc && xc.usuario===cli.usuario); });
-  if(!other)return; const oslot=(other.canal==='mensaje')?'chat':'mail'; const cur=(oslot==='mail')?emSelMail:emSelChat;
-  if(cur===other.id)return; if(oslot==='chat')emSelChat=other.id; else emSelMail=other.id; emRenderList(); emRenderSlot(oslot);
-  if(other.estado==='nuevo' && !other.iaRaw && !(other.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(oslot); }
-  toast('Mismo cliente: cargue su '+(oslot==='mail'?'correo':'chat')+' en el otro panel'); }
+  if(!other)return;
+  // ANTES auto-cargaba y auto-respondia el otro canal -> descoordinacion correo/mensaje. Ahora SOLO avisa; el agente decide abrirlo.
+  toast('Este cliente tambien tiene un '+(other.canal==='mensaje'?'chat':'correo')+' en la bandeja.'); }
+// Pais automatico: si la conversacion no tiene pais marcado, lo deduce del cliente enganchado o de pistas del texto.
+function emAutoPais(t){ if(!t || t.pais) return; if(t.cliente && t.cliente.pais){ t.pais=t.cliente.pais; return; }
+  var x=((t.mensajes||[]).map(function(m){return m.text;}).join(' ')+' '+(t.asunto||'')).toLowerCase();
+  if(/\bcolombia\b|\bcolombiano\b|\bcop\b|bogot|nequi|daviplata|efecty|\bpse\b/.test(x)) t.pais='CO';
+  else if(/\bm[eé]xico\b|\bmexicano\b|\bmxn\b|\boxxo\b|\bspei\b/.test(x)) t.pais='MX';
+  else if(/\bpanam|\bbalboa|yappy/.test(x)) t.pais='PA'; }
 function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'todos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); var _epg=$('emPegar'); if(_epg)_epg.style.display=isAdmin()?'':'none'; var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); try{ if(localStorage.getItem('inbox-listcol')==='1'&&$('emShell'))$('emShell').classList.add('listcol'); }catch(e){} if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); }
 function closeEmail(){ $('emailPanel').classList.remove('on'); setView('chat'); }
 function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = emModo==='manual' ? '' : 'none'; }
@@ -2467,7 +2473,7 @@ function emRenderInterno(){
   box.innerHTML = html || '<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
   emRenderLink();
 }
-function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const wasNuevo=((t.estado||'nuevo')==='nuevo'); if(wasNuevo){ t.estado='leido'; emSave(); emPush(t); } const slot=(t.canal==='mensaje')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } }
+function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; emAutoPais(t); const wasNuevo=((t.estado||'nuevo')==='nuevo'); if(wasNuevo){ t.estado='leido'; emSave(); emPush(t); } const slot=(t.canal==='mensaje')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } }
 function emAddManual(){
   const de=($('emDe')&&$('emDe').value||'').trim();
   const asunto=($('emAsunto')&&$('emAsunto').value||'').trim();
@@ -2626,7 +2632,9 @@ async function emAprender(t, respuesta){
     else { toast('Marcado como respondido'); }
   }catch(e){ toast('Marcado como respondido'); }
 }
-function emVaciar(){ EMBANDEJA=[]; emSelChat=null; emSelMail=null; emSave(); emSaveSel(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); }
+async function emVaciar(){ if(typeof confirm==='function' && !confirm('¿Vaciar la bandeja? Se borran TODAS las conversaciones (no se puede deshacer).')) return;
+  try{ if(emCloudReady && sb) await sb.from('inbox_conversaciones').delete().eq('tenant',CONFIG.tenant); }catch(e){}   // borra tambien en la nube para que NO reaparezcan al recargar
+  EMBANDEJA=[]; emSelChat=null; emSelMail=null; emSave(); emSaveSel(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); if(typeof emRenderInterno==='function') emRenderInterno(); toast('Bandeja vaciada.'); }
 async function emFetchAuto(){
   if(!EMAIL_AUTO.on){ return; }
   const items=$('emItems'); if(items) items.innerHTML='<div class="em-empty">Cargando correos...</div>';
@@ -2787,11 +2795,13 @@ document.addEventListener('keydown',e=>{
 /* ---- aplicar marca (CONFIG) ---- */
 function applyBrand(){
   try{
-    document.title = CONFIG.cliente + ' — Consola de soporte';
-    document.querySelectorAll('.brandname').forEach(el=>el.textContent=CONFIG.cliente);
+    document.title = CONFIG.plataforma + ' — Consola de soporte';
+    // El header: admin y vista demo (isRealAdmin) muestran la MARCA (SINELI); los agentes invitados reales ven su cliente (Sportium).
+    var headerBrand = (typeof isRealAdmin==='function' && !isRealAdmin() && me) ? CONFIG.cliente : CONFIG.plataforma;
+    document.querySelectorAll('.brandname').forEach(el=>el.textContent=headerBrand);
     if(CONFIG.acento) document.documentElement.style.setProperty('--accent', CONFIG.acento);
     const ab=$('authBrand'); if(ab) ab.textContent=CONFIG.plataforma;
-    const at=$('authTag'); if(at) at.textContent=CONFIG.cliente+' · acceso restringido';
+    const at=$('authTag'); if(at) at.textContent=CONFIG.plataforma+' · acceso restringido';
     const by=$('authBy'); if(by) by.innerHTML='Plataforma de soporte · <b>'+CONFIG.plataforma+'</b>';
   }catch(e){}
 }

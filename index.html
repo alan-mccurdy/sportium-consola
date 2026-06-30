@@ -2370,6 +2370,25 @@ function emAutoPais(t){ if(!t || t.pais) return; if(t.cliente && t.cliente.pais)
   if(/\bcolombia\b|\bcolombiano\b|\bcop\b|bogot|nequi|daviplata|efecty|\bpse\b/.test(x)) t.pais='CO';
   else if(/\bm[eé]xico\b|\bmexicano\b|\bmxn\b|\boxxo\b|\bspei\b/.test(x)) t.pais='MX';
   else if(/\bpanam|\bbalboa|yappy/.test(x)) t.pais='PA'; }
+// Consolidar correos del MISMO cliente: une sus mensajes en un solo hilo, descarta repetidos (spam),
+// marca todos como leidos y elimina los hilos sueltos (quedan consolidados aqui). Evita ir uno por uno.
+function _normMsg(s){ return (s||'').toLowerCase().replace(/[^a-z0-9áéíóúñ ]/gi,' ').replace(/\s+/g,' ').trim(); }
+function emConsolidarCliente(t){
+  if(!t || t.canal==='mensaje') return;
+  var cli=emClienteDe(t); var key=(cli&&cli.usuario)||((t.de||'').toLowerCase().trim()); if(!key) return;
+  var grupo=EMBANDEJA.filter(function(x){ if(x.canal==='mensaje')return false; var c=emClienteDe(x); var k=(c&&c.usuario)||((x.de||'').toLowerCase().trim()); return k===key; });
+  if(grupo.length<=1){ return; }
+  var vistos={}, msgs=[], repetidos=0;
+  grupo.forEach(function(x){ (x.mensajes||[]).forEach(function(m){ if(m.from==='agente')return; var nm=_normMsg(m.text); if(!nm)return; if(vistos[nm]){ repetidos++; return; } vistos[nm]=1; msgs.push({from:'cliente',text:m.text,t:m.t||Date.now()}); }); });
+  var agentMsgs=(t.mensajes||[]).filter(function(m){return m.from==='agente';});
+  t.mensajes=msgs.concat(agentMsgs); t.estado='leido';
+  t._consol={ total:grupo.length, unicos:msgs.length, repetidos:repetidos };
+  grupo.forEach(function(x){ if(x.id===t.id)return; if(emCloudDelete)emCloudDelete(x.id); });
+  var quitar={}; grupo.forEach(function(x){ if(x.id!==t.id) quitar[x.id]=1; });
+  EMBANDEJA=EMBANDEJA.filter(function(x){ return !quitar[x.id]; });
+  emSave(); emPush(t);
+  toast(grupo.length+' correos de este cliente consolidados'+(repetidos?(' ('+repetidos+' repetidos descartados)'):'')+' — todos leidos.');
+}
 function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'todos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); var _epg=$('emPegar'); if(_epg)_epg.style.display=isAdmin()?'':'none'; var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); try{ if(localStorage.getItem('inbox-listcol')==='1'&&$('emShell'))$('emShell').classList.add('listcol'); }catch(e){} if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); }
 function closeEmail(){ $('emailPanel').classList.remove('on'); setView('chat'); }
 function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = emModo==='manual' ? '' : 'none'; }
@@ -2441,13 +2460,14 @@ function emRenderSlot(slot){
     if(isMail){ if($('emMailHead'))$('emMailHead').innerHTML=''; if($('emMailBody'))$('emMailBody').textContent=''; if($('emPara'))$('emPara').value=''; if($('emAsuntoOut'))$('emAsuntoOut').value=''; }
     else { if($('emChatThread'))$('emChatThread').innerHTML=''; }
     const cle=$(isMail?'emMailCli':'emChatCli'); if(cle)cle.innerHTML=''; emRenderClaim(slot); emRenderInterno(); return; }
-  if(who)who.textContent=(t.de||'cliente')+((t.estado&&t.estado!=='nuevo')?(' · '+t.estado):'')+(emClaimTxt(t)?(' · '+emClaimTxt(t)):'');
+  if(who)who.textContent=(t.de||'cliente')+((t.estado&&t.estado!=='nuevo')?(' · '+t.estado):'')+((t._consol&&t._consol.total>1)?(' · '+t._consol.total+' correos'):'')+(emClaimTxt(t)?(' · '+emClaimTxt(t)):'');
   const cliEl=$(isMail?'emMailCli':'emChatCli');
   if(cliEl){ if(t.cliente){ const cc=t.cliente; var extra=(cc.nivel==='VIP'?' · VIP':'')+(cc.autoexcluido?' · autoexcluido':'')+((cc.tickets_previos&&cc.tickets_previos.length)?(' · '+cc.tickets_previos.length+' tickets'):''); cliEl.innerHTML='<span class="em-clichip" title="Clic para quitar" onclick="event.stopPropagation();emDetachCliente(\''+slot+'\')">'+escapeHtml(cc.nombre)+' ('+escapeHtml(cc.usuario)+') · '+cc.pais+' · '+fmtMon(cc.saldo,cc.pais)+' · KYC '+((cc.kyc&&cc.kyc.verificado)?'ok':'pend')+extra+'</span>'; } else { cliEl.innerHTML=''; } }
   if(isMail){
-    const cli=(t.mensajes||[]).find(function(m){return m.from==='cliente';})||{text:''};
-    if($('emMailHead'))$('emMailHead').innerHTML='<b>De:</b> '+escapeHtml(t.de||'cliente')+'<br><b>Asunto:</b> '+escapeHtml(t.asunto||'(sin asunto)');
-    if($('emMailBody'))$('emMailBody').textContent=cli.text||'';
+    const clis=(t.mensajes||[]).filter(function(m){return m.from!=='agente';});
+    const consol=(t._consol && t._consol.total>1) ? ('<div style="font-size:11px;color:var(--accent);margin-bottom:4px">'+t._consol.total+' correos de este cliente consolidados'+(t._consol.repetidos?(' · '+t._consol.repetidos+' repetidos (spam) descartados'):'')+' · todos marcados como leidos</div>') : '';
+    if($('emMailHead'))$('emMailHead').innerHTML=consol+'<b>De:</b> '+escapeHtml(t.de||'cliente')+'<br><b>Asunto:</b> '+escapeHtml(t.asunto||'(sin asunto)');
+    if($('emMailBody'))$('emMailBody').textContent=clis.map(function(m,i){return (clis.length>1?('['+(i+1)+'] '):'')+(m.text||'');}).join('\n\n———\n\n');
     if($('emPara'))$('emPara').value=t.de||'';
     if($('emAsuntoOut'))$('emAsuntoOut').value=(t.asunto&&!/^re:/i.test(t.asunto))?('Re: '+t.asunto):(t.asunto||'');
   } else {
@@ -2473,7 +2493,7 @@ function emRenderInterno(){
   box.innerHTML = html || '<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
   emRenderLink();
 }
-function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; emAutoPais(t); const wasNuevo=((t.estado||'nuevo')==='nuevo'); if(wasNuevo){ t.estado='leido'; emSave(); emPush(t); } const slot=(t.canal==='mensaje')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } }
+function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const wasNuevo=((t.estado||'nuevo')==='nuevo'); emAutoPais(t); if(t.canal!=='mensaje') emConsolidarCliente(t); if(wasNuevo){ t.estado='leido'; emSave(); emPush(t); } const slot=(t.canal==='mensaje')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } }
 function emAddManual(){
   const de=($('emDe')&&$('emDe').value||'').trim();
   const asunto=($('emAsunto')&&$('emAsunto').value||'').trim();
@@ -2541,7 +2561,8 @@ async function emPedirSugerencia(slot){
       'Cuando decidas, devuelve DOS secciones: "Para ti (interno):" a quien escalar (N2 o SAT), por que segun la regla, y QUE informacion enviar (equipo/terminal, IP, descripcion del fallo, lo ya intentado, evidencias/logs). "Respuesta sugerida al cliente:" mensaje para el personal de sala avisando que su caso fue escalado (a N2, o que ira un tecnico al sitio) y el siguiente paso, SIN datos internos.'
     ].join(' ');
     const dirFinal = (vert==='retail') ? (t.escalar ? dirEscala : dirRetail) : dir;
-    const mensajes=[{role:'system',content:dirFinal}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
+    const dirMulti = ((t.mensajes||[]).filter(function(m){return m.from!=='agente';}).length>1) ? ' IMPORTANTE: el cliente envio VARIOS correos/mensajes; atiende TODAS sus dudas DISTINTAS en una sola respuesta ordenada (si algunos repiten lo mismo, respondelo una vez). No dejes ninguna sin contestar.' : '';
+    const mensajes=[{role:'system',content:dirFinal+dirMulti}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
     // GUARDIA DE PRIVACIDAD (capa CRM local): este payload va a una IA EXTERNA. NO agregar nunca
     // datos de crmStore / CRM.getClient (saldo, KYC, cedula, retiros). La ficha real solo se usa
     // para plantillas locales (fases posteriores), jamas se envia aqui.

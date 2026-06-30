@@ -2613,19 +2613,18 @@ async function emAprender(t, respuesta){
   var pregunta=''; for(var k=(t.mensajes||[]).length-1;k>=0;k--){ if(t.mensajes[k].from==='cliente'){ pregunta=t.mensajes[k].text||''; break; } }
   pregunta=(pregunta||t.asunto||'').trim(); respuesta=(respuesta||'').trim();
   if(pregunta.length<8 || respuesta.length<8){ toast('Marcado como respondido'); return; }
-  var pais=emThreadPais(t), vert=turnoVert();
-  var nombre=(t.canal==='mensaje'?'Inbox · mensaje: ':'Inbox · correo: ')+((t.asunto||pregunta).slice(0,55));
-  toast('Respondido — guardando en la base para recordarlo…');
-  // 1) RAG (siempre): preguntas parecidas hallaran esta respuesta aprobada
-  try{ await ingestKB(nombre, 'Pregunta del cliente: '+pregunta+'\n\nRespuesta correcta (aprobada por un agente): '+respuesta, pais, vert); }catch(e){}
-  // 2) FAQ exacta (0 tokens) si la pregunta es corta -> buen disparador
-  if(typeof isAdmin==='function' && isAdmin() && pregunta.length<=180){
-    try{ const {data:{session}}=await sb.auth.getSession();
-      if(session){ await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador:pregunta,respuesta:respuesta,fuente:'inbox'})});
-        if(typeof loadFaqs==='function') await loadFaqs(); }
-    }catch(e){}
-  }
-  toast('Aprendido para el RAG ('+((typeof PAISN!=='undefined'&&PAISN[pais])||pais)+'). La IA lo usara en respuestas parecidas.');
+  // YA NO se indexa al RAG (eso generaba docs "Inbox · ..." duplicados). Solo guardamos una
+  // RESPUESTA RAPIDA (FAQ) y SOLO si es NOVEDOSA: disparador usable (corto, una linea) y que no
+  // exista ya una FAQ que responda algo asi. Solo admin.
+  if(!(typeof isAdmin==='function' && isAdmin())){ toast('Marcado como respondido'); return; }
+  pregunta=pregunta.replace(/^asunto:\s*/i,'').trim();
+  if(pregunta.length>120 || /\n/.test(pregunta)){ toast('Marcado como respondido (la consulta es muy larga para guardarla como respuesta rapida)'); return; }
+  if(typeof matchFaq==='function' && matchFaq(pregunta)){ toast('Marcado como respondido (ya existe una respuesta rapida para algo asi)'); return; }
+  try{ const {data:{session}}=await sb.auth.getSession();
+    if(session){ await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'faq_save',tenant:CONFIG.tenant,disparador:pregunta,respuesta:respuesta,fuente:'inbox'})});
+      if(typeof loadFaqs==='function') await loadFaqs(); toast('Guardado como respuesta rapida (FAQ) nueva.'); }
+    else { toast('Marcado como respondido'); }
+  }catch(e){ toast('Marcado como respondido'); }
 }
 function emVaciar(){ EMBANDEJA=[]; emSelChat=null; emSelMail=null; emSave(); emSaveSel(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); }
 async function emFetchAuto(){

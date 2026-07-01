@@ -973,11 +973,12 @@ body{background:transparent}
         <button class="em-bbtn" data-b="email" onclick="emSetBandeja('email')">Correos</button>
       </div>
       <div class="em-filtros" id="emFiltros">
-        <button class="em-fbtn sel" data-f="todos" onclick="emSetFiltro('todos')">Todos</button>
+        <button class="em-fbtn sel" data-f="activos" onclick="emSetFiltro('activos')" title="Nuevos + leidos sin responder (oculta los ya respondidos)">Activos</button>
         <button class="em-fbtn" data-f="nuevo" onclick="emSetFiltro('nuevo')">Nuevo</button>
         <button class="em-fbtn" data-f="leido" onclick="emSetFiltro('leido')">Leido</button>
         <button class="em-fbtn" data-f="respondido" onclick="emSetFiltro('respondido')">Respondido</button>
         <button class="em-fbtn" data-f="sintomar" onclick="emSetFiltro('sintomar')">Sin tomar</button>
+        <button class="em-fbtn" data-f="todos" onclick="emSetFiltro('todos')">Todos</button>
       </div>
       <div id="emItems"></div>
     </div>
@@ -2326,7 +2327,7 @@ const EM_DEMO=[
 function emCargarEjemplos(silent){ EMBANDEJA = EM_DEMO.map(function(d,i){ return { id:'demo'+i+'_'+Date.now(), canal:d.canal, de:d.de, asunto:d.asunto||(d.canal==='mensaje'?'':'(sin asunto)'), estado:'nuevo', pais:d.pais||turnoPais(), t:Date.now()-i*60000, mensajes:[{from:'cliente',text:d.texto,t:Date.now()-i*60000}] }; }); emSelChat=null; emSelMail=null; emSave(); emSaveSel(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); if(!silent) toast('20 conversaciones de ejemplo cargadas'); }
 function emTogglePegar(){ const p=$('emPegar'); if(p)p.classList.toggle('collapsed'); }
 function emRenderLink(){ const ct=EMBANDEJA.find(function(x){return x.id===emSelChat;}); const mt=EMBANDEJA.find(function(x){return x.id===emSelMail;}); var same=false; if(ct&&mt){ const a=emClienteDe(ct), b=emClienteDe(mt); same = !!((a&&b&&a.usuario===b.usuario)||(ct.de&&(ct.de||'').toLowerCase()===(mt.de||'').toLowerCase())); } const badge = same ? '<span class="em-link-badge">Mismo cliente — chat y correo</span>' : ''; const cl=$('emChatLink'), ml=$('emMailLink'); if(cl)cl.innerHTML=badge; if(ml)ml.innerHTML=badge; }
-let EMBANDEJA=[]; let emSelChat=null; let emSelMail=null; let emFocus='chat'; let emModo='manual'; let emRaw=''; let emAddCanal='email'; let emFiltro='todos'; let emBandeja='mensaje';
+let EMBANDEJA=[]; let emSelChat=null; let emSelMail=null; let emFocus='chat'; let emModo='manual'; let emRaw=''; let emAddCanal='email'; let emFiltro='activos'; let emBandeja='mensaje';
 function emReflectFiltro(){ var fs=document.querySelectorAll('#emFiltros .em-fbtn'); for(var i=0;i<fs.length;i++){ fs[i].classList.toggle('sel', fs[i].getAttribute('data-f')===emFiltro); } }
 function emSetFiltro(f){ emFiltro=f; try{ localStorage.setItem('inbox-filtro',f); }catch(e){} emReflectFiltro(); emRenderList(); }
 function emReflectBandeja(){ var fs=document.querySelectorAll('#emBandejas .em-bbtn'); for(var i=0;i<fs.length;i++){ fs[i].classList.toggle('sel', fs[i].getAttribute('data-b')===emBandeja); } }
@@ -2376,23 +2377,31 @@ function emAutoPais(t){ if(!t || t.pais) return; if(t.cliente && t.cliente.pais)
 // Consolidar correos del MISMO cliente: une sus mensajes en un solo hilo, descarta repetidos (spam),
 // marca todos como leidos y elimina los hilos sueltos (quedan consolidados aqui). Evita ir uno por uno.
 function _normMsg(s){ return (s||'').toLowerCase().replace(/[^a-z0-9áéíóúñ ]/gi,' ').replace(/\s+/g,' ').trim(); }
+// NO destructiva: solo combina los correos PENDIENTES del cliente (nunca los respondidos, que son
+// historial y quedan en su filtro). No borra el historial ni marca todo leido a la fuerza.
 function emConsolidarCliente(t){
   if(!t || t.canal==='mensaje') return;
   var cli=emClienteDe(t); var key=(cli&&cli.usuario)||((t.de||'').toLowerCase().trim()); if(!key) return;
   var grupo=EMBANDEJA.filter(function(x){ if(x.canal==='mensaje')return false; var c=emClienteDe(x); var k=(c&&c.usuario)||((x.de||'').toLowerCase().trim()); return k===key; });
-  if(grupo.length<=1){ return; }
+  var respondidos=grupo.filter(function(x){ return (x.estado||'nuevo')==='respondido'; });
+  var pendientes=grupo.filter(function(x){ return (x.estado||'nuevo')!=='respondido'; });
+  var nuevos=pendientes.filter(function(x){ return (x.estado||'nuevo')==='nuevo'; }).length;
+  // panorama para el contador fijo (siempre, aunque no se combine)
+  t._consol={ total:grupo.length, respondidos:respondidos.length, pendientes:pendientes.length, nuevos:nuevos, repetidos:0 };
+  // Solo combinar si el hilo abierto esta PENDIENTE y hay mas de un correo pendiente del cliente.
+  if((t.estado||'nuevo')==='respondido' || pendientes.length<=1) return;
   var vistos={}, msgs=[], repetidos=0;
-  grupo.forEach(function(x){ (x.mensajes||[]).forEach(function(m){ if(m.from==='agente')return; var nm=_normMsg(m.text); if(!nm)return; if(vistos[nm]){ repetidos++; return; } vistos[nm]=1; msgs.push({from:'cliente',text:m.text,t:m.t||Date.now()}); }); });
+  pendientes.forEach(function(x){ (x.mensajes||[]).forEach(function(m){ if(m.from==='agente')return; var nm=_normMsg(m.text); if(!nm)return; if(vistos[nm]){ repetidos++; return; } vistos[nm]=1; msgs.push({from:'cliente',text:m.text,t:m.t||Date.now()}); }); });
   var agentMsgs=(t.mensajes||[]).filter(function(m){return m.from==='agente';});
-  t.mensajes=msgs.concat(agentMsgs); t.estado='leido';
-  t._consol={ total:grupo.length, unicos:msgs.length, repetidos:repetidos };
-  grupo.forEach(function(x){ if(x.id===t.id)return; if(emCloudDelete)emCloudDelete(x.id); });
-  var quitar={}; grupo.forEach(function(x){ if(x.id!==t.id) quitar[x.id]=1; });
+  t.mensajes=msgs.concat(agentMsgs);
+  t._consol={ total:grupo.length, respondidos:respondidos.length, pendientes:pendientes.length, nuevos:nuevos, unicos:msgs.length, repetidos:repetidos };
+  // Quitar de la lista SOLO los pendientes fusionados (no los respondidos: esos son historial).
+  var quitar={};
+  pendientes.forEach(function(x){ if(x.id!==t.id){ quitar[x.id]=1; if(emCloudDelete)emCloudDelete(x.id); } });
   EMBANDEJA=EMBANDEJA.filter(function(x){ return !quitar[x.id]; });
   emSave(); emPush(t);
-  toast(grupo.length+' correos de este cliente consolidados'+(repetidos?(' ('+repetidos+' repetidos descartados)'):'')+' — todos leidos.');
 }
-function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'todos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); var _epg=$('emPegar'); if(_epg)_epg.style.display=isAdmin()?'':'none'; var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); try{ if(localStorage.getItem('inbox-listcol')==='1'&&$('emShell'))$('emShell').classList.add('listcol'); }catch(e){} if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); }
+function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'activos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); var _epg=$('emPegar'); if(_epg)_epg.style.display=isAdmin()?'':'none'; var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); try{ if(localStorage.getItem('inbox-listcol')==='1'&&$('emShell'))$('emShell').classList.add('listcol'); }catch(e){} if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); }
 function closeEmail(){ $('emailPanel').classList.remove('on'); setView('chat'); }
 function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = emModo==='manual' ? '' : 'none'; }
 function emSetModo(modo){ if(modo==='auto' && !EMAIL_AUTO.on){ toast('Modo automatico no configurado todavia — avisame para activar el correo de reenvio'); return; } emModo=modo; try{ localStorage.setItem('email-modo', modo); }catch(e){} emReflectModo(); if(modo==='auto') emFetchAuto(); else emRenderList(); }
@@ -2445,7 +2454,7 @@ function emRenderClaimTop(){
   top.innerHTML = (otro?('<b>'+canal+':</b> ⚠ la atiende <b>'+escapeHtml(t.tomado_email)+'</b> — evita responder doble.'+((typeof isAdmin==='function'&&isAdmin())?' <a href="#" onclick="event.preventDefault();emTomar(\''+slot+'\')">Tomar de todos modos</a>':''))
     : ('<b>'+canal+':</b> la tomaste tú. <a href="#" onclick="event.preventDefault();emLiberar(\''+slot+'\')">Liberar</a>'));
 }
-function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var fok=(emFiltro==='todos')||(emFiltro==='sintomar'?!t.tomado_por:(t.estado||'nuevo')===emFiltro); return ch===emBandeja && fok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); var body=(t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'')||''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='leido'?'leido':'nuevo')); var bl=est; return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags"><span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+'</div>'; }).join('')||'<div class="em-empty">Sin conversaciones en este filtro.</div>'; }
+function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var est=(t.estado||'nuevo'); var fok=(emFiltro==='todos')?true:(emFiltro==='activos')?(est!=='respondido'):(emFiltro==='sintomar')?!t.tomado_por:(est===emFiltro); return ch===emBandeja && fok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); var body=(t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'')||''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='leido'?'leido':'nuevo')); var bl=est; return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags"><span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+'</div>'; }).join('')||'<div class="em-empty">Sin conversaciones en este filtro.</div>'; }
 // Ficha FIJA de datos del cliente en el inbox (contador de mensajes/correos + KYC + saldo + más detalles).
 function emClienteInfoHTML(t, slot){
   if(!t) return '';
@@ -2460,7 +2469,7 @@ function emClienteInfoHTML(t, slot){
   rows.push('<b>'+escapeHtml((cc&&cc.nombre)||t.de||'cliente')+'</b>'+(cc?(' <span style="opacity:.65">('+escapeHtml(cc.usuario)+')</span>'):''));
   // CONTADOR FIJO (no toast): cuantos mensajes/correos envio el cliente, incluidos repetidos
   if(esChat){ var _vis={}, _uniq=0, _rep=0; msgsCli.forEach(function(m){ var nm=(typeof _normMsg==='function')?_normMsg(m.text):(m.text||''); if(!nm)return; if(_vis[nm]){_rep++;}else{_vis[nm]=1;_uniq++;} }); rows.push(cnt(nMsg)+' mensaje'+(nMsg!==1?'s':'')+' del cliente'+(_rep?(' · '+_uniq+' distinto'+(_uniq!==1?'s':'')+' · '+_rep+' repetido'+(_rep!==1?'s':'')):'')); }
-  else { const tot=(t._consol&&t._consol.total)||1; const rep=(t._consol&&t._consol.repetidos)||0; rows.push(cnt(tot)+' correo'+(tot!==1?'s':'')+' · '+nMsg+' distinto'+(nMsg!==1?'s':'')+(rep?(' · '+rep+' repetido'+(rep!==1?'s':'')+' (spam) descartado'+(rep!==1?'s':'')):'')); }
+  else { const c=t._consol||{}; const tot=c.total||1; var seg=[cnt(tot)+' correo'+(tot!==1?'s':'')+' de este cliente']; if(c.pendientes!=null){ seg.push(c.pendientes+' pendiente'+(c.pendientes!==1?'s':'')+(c.nuevos?(' ('+c.nuevos+' nuevo'+(c.nuevos!==1?'s':'')+')'):'')); } if(c.respondidos){ seg.push(c.respondidos+' respondido'+(c.respondidos!==1?'s':'')); } if(c.repetidos){ seg.push(c.repetidos+' repetido'+(c.repetidos!==1?'s':'')+' (spam)'); } rows.push(seg.join(' · ')); }
   rows.push((esChat?'Chat':'Correo')+' · '+pais+' · '+escapeHtml(est)+(emClaimTxt(t)?(' · '+escapeHtml(emClaimTxt(t))):''));
   if(cc){ rows.push('Saldo '+fmtMon(cc.saldo,cc.pais)+' · KYC '+((cc.kyc&&cc.kyc.verificado)?'verificado':'<b style="color:var(--bad,#e66)">pendiente</b>')+(cc.nivel==='VIP'?' · VIP':'')+(cc.autoexcluido?' · <b style="color:var(--bad,#e66)">autoexcluido</b>':'')+((cc.tickets_previos&&cc.tickets_previos.length)?(' · '+cc.tickets_previos.length+' tickets'):'')); }
   const quitar = cc ? '<span title="Quitar cliente" style="position:absolute;top:3px;right:6px;cursor:pointer;opacity:.55;font-size:13px" onclick="event.stopPropagation();emDetachCliente(\''+slot+'\')">×</span>' : '';
@@ -2488,7 +2497,7 @@ function emRenderSlot(slot){
   if(cliEl){ cliEl.innerHTML=emClienteInfoHTML(t, slot); }
   if(isMail){
     const clis=(t.mensajes||[]).filter(function(m){return m.from!=='agente';});
-    const consol=(t._consol && t._consol.total>1) ? ('<div style="font-size:11px;color:var(--accent);margin-bottom:4px">'+t._consol.total+' correos de este cliente consolidados'+(t._consol.repetidos?(' · '+t._consol.repetidos+' repetidos (spam) descartados'):'')+' · todos marcados como leidos</div>') : '';
+    const consol=(t._consol && t._consol.unicos) ? ('<div style="font-size:11px;color:var(--accent);margin-bottom:4px">Correos pendientes de este cliente combinados aqui'+(t._consol.repetidos?(' · '+t._consol.repetidos+' repetidos (spam) descartados'):'')+'. Los ya respondidos quedan en el filtro Respondido.</div>') : '';
     if($('emMailHead'))$('emMailHead').innerHTML=consol+'<b>De:</b> '+escapeHtml(t.de||'cliente')+'<br><b>Asunto:</b> '+escapeHtml(t.asunto||'(sin asunto)');
     if($('emMailBody'))$('emMailBody').textContent=clis.map(function(m,i){return (clis.length>1?('['+(i+1)+'] '):'')+(m.text||'');}).join('\n\n———\n\n');
     if($('emPara'))$('emPara').value=t.de||'';

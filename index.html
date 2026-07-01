@@ -2446,6 +2446,26 @@ function emRenderClaimTop(){
     : ('<b>'+canal+':</b> la tomaste tú. <a href="#" onclick="event.preventDefault();emLiberar(\''+slot+'\')">Liberar</a>'));
 }
 function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var fok=(emFiltro==='todos')||(emFiltro==='sintomar'?!t.tomado_por:(t.estado||'nuevo')===emFiltro); return ch===emBandeja && fok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); var body=(t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'')||''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='leido'?'leido':'nuevo')); var bl=est; return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags"><span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+'</div>'; }).join('')||'<div class="em-empty">Sin conversaciones en este filtro.</div>'; }
+// Ficha FIJA de datos del cliente en el inbox (contador de mensajes/correos + KYC + saldo + más detalles).
+function emClienteInfoHTML(t, slot){
+  if(!t) return '';
+  const cc=t.cliente;
+  const msgsCli=(t.mensajes||[]).filter(function(m){return m.from!=='agente';});
+  const nMsg=msgsCli.length;
+  const esChat=(t.canal==='mensaje');
+  const pais=emThreadPais(t);
+  const est=t.estado||'nuevo';
+  const cnt=function(n){ return '<b style="color:var(--accent);font-size:12px">'+n+'</b>'; };
+  const rows=[];
+  rows.push('<b>'+escapeHtml((cc&&cc.nombre)||t.de||'cliente')+'</b>'+(cc?(' <span style="opacity:.65">('+escapeHtml(cc.usuario)+')</span>'):''));
+  // CONTADOR FIJO (no toast): cuantos mensajes/correos envio el cliente, incluidos repetidos
+  if(esChat){ var _vis={}, _uniq=0, _rep=0; msgsCli.forEach(function(m){ var nm=(typeof _normMsg==='function')?_normMsg(m.text):(m.text||''); if(!nm)return; if(_vis[nm]){_rep++;}else{_vis[nm]=1;_uniq++;} }); rows.push(cnt(nMsg)+' mensaje'+(nMsg!==1?'s':'')+' del cliente'+(_rep?(' · '+_uniq+' distinto'+(_uniq!==1?'s':'')+' · '+_rep+' repetido'+(_rep!==1?'s':'')):'')); }
+  else { const tot=(t._consol&&t._consol.total)||1; const rep=(t._consol&&t._consol.repetidos)||0; rows.push(cnt(tot)+' correo'+(tot!==1?'s':'')+' · '+nMsg+' distinto'+(nMsg!==1?'s':'')+(rep?(' · '+rep+' repetido'+(rep!==1?'s':'')+' (spam) descartado'+(rep!==1?'s':'')):'')); }
+  rows.push((esChat?'Chat':'Correo')+' · '+pais+' · '+escapeHtml(est)+(emClaimTxt(t)?(' · '+escapeHtml(emClaimTxt(t))):''));
+  if(cc){ rows.push('Saldo '+fmtMon(cc.saldo,cc.pais)+' · KYC '+((cc.kyc&&cc.kyc.verificado)?'verificado':'<b style="color:var(--bad,#e66)">pendiente</b>')+(cc.nivel==='VIP'?' · VIP':'')+(cc.autoexcluido?' · <b style="color:var(--bad,#e66)">autoexcluido</b>':'')+((cc.tickets_previos&&cc.tickets_previos.length)?(' · '+cc.tickets_previos.length+' tickets'):'')); }
+  const quitar = cc ? '<span title="Quitar cliente" style="position:absolute;top:3px;right:6px;cursor:pointer;opacity:.55;font-size:13px" onclick="event.stopPropagation();emDetachCliente(\''+slot+'\')">×</span>' : '';
+  return '<div style="position:relative;font-size:11px;line-height:1.5;background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.18);border-radius:8px;padding:6px 9px;margin:2px 0">'+quitar+rows.map(function(r){return '<div>'+r+'</div>';}).join('')+'</div>';
+}
 function emRenderSlot(slot){
   const isMail=(slot==='mail');
   const id=isMail?emSelMail:emSelChat;
@@ -2465,7 +2485,7 @@ function emRenderSlot(slot){
     const cle=$(isMail?'emMailCli':'emChatCli'); if(cle)cle.innerHTML=''; emRenderClaim(slot); emRenderInterno(); return; }
   if(who)who.textContent=(t.de||'cliente')+((t.estado&&t.estado!=='nuevo')?(' · '+t.estado):'')+((t._consol&&t._consol.total>1)?(' · '+t._consol.total+' correos'):'')+(emClaimTxt(t)?(' · '+emClaimTxt(t)):'');
   const cliEl=$(isMail?'emMailCli':'emChatCli');
-  if(cliEl){ if(t.cliente){ const cc=t.cliente; var extra=(cc.nivel==='VIP'?' · VIP':'')+(cc.autoexcluido?' · autoexcluido':'')+((cc.tickets_previos&&cc.tickets_previos.length)?(' · '+cc.tickets_previos.length+' tickets'):''); cliEl.innerHTML='<span class="em-clichip" title="Clic para quitar" onclick="event.stopPropagation();emDetachCliente(\''+slot+'\')">'+escapeHtml(cc.nombre)+' ('+escapeHtml(cc.usuario)+') · '+cc.pais+' · '+fmtMon(cc.saldo,cc.pais)+' · KYC '+((cc.kyc&&cc.kyc.verificado)?'ok':'pend')+extra+'</span>'; } else { cliEl.innerHTML=''; } }
+  if(cliEl){ cliEl.innerHTML=emClienteInfoHTML(t, slot); }
   if(isMail){
     const clis=(t.mensajes||[]).filter(function(m){return m.from!=='agente';});
     const consol=(t._consol && t._consol.total>1) ? ('<div style="font-size:11px;color:var(--accent);margin-bottom:4px">'+t._consol.total+' correos de este cliente consolidados'+(t._consol.repetidos?(' · '+t._consol.repetidos+' repetidos (spam) descartados'):'')+' · todos marcados como leidos</div>') : '';
@@ -2570,7 +2590,14 @@ async function emPedirSugerencia(slot){
     var otro = t._linkOtro ? EMBANDEJA.find(function(x){return x.id===t._linkOtro;}) : null;
     if(!otro){ var _cli=emClienteDe(t); if(_cli){ otro=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if((x.canal==='mensaje')===(t.canal==='mensaje'))return false; var xc=emClienteDe(x); return !!(xc&&xc.usuario===_cli.usuario); }); } }
     var dirCoher='';
-    if(otro){ var _om=(otro.mensajes||[]).filter(function(m){return m.from!=='agente';}).map(function(m){return m.text;}).join(' | '); if(_om) dirCoher=' COHERENCIA: este MISMO cliente tambien escribio por '+(otro.canal==='mensaje'?'CHAT':'CORREO')+' lo siguiente: "'+_om.slice(0,600)+'". Da una respuesta COHERENTE con eso (mismo diagnostico y misma resolucion), sin contradecir lo que se le diga por el otro canal; solo adapta el tono al canal actual ('+(t.canal==='mensaje'?'chat: breve y directo':'correo: formal y completo')+').'; }
+    if(otro){
+      var _om=(otro.mensajes||[]).filter(function(m){return m.from!=='agente';}).map(function(m){return m.text;}).join(' | ');
+      var _oResp=(otro.draftEdited&&otro.draft)?otro.draft:(otro.iaRaw?extraerSugerida(otro.iaRaw):(otro.draft||''));
+      var _tono=(t.canal==='mensaje'?'chat: breve y directo':'correo: formal y completo');
+      if(_om) dirCoher=' COHERENCIA: este MISMO cliente tambien escribio por '+(otro.canal==='mensaje'?'CHAT':'CORREO')+' lo siguiente: "'+_om.slice(0,600)+'".';
+      if(_oResp) dirCoher+=' En ese otro canal YA se preparo esta respuesta: "'+_oResp.slice(0,800)+'". USA ESA MISMA respuesta de fondo (misma resolucion, mismos datos y pasos); NO des una solucion distinta, solo adapta el formato y el tono al canal actual ('+_tono+').';
+      else if(_om) dirCoher+=' Da una respuesta COHERENTE con eso (mismo diagnostico y misma resolucion), sin contradecir; adapta el tono al canal actual ('+_tono+').';
+    }
     const mensajes=[{role:'system',content:dirFinal+dirMulti+dirCoher}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
     // GUARDIA DE PRIVACIDAD (capa CRM local): este payload va a una IA EXTERNA. NO agregar nunca
     // datos de crmStore / CRM.getClient (saldo, KYC, cedula, retiros). La ficha real solo se usa

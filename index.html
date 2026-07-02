@@ -2438,11 +2438,10 @@ function emCliFiltro(){ const inp=$('emCliInput'), box=$('emCliBox'); if(!inp||!
 function emAttachCliente(usuario){ const c=CLIENTES.find(function(x){return x.usuario===usuario;}); const box=$('emCliBox'), inp=$('emCliInput'); if(box){box.classList.remove('on');box.innerHTML='';} if(inp)inp.value=''; if(!c)return; const t=emActiveThread(); if(!t){ toast('Selecciona primero una conversacion (panel activo)'); return; } t.cliente=c; emSave(); emPush(t); emRenderSlot(emFocus); emTryLink(t); toast('Cliente adjuntado: '+c.nombre); }
 function emDetachCliente(slot){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.cliente=null; emSave(); emPush(t); emRenderSlot(slot); }
 function emClienteDe(x){ if(!x)return null; if(x.cliente)return x.cliente; const ct=(x.mensajes||[]).map(function(m){return m.text;}).join(' '); return detectCliente(ct)||findCliente(x.de)||null; }
-// Claves para identificar al MISMO cliente entre canales: usuario, correo o nombre (en ese orden de confianza).
+// Claves para identificar al MISMO cliente entre canales: SOLO usuario o correo (el nombre se descarta: muchos se llaman igual).
 function emClienteKeys(t){ var ks=[]; if(!t)return ks; var c=emClienteDe(t);
-  if(c){ if(c.usuario)ks.push('u:'+String(c.usuario).toLowerCase()); if(c.email)ks.push('e:'+String(c.email).toLowerCase()); if(c.nombre)ks.push('n:'+String(c.nombre).toLowerCase().trim()); }
+  if(c){ if(c.usuario)ks.push('u:'+String(c.usuario).toLowerCase()); if(c.email)ks.push('e:'+String(c.email).toLowerCase()); }
   var de=(t.de||''); var em=de.match(/([^\s<"']+@[^\s>"']+)/); if(em)ks.push('e:'+em[1].toLowerCase());
-  var nm=de.replace(/<[^>]*>/g,'').replace(/["']/g,'').trim().toLowerCase(); if(nm && nm.indexOf('@')<0)ks.push('n:'+nm);
   return ks; }
 function emMismoCliente(a,b){ var ka=emClienteKeys(a), kb=emClienteKeys(b); for(var i=0;i<ka.length;i++){ if(ka[i] && kb.indexOf(ka[i])>=0) return true; } return false; }
 // Nombre para el saludo del correo: 1) cliente enganchado, 2) nombre visible en el "De:" (ej. Juan Perez <juan@x.com>). Si no hay, '' (la IA lo saca de la firma o usa "Estimado/a,").

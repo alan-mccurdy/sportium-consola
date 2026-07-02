@@ -3043,7 +3043,6 @@ function ckActions(){
   const A=[];
   const add=(label,tag,fn,cond)=>{ if(cond===false)return; A.push({t:'accion',label,tag,fn}); };
   add('Abrir Inbox (correo + mensajes)','panel',()=>openEmail());
-  add('Abrir Copiloto','panel',()=>openCopiloto());
   add('Salas Retail (IPs / VNC / PuTTY)','panel',()=>openRetail());
   add('Chat de equipo','panel',()=>openTeam());
   add('Mis herramientas','panel',()=>openTools());

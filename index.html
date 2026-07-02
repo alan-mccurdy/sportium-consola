@@ -912,7 +912,17 @@ body{background:transparent}
   .tc-li-l{font-size:12px;color:var(--txt-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tc-badge{background:var(--accent);color:#fff;font-size:10px;font-weight:800;border-radius:999px;padding:1px 6px;min-width:16px;text-align:center}
   /* Ventanas flotantes estilo Messenger */
-  #fbwins{position:fixed;right:16px;bottom:16px;z-index:46;display:flex;flex-direction:row-reverse;gap:12px;align-items:flex-end;pointer-events:none}
+  #fbwins{position:fixed;right:78px;bottom:16px;z-index:46;display:flex;flex-direction:row-reverse;gap:12px;align-items:flex-end;pointer-events:none}
+  /* Chat heads (Messenger): las conversaciones minimizadas se APILAN una encima de otra en una
+     columna a la derecha; si son muchas, la columna hace scroll (carrusel). No invaden el dock. */
+  #fbheads{position:fixed;right:14px;bottom:16px;z-index:47;display:flex;flex-direction:column-reverse;gap:8px;max-height:min(46vh,380px);overflow-y:auto;padding:3px;scrollbar-width:none}
+  #fbheads::-webkit-scrollbar{display:none}
+  .fbhead{position:relative;width:46px;height:46px;border-radius:50%;flex:0 0 auto;background:var(--glass-strong,var(--surface));border:1px solid var(--glass-brd,var(--line));box-shadow:var(--depth-2,var(--shadow)),var(--glass-hi);-webkit-backdrop-filter:blur(20px) saturate(170%);backdrop-filter:blur(20px) saturate(170%);display:grid;place-items:center;font-weight:800;font-size:15px;color:var(--accent);cursor:pointer;transition:transform .15s}
+  .fbhead:hover{transform:scale(1.08)}
+  .fbhead.team{background:var(--accent);color:#fff}
+  .fbhead .hb{position:absolute;top:-4px;left:-4px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--accent);color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center;line-height:17px;border:1px solid rgba(255,255,255,.6)}
+  .fbhead .hx{position:absolute;top:-5px;right:-5px;width:17px;height:17px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--bad);font-size:11px;line-height:15px;text-align:center;opacity:0;transition:.15s}
+  .fbhead:hover .hx{opacity:1}
   .fbwin{pointer-events:auto;width:300px;height:430px;display:flex;flex-direction:column;background:var(--glass-strong);-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--glass-brd);border-radius:16px 16px 12px 12px;box-shadow:var(--depth-3),var(--glass-hi);overflow:hidden}
   .fbwin.min{height:auto}
   .fbwin.min .fbwin-msgs,.fbwin.min .fbwin-in{display:none}
@@ -926,7 +936,7 @@ body{background:transparent}
   .fbwin-in{display:flex;gap:6px;padding:8px;border-top:1px solid var(--glass-brd);align-items:flex-end}
   .fbwin-in textarea{flex:1;resize:none;border:1px solid var(--glass-brd);border-radius:12px;padding:7px 10px;background:var(--surface);color:var(--txt);font-family:inherit;font-size:13px;max-height:80px}
   .fbwin-in .send{width:34px;height:34px;flex:none}
-  @media(max-width:600px){ #fbwins{right:10px;left:10px;bottom:10px;flex-direction:column} .fbwin{width:100%;height:56vh} }
+  @media(max-width:600px){ #fbwins{right:64px;left:10px;bottom:10px;flex-direction:column} .fbwin{width:100%;height:56vh} #fbheads{right:10px;bottom:10px} }
   .tcm{max-width:86%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.5;word-wrap:break-word;white-space:pre-wrap;position:relative}
   .tcdel{position:absolute;top:-7px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--bad);font-size:12px;line-height:16px;text-align:center;cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow)}
   .tcm:hover .tcdel{opacity:1} @media(hover:none){.tcdel{opacity:.5}}
@@ -1072,6 +1082,7 @@ body{background:transparent}
   <div id="tcList"></div>
 </aside>
 <div id="fbwins"></div>
+<div id="fbheads" aria-label="Chats minimizados"></div>
 
 <script>
 /* ============================================================
@@ -3267,6 +3278,7 @@ function applyBrand(){
    ============================================================ */
 /* ===== CHAT DE EQUIPO estilo Messenger: bandeja + ventanas flotantes + badges ===== */
 let tcMsgsArr=[], tcChan=null, tcOpen=false, tcAgentes=[], tcUnread={}, tcWins={};
+let tcHeads={}; const TC_MAXWIN=2;   // max ventanas expandidas; el resto se apila como burbujas (chat heads)
 function tcEsc(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 async function tcLoadAgentes(){ if(!sb||!me)return; try{ const {data}=await sb.from('profiles').select('id,full_name,email').neq('id',me.id); tcAgentes=(data||[]).map(p=>({id:p.id,nombre:p.full_name||p.email||'agente'})); }catch(e){ tcAgentes=[]; } if(tcOpen)tcRenderList(); }
 function tcConvName(conv){ if(conv==='team')return 'Equipo (todos)'; const a=tcAgentes.find(x=>x.id===conv); return a?a.nombre:'Agente'; }
@@ -3282,8 +3294,9 @@ function tcRenderList(){ const L=$('tcList'); if(!L)return; const q=(($('tcSearc
   L.innerHTML=convs.map(c=>{ const u=tcUnread[c.id]||0; const last=tcEsc(tcLastMsg(c.id).slice(0,42)); const ini=(c.id==='team'?'#':((c.nombre[0]||'A').toUpperCase()));
     return '<div class="tc-li" onclick="tcOpenConv(\''+c.id+'\')"><div class="tc-av'+(c.id==='team'?' team':'')+'">'+tcEsc(ini)+'</div><div class="tc-li-b"><div class="tc-li-n">'+tcEsc(c.nombre)+((c.id!=='team'&&typeof PRES!=='undefined'&&PRES[c.id])?'<span title="En línea" style="width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block;flex:none"></span>':'')+(u?'<span class="tc-badge">'+u+'</span>':'')+'</div><div class="tc-li-l">'+(last||'—')+'</div></div></div>'; }).join('')||'<div class="em-empty" style="padding:14px;color:var(--txt-2)">Sin resultados.</div>';
 }
-function tcBadges(){ const tot=Object.keys(tcUnread).reduce((a,k)=>a+(tcUnread[k]||0),0); const el=$('teamDot'); if(el){ if(tot){ el.style.display='grid'; el.textContent=tot>99?'99+':String(tot); } else { el.style.display='none'; el.textContent=''; } } if(tcOpen)tcRenderList(); }
+function tcBadges(){ const tot=Object.keys(tcUnread).reduce((a,k)=>a+(tcUnread[k]||0),0); const el=$('teamDot'); if(el){ if(tot){ el.style.display='grid'; el.textContent=tot>99?'99+':String(tot); } else { el.style.display='none'; el.textContent=''; } } if(tcOpen)tcRenderList(); if(typeof tcHeadsRender==='function')tcHeadsRender(); }
 function tcOpenConv(conv){
+  if(tcHeads[conv]){ delete tcHeads[conv]; tcHeadsRender(); }   // si estaba como burbuja, se expande
   tcUnread[conv]=0; tcBadges();
   if(!tcWins[conv]){
     const el=document.createElement('div'); el.className='fbwin'; el.id='fbwin-'+conv;
@@ -3295,15 +3308,27 @@ function tcOpenConv(conv){
     ta.addEventListener('paste',e=>{ const items=(e.clipboardData&&e.clipboardData.items)||[]; for(const it of items){ if(it.type&&it.type.startsWith('image/')){ const f=it.getAsFile(); if(f){ e.preventDefault(); tcDownscale(f).then(d=>{ if(d) tcSendWin(conv,d); }); } } } });
   }
   tcWins[conv].classList.remove('min'); tcRenderWin(conv);
+  // Maximo TC_MAXWIN ventanas expandidas: la mas vieja se apila como burbuja (no invade la pantalla)
+  const abiertas=Object.keys(tcWins);
+  if(abiertas.length>TC_MAXWIN){ const vieja=abiertas.find(function(k){return k!==conv;}); if(vieja) tcToggleMin(vieja); }
   setTimeout(()=>{ const t=document.getElementById('fbin-'+conv); if(t)t.focus(); },60);
 }
 function tcCloseWin(conv){ const w=tcWins[conv]; if(w){ w.remove(); delete tcWins[conv]; } }
-function tcToggleMin(conv){ const w=tcWins[conv]; if(!w)return; w.classList.toggle('min'); if(!w.classList.contains('min')){ tcUnread[conv]=0; tcBadges(); tcRenderWin(conv); } }
+/* Minimizar = convertir la ventana en BURBUJA apilada (columna derecha, estilo Messenger) */
+function tcToggleMin(conv){ const w=tcWins[conv]; if(w){ w.remove(); delete tcWins[conv]; } tcHeads[conv]=true; tcHeadsRender(); }
+function tcHeadsRender(){
+  const H=$('fbheads'); if(!H)return;
+  H.innerHTML=Object.keys(tcHeads).map(function(conv){
+    const u=tcUnread[conv]||0; const nm=tcConvName(conv); const ini=(conv==='team'?'#':((nm[0]||'A').toUpperCase()));
+    return '<div class="fbhead'+(conv==='team'?' team':'')+'" title="'+tcEsc(nm)+(u?(' · '+u+' sin leer'):'')+'" onclick="tcOpenConv(\''+conv+'\')">'+tcEsc(ini)+(u?'<span class="hb">'+(u>99?'99+':u)+'</span>':'')+'<span class="hx" title="Cerrar" onclick="event.stopPropagation();tcCloseHead(\''+conv+'\')">×</span></div>';
+  }).join('');
+}
+function tcCloseHead(conv){ delete tcHeads[conv]; tcHeadsRender(); }
 function tcRenderWin(conv){ const L=document.getElementById('fbmsgs-'+conv); if(!L)return; L.innerHTML=tcConvMsgs(conv).map(m=>{ const mine=me&&m.from_id===me.id; const img=m.image_url?'<img src="'+m.image_url+'" onclick="window.open(this.src)">':''; const who=(mine||conv!=='team')?'':'<div class="who">'+tcEsc(m.from_name||'agente')+'</div>'; const del=(m.id&&(mine||isAdmin()))?'<span class="tcdel" title="Borrar" onclick="delTeamMsg('+m.id+','+(mine?1:0)+')">×</span>':''; return '<div class="tcm '+(mine?'mine':'their')+'">'+who+tcEsc(m.body||'')+img+del+'</div>'; }).join(''); L.scrollTop=L.scrollHeight; }
 async function tcSendWin(conv,imgData){ if(!me||!sb)return; const ta=document.getElementById('fbin-'+conv); const t=ta?ta.value.trim():''; if(!t&&!imgData)return; if(ta){ ta.value=''; ta.style.height='auto'; } const name=(myProfile&&myProfile.full_name)||me.email; const _to=(conv!=='team')?conv:null; const row={tenant:CONFIG.tenant,from_id:me.id,from_name:name,to_id:_to,body:t,image_url:imgData||null}; try{ const {data,error}=await sb.from('team_messages').insert([row]).select(); if(error)throw error; (data||[]).forEach(m=>{ if(!tcMsgsArr.some(x=>x.id===m.id)) tcMsgsArr.push(m); }); tcRenderWin(conv); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo enviar: '+(e.message||e)); } }
 async function loadTeam(){ if(!sb)return; try{ const {data}=await sb.from('team_messages').select('*').eq('tenant',CONFIG.tenant).order('created_at',{ascending:true}).limit(300); tcMsgsArr=data||[]; }catch(e){} }
 function subTeam(){ if(!sb||tcChan)return; tcChan=sb.channel('team-'+CONFIG.tenant)
-  .on('postgres_changes',{event:'INSERT',schema:'public',table:'team_messages',filter:'tenant=eq.'+CONFIG.tenant},payload=>{ const m=payload.new; if(tcMsgsArr.some(x=>x.id===m.id))return; if(m.to_id && !(me&&(m.from_id===me.id||m.to_id===me.id)))return; tcMsgsArr.push(m); const conv=tcConvOfMsg(m); const win=tcWins[conv]; if(win && !win.classList.contains('min')){ tcRenderWin(conv); } else if(!me||m.from_id!==me.id){ tcUnread[conv]=(tcUnread[conv]||0)+1; } tcBadges(); })
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'team_messages',filter:'tenant=eq.'+CONFIG.tenant},payload=>{ const m=payload.new; if(tcMsgsArr.some(x=>x.id===m.id))return; if(m.to_id && !(me&&(m.from_id===me.id||m.to_id===me.id)))return; tcMsgsArr.push(m); const conv=tcConvOfMsg(m); const win=tcWins[conv]; if(win && !win.classList.contains('min')){ tcRenderWin(conv); } else if(!me||m.from_id!==me.id){ tcUnread[conv]=(tcUnread[conv]||0)+1; if(!tcWins[conv]&&!tcHeads[conv]){ tcHeads[conv]=true; } } tcBadges(); })
   .on('postgres_changes',{event:'DELETE',schema:'public',table:'team_messages'},payload=>{ const id=payload.old&&payload.old.id; if(id){ const n=tcMsgsArr.length; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); if(tcMsgsArr.length!==n){ Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); } } })
   .subscribe(); }
 async function delTeamMsg(id,mine){ if(!await appConfirm('¿Borrar este mensaje?',{danger:true}))return; try{ if(mine){ await sb.from('team_messages').delete().eq('id',id); } else if(isAdmin()){ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_delete',id})}); } else return; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo borrar: '+(e.message||e)); } }

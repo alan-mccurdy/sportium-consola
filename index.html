@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SINELI — Consola de soporte</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -64,7 +64,7 @@
   .who b{color:var(--accent)}
   .ic{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:transparent;color:var(--txt-2);display:grid;place-items:center;cursor:pointer;transition:.2s}
   .ic:hover{color:var(--accent);border-color:var(--accent)} .ic svg{width:18px;height:18px} .ic.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
-  .ic.adminonly{display:none} .ic.realadminonly{display:none}
+  .adminonly{display:none} .ic.realadminonly{display:none}
   .demo-bar{position:fixed;top:0;left:0;right:0;z-index:60;background:var(--accent);color:#fff;font-size:12.5px;display:none;align-items:center;justify-content:center;gap:14px;padding:7px 14px;text-align:center}
   .demo-bar.on{display:flex} .demo-bar b{font-weight:800}
   .demo-bar button{background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.55);color:#fff;border-radius:8px;padding:3px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
@@ -551,6 +551,21 @@ body{background:transparent}
 *::-webkit-scrollbar-thumb{background:color-mix(in srgb, var(--txt) 22%, transparent);border-radius:10px}
 *::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb, var(--txt) 34%, transparent)}
 *::-webkit-scrollbar-track{background:transparent}
+
+/* Paleta de comandos (Ctrl+K): buscador global de clientes, salas y acciones */
+.cmdk{position:fixed;inset:0;z-index:80;display:none;align-items:flex-start;justify-content:center;padding:12vh 16px 16px;background:rgba(20,14,6,.35);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.cmdk.on{display:flex}
+.cmdk-card{width:min(560px,100%);background:var(--glass-strong,var(--surface));border:1px solid var(--glass-brd,var(--line));border-radius:20px;box-shadow:var(--depth-3,var(--shadow)),var(--glass-hi);overflow:hidden;-webkit-backdrop-filter:blur(30px) saturate(170%);backdrop-filter:blur(30px) saturate(170%)}
+.cmdk-in{width:100%;border:none;background:transparent;padding:16px 18px;font:inherit;font-size:15px;color:var(--txt)}
+.cmdk-in:focus{outline:none}
+.cmdk-list{max-height:46vh;overflow-y:auto;border-top:1px solid var(--line);padding:6px}
+.cmdk-it{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;cursor:pointer;font-size:13.5px}
+.cmdk-it.sel{background:var(--accent-soft)}
+.cmdk-it .flag{width:17px;height:12px;border-radius:2px;border:1px solid rgba(0,0,0,.18);flex-shrink:0}
+.cmdk-it .k{margin-left:auto;font-size:10px;font-weight:800;letter-spacing:.04em;color:var(--txt-3);border:1px solid var(--line);border-radius:6px;padding:2px 6px;text-transform:uppercase;flex-shrink:0}
+.cmdk-empty{padding:18px;text-align:center;color:var(--txt-3);font-size:13px}
+.cmdk-hint{display:flex;gap:14px;padding:8px 16px;border-top:1px solid var(--line);font-size:11px;color:var(--txt-3)}
+.cmdk-hint b{color:var(--txt-2)}
 </style>
 </head>
 <body>
@@ -625,7 +640,7 @@ body{background:transparent}
     <div class="composer">
       <div class="searchwrap">
         <div class="acbox" id="acbox"></div>
-        <input id="search" placeholder="Buscar cliente (usuario/correo/cédula) o sala (número/ciudad)…" autocomplete="off">
+        <input id="search" placeholder="Buscar cliente (usuario/correo/cédula) o sala… · Ctrl+K abre el buscador global" autocomplete="off">
       </div>
       <div class="attach" id="attach"></div>
       <div class="chipbar" id="chipbar"></div>
@@ -947,7 +962,7 @@ body{background:transparent}
     <span class="em-gen" id="emTurnoHint"></span>
     <span class="em-claimtop" id="emClaimTop" style="display:none"></span>
     <span style="margin-left:auto"></span>
-    <button class="ubtn" id="emVaciar" onclick="emVaciar()">Vaciar bandeja</button>
+    <button class="ubtn adminonly" id="emVaciar" onclick="emVaciar()">Vaciar bandeja</button>
     <button class="ic" onclick="closeEmail()" title="Cerrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
   <div class="em-shell" id="emShell">
@@ -958,7 +973,7 @@ body{background:transparent}
       <button class="em-dbtn" title="Marcar respondido (panel activo)" onclick="emResponder()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></button>
       <div class="em-dock-sep"></div>
       <button class="em-dbtn" id="emEnviarAmbos" title="Enviar ambos (proximamente — falta conectar el envio real)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></button>
-      <button class="em-dbtn" title="Vaciar inbox" onclick="emVaciar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+      <button class="em-dbtn adminonly" title="Vaciar inbox" onclick="emVaciar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     </div>
     <div class="em-list" id="emList">
       <div class="em-pegar collapsed" id="emPegar">
@@ -1292,8 +1307,8 @@ async function loadUsers(){
     L.innerHTML=users.map(u=>{
       const act=u.active!==false; const esAdmin=u.role==='admin';
       return '<div class="uitem"><div style="flex:1;min-width:0">'+
-        '<div class="nm">'+(u.full_name||u.email)+(act?'':' <span style="color:#c0392b;font-size:11px">· bloqueado</span>')+'</div>'+
-        '<small style="color:var(--txt-2)">'+u.email+' · '+(u.emailsHoy||0)+' correo(s) hoy</small></div>'+
+        '<div class="nm">'+esc(u.full_name||u.email)+(act?'':' <span style="color:#c0392b;font-size:11px">· bloqueado</span>')+'</div>'+
+        '<small style="color:var(--txt-2)">'+esc(u.email)+' · '+(u.emailsHoy||0)+' correo(s) hoy</small></div>'+
         '<span class="badge '+(esAdmin?'ok':'warn')+'">'+u.role+'</span>'+
         (esAdmin?'':'<button class="ubtn'+(act?'':' on')+'" onclick="toggleAgent(\''+u.id+'\','+(!act)+')">'+(act?'Bloquear':'Desbloquear')+'</button>')+
       '</div>';
@@ -1587,7 +1602,7 @@ function detectCliente(text){ const low=(text||'').toLowerCase(); const sn=norm(
   return CLIENTES.find(c=>low.includes(c.usuario.toLowerCase())||low.includes(c.email.toLowerCase())||(c.cedula!=='-'&&sn.includes(norm(c.cedula)))) || null; }
 
 /* ---- sesiones (multi-cliente) ---- */
-const GREET={role:'assistant',content:'¡Hola! Soy el asistente interno de Sportium. Busca o menciona un cliente y pregúntame sobre su cuenta, bonos, verificación, accesos…'};
+const GREET={role:'assistant',content:'¡Hola! Soy el asistente interno de '+CONFIG.cliente+'. Busca o menciona un cliente y pregúntame sobre su cuenta, bonos, verificación, accesos…'};
 let sessions=[{id:'__gen__',cliente:null,mensajes:[{...GREET}]}];
 let activeId='__gen__';
 const activeS=()=>sessions.find(s=>s.id===activeId);
@@ -1669,7 +1684,7 @@ function appModal(opts){ return new Promise(function(resolve){
   setTimeout(function(){ if(opts.input){ const f=useTa?ta:inp; f.focus(); if(f.value) f.select(); } else { ok.focus(); } },40);
 }); }
 function appPrompt(title,opts){ opts=opts||{}; return appModal({title:title,input:true,placeholder:opts.placeholder||'',value:opts.value||'',multiline:!!opts.multiline}); }
-function appConfirm(message,opts){ opts=opts||{}; return appModal({title:message,danger:!!opts.danger,okText:opts.okText}); }
+function appConfirm(message,opts){ opts=opts||{}; return appModal({title:message,danger:!!opts.danger,okText:opts.okText,cancelText:opts.cancelText}); }
 function initials(nm){ return (nm||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?'; }
 function chip(cls,txt){ return '<span class="chip '+cls+'"><span class="dot"></span>'+txt+'</span>'; }
 function brow(icon,k,val){ return '<div class="brow'+(val?'':' off')+'"><div class="bi">'+pxIcon(icon)+'</div><div class="bmeta"><div class="bk">'+k+'</div><div class="bv">'+(val||'Sin bono activo')+'</div></div></div>'; }
@@ -1869,7 +1884,7 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.searchwrap')) acbo
 /* ---- tema ---- */
 function applyTheme(t){ document.documentElement.setAttribute('data-theme',t); $('iM').style.display=t==='light'?'block':'none'; $('iS').style.display=t==='dark'?'block':'none'; lsSet('sptm-theme',t); }
 function toggleTheme(){ applyTheme(document.documentElement.getAttribute('data-theme')==='light'?'dark':'light'); }
-applyTheme(lsGet('sptm-theme')||'light');
+applyTheme(lsGet('sptm-theme')||((window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'));
 
 /* ============================================================
    MEDIDOR DE CUPO DE IA  — muestra el % que queda del modelo actual
@@ -2190,7 +2205,7 @@ function mergeComandos(arr){ if(!Array.isArray(arr)||!arr.length)return 0; let a
 let CMD_OVR={}; try{ CMD_OVR=JSON.parse(lsGet('sptm-cmd-overrides')||'{}')||{}; }catch(e){ CMD_OVR={}; }
 function tipoEff(c){ const o=CMD_OVR[(c.cmd||'').trim().toLowerCase()]; return (o==='pos'||o==='ssbt'||o==='general')?o:(c.tipo||'pos'); }
 function setCmdTipo(cmd,tipo){ if(!isAdmin())return; CMD_OVR[(cmd||'').trim().toLowerCase()]=tipo; lsSet('sptm-cmd-overrides',JSON.stringify(CMD_OVR)); renderComandos($('cmdSearch')?$('cmdSearch').value:''); }
-function delCmd(cmd){ if(!isAdmin())return; const k=(cmd||'').trim().toLowerCase(); if(!k)return; if(typeof confirm==='function' && !confirm('¿Eliminar este comando de la lista?\n\n'+cmd))return;
+async function delCmd(cmd){ if(!isAdmin())return; const k=(cmd||'').trim().toLowerCase(); if(!k)return; if(!await appConfirm('¿Eliminar el comando "'+cmd+'" de la lista?',{danger:true,okText:'Eliminar'}))return;
   CMD_HIDDEN[k]=true; try{ lsSet('sptm-cmd-hidden',JSON.stringify(CMD_HIDDEN)); }catch(e){}
   COMANDOS=COMANDOS.filter(function(c){ return (c.cmd||'').trim().toLowerCase()!==k; });
   try{ let st=JSON.parse(lsGet('sptm-comandos')||'[]'); st=st.filter(function(c){ return ((c&&c.cmd)||'').trim().toLowerCase()!==k; }); lsSet('sptm-comandos',JSON.stringify(st)); }catch(e){}
@@ -2434,22 +2449,13 @@ function emConsolidarCliente(t){
   var respondidos=grupo.filter(function(x){ return (x.estado||'nuevo')==='respondido'; });
   var pendientes=grupo.filter(function(x){ return (x.estado||'nuevo')!=='respondido'; });
   var nuevos=pendientes.filter(function(x){ return (x.estado||'nuevo')==='nuevo'; }).length;
-  // panorama para el contador fijo (siempre, aunque no se combine)
-  t._consol={ total:grupo.length, respondidos:respondidos.length, pendientes:pendientes.length, nuevos:nuevos, repetidos:0 };
-  // Solo combinar si el hilo abierto esta PENDIENTE y hay mas de un correo pendiente del cliente.
-  if((t.estado||'nuevo')==='respondido' || pendientes.length<=1) return;
-  var vistos={}, msgs=[], repetidos=0;
-  pendientes.forEach(function(x){ (x.mensajes||[]).forEach(function(m){ if(m.from==='agente')return; var nm=_normMsg(m.text); if(!nm)return; if(vistos[nm]){ repetidos++; return; } vistos[nm]=1; msgs.push({from:'cliente',text:m.text,t:m.t||Date.now()}); }); });
-  var agentMsgs=(t.mensajes||[]).filter(function(m){return m.from==='agente';});
-  t.mensajes=msgs.concat(agentMsgs);
-  t._consol={ total:grupo.length, respondidos:respondidos.length, pendientes:pendientes.length, nuevos:nuevos, unicos:msgs.length, repetidos:repetidos };
-  // Quitar de la lista SOLO los pendientes fusionados (no los respondidos: esos son historial).
-  var quitar={};
-  pendientes.forEach(function(x){ if(x.id!==t.id){ quitar[x.id]=1; if(emCloudDelete)emCloudDelete(x.id); } });
-  EMBANDEJA=EMBANDEJA.filter(function(x){ return !quitar[x.id]; });
-  emSave(); emPush(t);
+  // SOLO CONTAR: no fusiona ni borra nada -> ningun correo desaparece de la bandeja. Solo cuenta
+  // repetidos (spam) entre los pendientes para el contador fijo. El filtro "Activos" ya oculta respondidos.
+  var vistos={}, unicos=0, repetidos=0;
+  pendientes.forEach(function(x){ (x.mensajes||[]).forEach(function(m){ if(m.from==='agente')return; var nm=_normMsg(m.text); if(!nm)return; if(vistos[nm]){ repetidos++; return; } vistos[nm]=1; unicos++; }); });
+  t._consol={ total:grupo.length, respondidos:respondidos.length, pendientes:pendientes.length, nuevos:nuevos, unicos:unicos, repetidos:repetidos };
 }
-function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'activos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); var _epg=$('emPegar'); if(_epg)_epg.style.display=isAdmin()?'':'none'; var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); try{ if(localStorage.getItem('inbox-listcol')==='1'&&$('emShell'))$('emShell').classList.add('listcol'); }catch(e){} if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); }
+function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'activos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); var _epg=$('emPegar'); if(_epg)_epg.style.display=isAdmin()?'':'none'; var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); try{ if(localStorage.getItem('inbox-listcol')==='1'&&$('emShell'))$('emShell').classList.add('listcol'); }catch(e){} if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); }
 function closeEmail(){ $('emailPanel').classList.remove('on'); setView('chat'); }
 function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = emModo==='manual' ? '' : 'none'; }
 function emSetModo(modo){ if(modo==='auto' && !EMAIL_AUTO.on){ toast('Modo automatico no configurado todavia — avisame para activar el correo de reenvio'); return; } emModo=modo; try{ localStorage.setItem('email-modo', modo); }catch(e){} emReflectModo(); if(modo==='auto') emFetchAuto(); else emRenderList(); }
@@ -2483,7 +2489,10 @@ function emPuedeResponder(t){ return !emTomadaPorOtro(t) || (typeof isAdmin==='f
 function emClaimTxt(t){ if(!t||!t.tomado_email)return ''; return (t.tomado_por===(me&&me.id))?('la tomaste tú'):('atiende: '+t.tomado_email); }
 function emTomar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t){ toast('Selecciona una conversacion'); return; }
   if(emTomadaPorOtro(t) && !(typeof isAdmin==='function'&&isAdmin())){ toast('Ya la está atendiendo '+(t.tomado_email||'otro agente')); return; }
-  t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); if((t.estado||'nuevo')==='nuevo')t.estado='leido'; emSave(); emPush(t); emRenderList(); emRenderSlot(slot); toast('La tomaste: '+t.tomado_email); }
+  t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); if((t.estado||'nuevo')==='nuevo')t.estado='leido'; emSave(); emPush(t); emRenderList(); emRenderSlot(slot); toast('La tomaste: '+t.tomado_email);
+  // Al asignarte la conversacion, genera la respuesta sugerida si aun no hay (y no la has escrito tu).
+  const _yaResp=(t.mensajes||[]).some(function(m){return m.from==='agente';});
+  if(!t.iaRaw && !(t.draftEdited && t.draft) && !_yaResp){ emPedirSugerencia(slot); } }
 function emLiberar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.tomado_por=null; t.tomado_email=''; t.tomado_at=null; emSave(); emPush(t); if(slot==='mail')emSelMail=null; else emSelChat=null; emSaveSel(); emRenderList(); emRenderSlot(slot); emRenderInterno(); toast('Liberada y quitada de tu panel'); }
 function emRenderClaim(slot){
   // el aviso vive ahora ARRIBA (header del inbox). Ocultamos la barra por panel y reflejamos el panel activo.
@@ -2545,7 +2554,7 @@ function emRenderSlot(slot){
   if(cliEl){ cliEl.innerHTML=emClienteInfoHTML(t, slot); }
   if(isMail){
     const clis=(t.mensajes||[]).filter(function(m){return m.from!=='agente';});
-    const consol=(t._consol && t._consol.unicos) ? ('<div style="font-size:11px;color:var(--accent);margin-bottom:4px">Correos pendientes de este cliente combinados aqui'+(t._consol.repetidos?(' · '+t._consol.repetidos+' repetidos (spam) descartados'):'')+'. Los ya respondidos quedan en el filtro Respondido.</div>') : '';
+    const consol=(t._consol && t._consol.pendientes>1) ? ('<div style="font-size:11px;color:var(--accent);margin-bottom:4px">Este cliente tiene '+t._consol.pendientes+' correos pendientes en la bandeja'+(t._consol.repetidos?(' · '+t._consol.repetidos+' repetido(s) spam'):'')+'. Los respondidos quedan en el filtro Respondido.</div>') : '';
     if($('emMailHead'))$('emMailHead').innerHTML=consol+'<b>De:</b> '+escapeHtml(t.de||'cliente')+'<br><b>Asunto:</b> '+escapeHtml(t.asunto||'(sin asunto)');
     if($('emMailBody'))$('emMailBody').textContent=clis.map(function(m,i){return (clis.length>1?('['+(i+1)+'] '):'')+(m.text||'');}).join('\n\n———\n\n');
     if($('emPara'))$('emPara').value=t.de||'';
@@ -2699,7 +2708,7 @@ async function emResumirChatACorreo(){
   }catch(e){ toast('No se pudo resumir: '+(e.message||e)); }
   finally{ if(gen)gen.textContent=''; }
 }
-function emEscalar(slot, funciono){
+async function emEscalar(slot, funciono){
   slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t){ toast('Selecciona una conversacion'); return; }
   const sug=$(slot==='mail'?'emMailSug':'emChatSug');
   if(funciono){ // los pasos resolvieron -> cierre a sala (0 tokens)
@@ -2709,9 +2718,9 @@ function emEscalar(slot, funciono){
     toast('Resuelto: mensaje de cierre listo para sala.'); return;
   }
   // No funcionaron -> el agente (que YA hizo los pasos) indica fisico/internet; el sistema decide N2 vs SAT (sin IA)
-  const fisico = confirm('Escalamiento\n\n¿Es un problema FISICO (hay que cambiar o configurar componentes en el sitio)?\n\nAceptar = Si (fisico)   /   Cancelar = No');
+  const fisico = await appConfirm('Escalamiento: ¿es un problema FÍSICO (hay que cambiar o configurar componentes en el sitio)?',{okText:'Sí, es físico',cancelText:'No es físico'});
   var internet = true;
-  if(!fisico) internet = confirm('¿El equipo TIENE conexion a internet?\n\nAceptar = Si   /   Cancelar = No');
+  if(!fisico) internet = await appConfirm('¿El equipo TIENE conexión a internet?',{okText:'Sí tiene',cancelText:'No tiene'});
   const dest = (fisico || !internet) ? 'SAT' : 'N2';
   var interno, msgSala;
   if(dest==='N2'){
@@ -2772,7 +2781,10 @@ async function emAprender(t, respuesta){
     else { toast('Marcado como respondido'); }
   }catch(e){ toast('Marcado como respondido'); }
 }
-async function emVaciar(){ if(typeof confirm==='function' && !confirm('¿Vaciar la bandeja? Se borran TODAS las conversaciones (no se puede deshacer).')) return;
+async function emVaciar(){
+  // La bandeja es COMPARTIDA por todo el equipo: vaciarla borra el trabajo de todos -> solo admin.
+  if(!isAdmin()){ toast('Solo el administrador puede vaciar la bandeja del equipo. Usa "Liberar" o "Marcar respondido".'); return; }
+  if(!await appConfirm('¿Vaciar la bandeja? Se borran TODAS las conversaciones del equipo (no se puede deshacer).',{danger:true,okText:'Vaciar todo'})) return;
   try{ if(emCloudReady && sb) await sb.from('inbox_conversaciones').delete().eq('tenant',CONFIG.tenant); }catch(e){}   // borra tambien en la nube para que NO reaparezcan al recargar
   EMBANDEJA=[]; emSelChat=null; emSelMail=null; emSave(); emSaveSel(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); if(typeof emRenderInterno==='function') emRenderInterno(); toast('Bandeja vaciada.'); }
 async function emFetchAuto(){
@@ -2949,11 +2961,81 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape')return;
   if($('appModal')&&$('appModal').classList.contains('on'))return;
+  const ck=$('cmdk'); if(ck&&ck.classList.contains('on')){ ckClose(); e.preventDefault(); return; }
   const em=$('emailPanel'); if(em&&em.classList.contains('on')){ closeEmail(); e.preventDefault(); return; }
   const cp=$('copilotoPanel'); if(cp&&cp.classList.contains('on')){ try{closeCopiloto();}catch(_){cp.classList.remove('on');} e.preventDefault(); return; }
   const se=$('salaEditPanel'); if(se&&se.classList.contains('on')){ closeSalaEdit(); e.preventDefault(); return; }
   const rp=$('retailPanel'); if(rp&&rp.classList.contains('on')){ closeRetail(); e.preventDefault(); return; }
   const anyP=document.querySelector('.panel.on'); if(anyP){ anyP.classList.remove('on'); document.querySelectorAll('.overlay.on').forEach(o=>o.classList.remove('on')); if(anyP.id==='teampanel')tcOpen=false; e.preventDefault(); return; }
+});
+
+/* ============================================================
+   PALETA DE COMANDOS (Ctrl+K) — buscador global: clientes, salas
+   y acciones de la consola en un solo lugar (estilo Linear/Raycast).
+   ============================================================ */
+let _ckSel=0,_ckItems=[];
+function ckActions(){
+  const A=[];
+  const add=(label,tag,fn,cond)=>{ if(cond===false)return; A.push({t:'accion',label,tag,fn}); };
+  add('Abrir Inbox (correo + mensajes)','panel',()=>openEmail());
+  add('Abrir Copiloto','panel',()=>openCopiloto());
+  add('Salas Retail (IPs / VNC / PuTTY)','panel',()=>openRetail());
+  add('Chat de equipo','panel',()=>openTeam());
+  add('Mis herramientas','panel',()=>openTools());
+  add('Cambiar tema claro / oscuro','ajuste',()=>toggleTheme());
+  add('Limpiar esta conversación','chat',()=>limpiarChat());
+  add('Transcribir llamada','admin',()=>openTrans(),isAdmin());
+  add('Datos del CRM (local)','admin',()=>{ if(typeof openCrm==='function')openCrm(); },isAdmin()&&typeof openCrm==='function');
+  add('Panel de Inteligencia','admin',()=>openIntel(),isAdmin());
+  add('Panel de administración','admin',()=>openPanel(),isAdmin());
+  add('Supervisión — métricas de agentes','equipo',()=>openSup(),puedeSupervisar());
+  add('Ver como agente (demo)','admin',()=>toggleDemo(),isRealAdmin());
+  add('Cerrar sesión','cuenta',()=>doLogout());
+  return A;
+}
+function ckBuild(q){
+  q=(q||'').trim().toLowerCase(); const out=[]; const sn=norm(q);
+  if(q){
+    CLIENTES.filter(c=>c.usuario.toLowerCase().includes(q)||c.nombre.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)||(sn.length>2&&norm(c.cedula).includes(sn))).slice(0,5)
+      .forEach(c=>out.push({t:'cliente',pais:c.pais,label:c.nombre+' · @'+c.usuario,tag:c.pais,fn:()=>openCliente(c)}));
+    SALAS.filter(s=>s.numero.includes(q)||s.ciudad.toLowerCase().includes(q)).slice(0,4)
+      .forEach(s=>out.push({t:'sala',label:'Sala '+s.numero+' · '+s.ciudad,tag:'retail',fn:()=>openSala(s)}));
+  }
+  const acts=ckActions().filter(a=>!q||a.label.toLowerCase().includes(q));
+  return out.concat(q?acts:acts.slice(0,9));
+}
+function ckRender(){
+  const L=$('ckList'); if(!L)return;
+  if(!_ckItems.length){ L.innerHTML='<div class="cmdk-empty">Sin resultados. Prueba un usuario, una sala o una acción.</div>'; return; }
+  L.innerHTML=_ckItems.map((it,i)=>'<div class="cmdk-it'+(i===_ckSel?' sel':'')+'" onmouseenter="_ckSel='+i+';ckRender()" onclick="ckRun('+i+')">'+(it.pais?flagHTML(it.pais):'')+'<span>'+escapeHtml(it.label)+'</span><span class="k">'+escapeHtml(it.tag||it.t)+'</span></div>').join('');
+  const sel=L.querySelector('.sel'); if(sel&&sel.scrollIntoView)sel.scrollIntoView({block:'nearest'});
+}
+function ckOpen(){
+  if(!me){ gateShow(); return; }
+  let el=$('cmdk');
+  if(!el){
+    el=document.createElement('div'); el.id='cmdk'; el.className='cmdk';
+    el.innerHTML='<div class="cmdk-card"><input class="cmdk-in" id="ckInput" placeholder="Buscar cliente, sala o acción…" autocomplete="off"><div class="cmdk-list" id="ckList"></div><div class="cmdk-hint"><span><b>↑ ↓</b> navegar</span><span><b>Enter</b> abrir</span><span><b>Esc</b> cerrar</span><span style="margin-left:auto"><b>Ctrl+K</b> abre esta paleta</span></div></div>';
+    document.body.appendChild(el);
+    el.onclick=e=>{ if(e.target===el) ckClose(); };
+    const inp=$('ckInput');
+    inp.oninput=()=>{ _ckSel=0; _ckItems=ckBuild(inp.value); ckRender(); };
+    inp.onkeydown=e=>{
+      if(e.key==='ArrowDown'){ e.preventDefault(); _ckSel=Math.min(_ckSel+1,_ckItems.length-1); ckRender(); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); _ckSel=Math.max(_ckSel-1,0); ckRender(); }
+      else if(e.key==='Enter'){ e.preventDefault(); ckRun(_ckSel); }
+    };
+  }
+  _ckSel=0; _ckItems=ckBuild(''); ckRender();
+  el.classList.add('on'); const inp=$('ckInput'); inp.value=''; setTimeout(()=>inp.focus(),40);
+}
+function ckClose(){ const el=$('cmdk'); if(el)el.classList.remove('on'); }
+function ckRun(i){ const it=_ckItems[i]; if(!it)return; ckClose(); try{ it.fn(); }catch(e){} }
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&!e.altKey&&(e.key==='k'||e.key==='K')){
+    e.preventDefault();
+    const el=$('cmdk'); if(el&&el.classList.contains('on')) ckClose(); else ckOpen();
+  }
 });
 
 /* ---- aplicar marca (CONFIG) ---- */
@@ -3097,21 +3179,30 @@ function initBH(cv){
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
   gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
   gl.viewport(0,0,cv.width,cv.height);
-  var t0=performance.now(),reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function frame(){
+  var t0=performance.now(),reduce=matchMedia('(prefers-reduced-motion: reduce)').matches,running=false;
+  function draw(){
     gl.useProgram(pr);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tx);gl.uniform1i(uWord,0);
     gl.uniform2f(uRes,cv.width,cv.height);gl.uniform1f(uTime,(performance.now()-t0)/1000.0);
     gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,3);
-    if(!reduce) requestAnimationFrame(frame);
   }
-  if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){ // redibuja textura con la fuente ya cargada
+  // No quemar GPU cuando el canvas esta oculto (splash/login ya cerrados) o la pestana en segundo plano.
+  function visible(){ return !document.hidden && cv.offsetParent!==null; }
+  function frame(){
+    if(!running)return;
+    if(!visible()){ setTimeout(frame,600); return; }
+    draw();
+    if(reduce){ running=false; return; }
+    requestAnimationFrame(frame);
+  }
+  function start(){ if(running)return; running=true; frame(); }
+  if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){ // redibuja textura con la fuente ya cargada (sin abrir un segundo loop)
     wx.fillStyle='#000';wx.fillRect(0,0,1024,256);wx.fillStyle='#fff';
     wx.font='700 150px "Space Grotesk",system-ui,sans-serif';wx.fillText('SINELI',410,128);
     wx.font='700 120px "Space Grotesk",system-ui,sans-serif';wx.fillText('·',900,128);
     gl.bindTexture(gl.TEXTURE_2D,tx);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,wc);
-    frame();
+    start();
   });}
-  frame();
+  start();
 }
 document.querySelectorAll('canvas.bh-logo').forEach(initBH);
 </script>

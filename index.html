@@ -603,6 +603,7 @@ body{background:transparent}
         <button class="ic adminonly" id="crmBtn" title="Datos del CRM (local)" onclick="openCrm()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
         <button class="ic adminonly" id="intelBtn" title="Panel de Inteligencia" onclick="openIntel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg></button>
         <button class="ic adminonly" id="adminBtn" title="Panel de administración" onclick="openPanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <button class="ic supok" id="supBtn" title="Supervisión — métricas de agentes" onclick="openSup()" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="5"/><rect x="12" y="8" width="3" height="9"/><rect x="17" y="14" width="3" height="3"/></svg></button>
         <button class="ic" id="clearBtn" title="Limpiar esta conversación" onclick="limpiarChat()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg></button>
         <button class="ic" id="logoutBtn" title="Cerrar sesión" onclick="doLogout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></button>
       </div>
@@ -788,6 +789,15 @@ body{background:transparent}
   <div class="sec"><div id="intelMetricas"></div></div>
   <div class="sec"><div class="fld">Huecos de conocimiento</div><div id="intelHuecos"></div></div>
   <div class="sec"><div class="fld">Cobertura de la base (por país × vertical × audiencia)</div><div id="intelCobertura"></div></div>
+</aside>
+
+<div class="overlay" id="supOverlay" onclick="closeSup()"></div>
+<aside class="panel wide" id="supPanel">
+  <div class="phead"><b data-pxi="chart">Supervisión — agentes</b>
+    <button class="btn ghost mini" onclick="loadSup()" style="margin-left:auto">Actualizar</button>
+    <span class="rm" onclick="closeSup()" style="cursor:pointer;margin-left:8px">×</span></div>
+  <div class="sec"><div id="supResumen" style="margin-bottom:8px"></div><div id="supList"><small style="color:var(--txt-2)">Cargando…</small></div></div>
+  <div class="sec"><small style="color:var(--txt-2)">Métricas de hoy. El supervisor puede bloquear/desbloquear agentes; crear/invitar es solo del administrador.</small></div>
 </aside>
 
 <div class="overlay" id="crmOverlay" onclick="closeCrm()"></div>
@@ -1004,7 +1014,7 @@ body{background:transparent}
         <div class="em-claim" id="emMailClaim" style="display:none"></div>
         <div class="em-quad em-mailonly">
           <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div></div>
-          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
+          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" title="Resumir la conversacion del chat del cliente y armar el cuerpo del correo" onclick="event.stopPropagation();emResumirChatACorreo()">Resumir chat → correo</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
         </div>
       </div>
     </div>
@@ -1064,6 +1074,8 @@ let demoAgent=false;  // cuando un admin "ve como agente" (demo)
 let mfaOk=true, _mfaEnrollId=null, _mfaFactor=null;  // 2FA: mfaOk=true si no hay 2FA o si la sesion ya alcanzo aal2
 const isRealAdmin=()=>myProfile && myProfile.role==='admin';
 const isAdmin=()=>isRealAdmin() && !demoAgent && mfaOk;   // permisos efectivos (demo => agente; 2FA sin verificar => limitado)
+const isSupervisor=()=>myProfile && myProfile.role==='supervisor' && !demoAgent;   // rol intermedio: ve el dashboard de metricas y puede bloquear agentes (NO crear, NO editar KB/FAQ, NO ve Fuentes)
+const puedeSupervisar=()=>isAdmin() || isSupervisor();   // quien accede al dashboard de supervision
 
 /* ============================================================
    AUTENTICACIÓN
@@ -1157,6 +1169,7 @@ async function mfaDisable(){
 function applyRoleUI(){
   document.querySelectorAll('.adminonly').forEach(el=>el.style.display=isAdmin()?'grid':'none');
   document.querySelectorAll('.realadminonly').forEach(el=>el.style.display=isRealAdmin()?'grid':'none');
+  document.querySelectorAll('.supok').forEach(el=>el.style.display=puedeSupervisar()?'':'none');   // dashboard de supervision: admin o supervisor
   const dm=$('demoBar'); if(dm) dm.classList.toggle('on', demoAgent);
   document.body.classList.toggle('demo-on', demoAgent);
   // Agente restringido: solo el chat de consultas general (sin salas, sin búsqueda de cliente, sin panel de cuenta)
@@ -1288,13 +1301,41 @@ async function loadUsers(){
   }catch(e){ if(L) L.innerHTML='<small style="color:#c0392b">No se pudo cargar la lista.</small>'; }
 }
 async function toggleAgent(id,active){
-  if(!isAdmin())return;
+  if(!puedeSupervisar())return;
   if(!await appConfirm(active?'¿Desbloquear a este agente? Volverá a poder iniciar sesión y recibir enlaces.':'¿Bloquear a este agente? No podrá iniciar sesión, no recibirá enlaces de acceso y se cerrará su sesión.',{danger:!active}))return;
   try{ const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'set_active',id,active})});
     const j=await r.json().catch(()=>({})); if(j&&j.ok===false) throw new Error(j.error||'falló');
+    if($('supPanel')&&$('supPanel').classList.contains('on')) loadSup();
     loadUsers();
   }catch(e){ toast('No se pudo: '+(e.message||e)); }
+}
+/* ---- Dashboard de SUPERVISION (admin + supervisor): metricas por agente + bloquear ---- */
+function openSup(){ if(!puedeSupervisar())return; $('supOverlay').classList.add('on'); $('supPanel').classList.add('on'); loadSup(); }
+function closeSup(){ $('supOverlay').classList.remove('on'); $('supPanel').classList.remove('on'); }
+async function loadSup(){
+  if(!sb||!puedeSupervisar())return;
+  const L=$('supList'); if(L) L.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'list_users'})});
+    const j=await r.json().catch(()=>({})); const users=(j&&j.users)||[];
+    const agentes=users.filter(function(u){ return u.role!=='admin'; });
+    // resumen del equipo
+    var totC=0, totOk=0, act=0, blo=0; agentes.forEach(function(u){ totC+=(u.consultasHoy||0); totOk+=(u.consultasOk||0); if(u.active!==false)act++; else blo++; });
+    const pct=totC?Math.round(totOk*100/totC):0;
+    const res=$('supResumen'); if(res) res.innerHTML='<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px"><span><b style="font-size:16px;color:var(--accent)">'+agentes.length+'</b> agentes ('+act+' activos'+(blo?(', '+blo+' bloqueados'):'')+')</span><span><b style="font-size:16px;color:var(--accent)">'+totC+'</b> consultas hoy</span><span><b style="font-size:16px;color:var(--accent)">'+pct+'%</b> con respaldo</span></div>';
+    if(!L)return;
+    if(!agentes.length){ L.innerHTML='<small style="color:var(--txt-2)">Sin agentes todavía.</small>'; return; }
+    L.innerHTML=agentes.map(function(u){
+      const actv=u.active!==false; const c=u.consultasHoy||0, ok=u.consultasOk||0; const p=c?Math.round(ok*100/c):0;
+      return '<div class="uitem"><div style="flex:1;min-width:0">'+
+        '<div class="nm">'+esc(u.full_name||u.email)+(actv?'':' <span style="color:#c0392b;font-size:11px">· bloqueado</span>')+'</div>'+
+        '<small style="color:var(--txt-2)">'+esc(u.email)+' · '+c+' consultas hoy · '+p+'% con respaldo · '+(u.emailsHoy||0)+' accesos</small></div>'+
+        '<button class="ubtn'+(actv?'':' on')+'" onclick="toggleAgent(\''+u.id+'\','+(!actv)+')">'+(actv?'Bloquear':'Desbloquear')+'</button>'+
+      '</div>';
+    }).join('');
+  }catch(e){ if(L) L.innerHTML='<small style="color:#c0392b">No se pudo cargar.</small>'; }
 }
 
 /* ---- banderas ---- */
@@ -1578,6 +1619,8 @@ function renderTabs(){
     if(s.id!=='__gen__'){ el.querySelector('.x').onclick=(e)=>closeSession(s.id,e); }
     t.appendChild(el);
   });
+  // Carrusel: mantener SIEMPRE visible el chat activo (no se apila ni se pierde al costado); los demas quedan en scroll.
+  try{ const act=t.querySelector('.tab.active'); if(act && act.scrollIntoView) act.scrollIntoView({inline:'nearest',block:'nearest'}); }catch(e){}
 }
 function badge(txt,cls){ return '<span class="badge '+cls+'">'+txt+'</span>'; }
 /* ---- iconos pixel-art (sprites dibujados, sin emojis) ---- */
@@ -1737,7 +1780,7 @@ function renderContent(text){ let t=esc(text);
   return t.replace(/\n/g,'<br>'); }
 function renderChat(){
   const c=$('chat'); c.querySelectorAll('.msg').forEach(e=>e.remove());
-  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); if(m.role==='assistant'&&m.sin_respaldo) h+='<div class="msg-warn">Sin respaldo en la base — verifícalo antes de enviarlo al cliente.</div>'; if(m.role==='assistant'&&m.fuentes&&m.fuentes.length) h+='<div class="msg-src"><span class="msg-src-lbl">Fuente:</span> '+m.fuentes.slice(0,4).map(f=>'<span class="srcchip">'+esc(f)+'</span>').join('')+'</div>'; if(m.role==='assistant') h+='<span class="msgrep" title="Reportar respuesta incorrecta" onclick="reportarIA('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2H7.3a2 2 0 0 0-2 1.7L4 12a2 2 0 0 0 2 2.3h4l-1 5a2 2 0 0 0 3.6 1.2L17 14"/><path d="M17 2v12"/></svg></span>'; if(m.role==='assistant') h+='<span class="msgsave" title="Guardar en mis favoritas" onclick="guardarFav('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>'; if(m.role==='assistant'&&isAdmin()) h+='<span class="msgteach" title="Corregir / Enseñar a la IA" onclick="ensenar('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>'; h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
+  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); if(m.role==='assistant'&&m.sin_respaldo) h+='<div class="msg-warn">Sin respaldo en la base — verifícalo antes de enviarlo al cliente.</div>'; if(m.role==='assistant'&&m.fuentes&&m.fuentes.length&&isAdmin()) h+='<div class="msg-src"><span class="msg-src-lbl">Fuente:</span> '+m.fuentes.slice(0,4).map(f=>'<span class="srcchip">'+esc(f)+'</span>').join('')+'</div>'; if(m.role==='assistant') h+='<span class="msgrep" title="Reportar respuesta incorrecta" onclick="reportarIA('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2H7.3a2 2 0 0 0-2 1.7L4 12a2 2 0 0 0 2 2.3h4l-1 5a2 2 0 0 0 3.6 1.2L17 14"/><path d="M17 2v12"/></svg></span>'; if(m.role==='assistant') h+='<span class="msgsave" title="Guardar en mis favoritas" onclick="guardarFav('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>'; if(m.role==='assistant'&&isAdmin()) h+='<span class="msgteach" title="Corregir / Enseñar a la IA" onclick="ensenar('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>'; h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
   c.appendChild($('typing')); c.scrollTop=c.scrollHeight;
 }
 function delMsg(i){ const s=activeS(); if(!s||!s.mensajes[i])return; s.mensajes.splice(i,1); renderChat(); }
@@ -2630,6 +2673,32 @@ async function emPedirSugerencia(slot){
   finally{ if(gen)gen.textContent=''; const ab2=$('emAddBtn'); if(ab2)ab2.disabled=false; }
 }
 function emResugerir(){ const t=emActiveThread(); if(!t){ toast('Selecciona una conversacion'); return; } t.draftEdited=false; emPedirSugerencia(emFocus); }
+// Resume la conversacion del chat del cliente y arma el CUERPO del correo (menciona lo importante del chat).
+async function emResumirChatACorreo(){
+  const mt=EMBANDEJA.find(function(x){return x.id===emSelMail;});
+  if(!mt){ toast('Selecciona el correo donde ira el resumen'); return; }
+  const chat=EMBANDEJA.find(function(x){return x.id===emSelChat;});
+  const fuente=chat||mt;
+  const msgs=(fuente.mensajes||[]).filter(function(m){return m.text;});
+  if(!msgs.length){ toast('No hay conversacion para resumir'); return; }
+  if(fuente===mt && !chat){ toast('No hay chat del cliente abierto; resumo el propio correo.'); }
+  const conv=msgs.map(function(m){ return (m.from==='agente'?'Agente':'Cliente')+': '+m.text; }).join('\n');
+  const pais=emThreadPais(mt);
+  const instr='Resume la siguiente conversacion de soporte y redacta el CUERPO DE UN CORREO formal, claro y cordial para el cliente: menciona lo importante que se trato, la solucion o acuerdos, y el siguiente paso. No inventes datos ni cifras. Devuelve SOLO el cuerpo del correo (sin asunto).\n\nCONVERSACION:\n'+conv;
+  const gen=$('emMailGen'); if(gen)gen.textContent='resumiendo...';
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
+      body:JSON.stringify({mensajes:[{role:'user',content:instr}], canal:'email', formato:'correo', audiencia:'cliente', pais:pais, turno:{pais:pais,vertical:emThreadVert(mt)}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
+    if(!res.ok)throw new Error('Servidor '+res.status);
+    let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ j={}; }
+    const cuerpo=((extraerSugerida(j.respuesta||'')||j.respuesta||'')).trim();
+    if(!cuerpo){ toast('No pude resumir en este momento'); return; }
+    mt.draft=cuerpo; mt.draftEdited=true; const sug=$('emMailSug'); if(sug)sug.value=cuerpo; emSave(); emPushDebounced(mt);
+    toast('Resumen del chat puesto en el cuerpo del correo. Revisalo antes de enviar.');
+  }catch(e){ toast('No se pudo resumir: '+(e.message||e)); }
+  finally{ if(gen)gen.textContent=''; }
+}
 function emEscalar(slot, funciono){
   slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t){ toast('Selecciona una conversacion'); return; }
   const sug=$(slot==='mail'?'emMailSug':'emChatSug');

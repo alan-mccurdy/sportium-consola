@@ -2354,16 +2354,18 @@ let CPCONV=[]; let cpRaw='';
 // Enlaces de autoservicio (apartados donde el cliente revisa sus datos). Rutas placeholder — ajustar a las reales.
 const LINK_BASE={ MX:'https://www.sportium.com.mx', PA:'https://www.sportium.com.pa', CO:'https://sportium.com.co' };
 const LINKS_CLIENTE=[
- {kw:['verific','kyc','identidad','documento','cedula'], label:'Verificar mi identidad', path:'/mi-cuenta/verificacion'},
- {kw:['retiro','retirar','retira'], label:'Estado de mis retiros', path:'/mi-cuenta/retiros'},
- {kw:['deposit','depósit'], label:'Mis depositos', path:'/mi-cuenta/depositos'},
+ {kw:['verific','kyc','identidad','documento','cedula','cédula'], label:'Verificar mi identidad', path:'/mi-cuenta/verificacion'},
+ // RETIRO -> dos enlaces: (1) ver el estado de sus movimientos (para saber si ya esta aprobado) y (2) el apartado para retirar.
+ {kw:['retiro','retirar','retira','cobr','pago aprob','estado de mi pago'], label:'Ver el estado de mis transacciones', path:'/mi-cuenta/transacciones'},
+ {kw:['retiro','retirar','retira','como retiro','quiero retirar','sacar mi dinero'], label:'Solicitar un retiro', path:'/mi-cuenta/retiros'},
+ {kw:['deposit','depósit','recarg','abonar'], label:'Hacer un deposito', path:'/mi-cuenta/depositos'},
  {kw:['bono','promo','codigo','código','rollover'], label:'Mis bonos y promociones', path:'/promociones/mis-bonos'},
  {kw:['acceso','contraseña','contrasena','login','entrar','ingresar','bloque'], label:'Recuperar el acceso a mi cuenta', path:'/recuperar-acceso'},
  {kw:['autoexclu','juego responsable','reabrir','reapertura'], label:'Juego responsable / reapertura', path:'/juego-responsable'}
 ];
-// Preproduccion: NO inyectar enlaces adivinados. La IA incluye los enlaces REALES desde el RAG/notas que cargue Alan.
-// Cuando se confirmen las rutas reales: poner LINKS_REALES=true y ajustar LINK_BASE/paths arriba.
-const LINKS_REALES=false;
+// Enlaces reales por tema (Alan pidio que SIEMPRE lleguen). Rutas base por pais en LINK_BASE.
+// NOTA: confirmar las rutas exactas con Alan; si alguna cambia, se ajusta el path aqui.
+const LINKS_REALES=true;
 function emEnlaces(texto, pais){ if(!LINKS_REALES) return []; const low=(texto||'').toLowerCase(); const base=LINK_BASE[pais]||LINK_BASE.MX; const out=[]; LINKS_CLIENTE.forEach(function(L){ if(L.kw.some(function(k){return low.indexOf(k)>=0;})){ out.push({label:L.label, url:base+L.path}); } }); return out.slice(0,3); }
 const EM_DEMO=[
  {canal:'mensaje', de:'Juan Perez', texto:'Hola, hice mi deposito con el codigo MAXSPORT pero no veo el bono reflejado en mi cuenta. Me pueden ayudar?'},

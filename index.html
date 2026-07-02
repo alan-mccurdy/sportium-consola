@@ -56,6 +56,8 @@
   .mark .d{width:9px;height:9px;border-radius:50%;background:var(--accent)}
   .mark .bh-logo{width:1.5em;height:1.5em;flex:0 0 auto;vertical-align:middle;border-radius:50%;
     filter:drop-shadow(0 0 5px rgba(255,150,60,.4))}
+  .bh-big{display:block;margin:0 auto 8px;width:72px;height:72px;border-radius:50%;filter:drop-shadow(0 0 10px rgba(255,150,60,.4))}
+  .boot-splash .bh-big{width:96px;height:96px;margin-bottom:2px}
   .sub{font-size:12px;color:var(--txt-2)}
   .hbtns{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;row-gap:6px;align-items:center}
   .who{font-size:11.5px;color:var(--txt-2);margin-right:4px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -553,7 +555,7 @@ body{background:transparent}
 </head>
 <body>
 <div class="spatial-canvas" aria-hidden="true"></div>
-<div class="boot-splash" id="bootSplash" aria-hidden="true"><div class="boot-wm">SINELI</div><div class="boot-bar"><i></i></div></div>
+<div class="boot-splash" id="bootSplash" aria-hidden="true"><canvas class="bh-logo bh-big" width="120" height="120" aria-label="SINELI"></canvas><div class="boot-wm">SINELI</div><div class="boot-bar"><i></i></div></div>
 <div class="leftdock" id="leftDock" aria-label="Paneles"></div>
 
 <div class="demo-bar" id="demoBar"><span>Vista de demostración — estás viendo la consola como un <b>Agente</b> (sin permisos de admin)</span><button onclick="toggleDemo()">Volver a admin</button></div>
@@ -561,6 +563,7 @@ body{background:transparent}
 <!-- ===== PANTALLA DE ACCESO ===== -->
 <div class="auth-gate hide" id="authGate">
   <div class="auth-card">
+    <canvas class="bh-logo bh-big" width="120" height="120" aria-label="SINELI"></canvas>
     <div class="auth-brand" id="authBrand">SINELI</div>
     <div class="tag" id="authTag">Sportium · acceso restringido</div>
     <input id="authEmail" type="email" placeholder="tu-correo@sportium.com" autocomplete="email">
@@ -2958,10 +2961,9 @@ initAuth();
 </script>
 <script>
 /* Logo SINELI: agujero negro realista (WebGL) con lente gravitacional. Fondo transparente. */
-(function(){
-  var cv=document.querySelector('canvas.bh-logo'); if(!cv) return;
+function initBH(cv){
   var gl=cv.getContext('webgl',{alpha:true,premultipliedAlpha:false})||cv.getContext('experimental-webgl',{alpha:true});
-  if(!gl){ cv.replaceWith(Object.assign(document.createElement('span'),{className:'d'})); return; }
+  if(!gl){ if(cv.closest('.mark')) cv.replaceWith(Object.assign(document.createElement('span'),{className:'d'})); else cv.remove(); return; }
   var vs='attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
   var fs=[
   'precision highp float;uniform vec2 uRes;uniform float uTime;uniform sampler2D uWord;',
@@ -3041,7 +3043,8 @@ initAuth();
     frame();
   });}
   frame();
-})();
+}
+document.querySelectorAll('canvas.bh-logo').forEach(initBH);
 </script>
 </body>
 </html>

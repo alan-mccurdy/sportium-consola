@@ -2494,7 +2494,26 @@ function emTomar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:e
   t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); if((t.estado||'nuevo')==='nuevo')t.estado='leido'; emSave(); emPush(t); emRenderList(); emRenderSlot(slot); toast('La tomaste: '+t.tomado_email);
   // Al asignarte la conversacion, genera la respuesta sugerida si aun no hay (y no la has escrito tu).
   const _yaResp=(t.mensajes||[]).some(function(m){return m.from==='agente';});
-  if(!t.iaRaw && !(t.draftEdited && t.draft) && !_yaResp){ emPedirSugerencia(slot); } }
+  if(!t.iaRaw && !(t.draftEdited && t.draft) && !_yaResp){ emPedirSugerencia(slot); }
+  emTomarMismoCliente(t); }
+// Complemento: al tomar una conversacion, si el MISMO cliente tiene otra en el OTRO canal,
+// tomala tambien y genera su respuesta (es la misma persona). No roba conversaciones ya tomadas por otro.
+function emTomarMismoCliente(t){
+  if(!t)return; var cli=emClienteDe(t); if(!cli)return;
+  var tIsChat=(t.canal==='mensaje');
+  var otro=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if((x.canal==='mensaje')===tIsChat)return false; var xc=emClienteDe(x); return !!(xc&&xc.usuario===cli.usuario); });
+  if(!otro)return;
+  t._linkOtro=otro.id; otro._linkOtro=t.id;   // CRUCE de contexto entre canales
+  if(typeof emTomadaPorOtro==='function' && emTomadaPorOtro(otro))return;   // ya la atiende alguien mas: no la robamos
+  var oslot=(otro.canal==='mensaje')?'chat':'mail';
+  otro.tomado_por=me.id; otro.tomado_email=(myProfile&&myProfile.full_name)||me.email; otro.tomado_at=new Date().toISOString(); if((otro.estado||'nuevo')==='nuevo')otro.estado='leido';
+  emSave(); emPush(otro);
+  if(oslot==='mail')emSelMail=otro.id; else emSelChat=otro.id; emSaveSel();
+  emRenderList(); emRenderSlot(oslot);
+  var _yaResp=(otro.mensajes||[]).some(function(m){return m.from==='agente';});
+  if(!otro.iaRaw && !(otro.draftEdited && otro.draft) && !_yaResp){ emPedirSugerencia(oslot); }
+  toast('Mismo cliente: también tomé su '+(oslot==='mail'?'correo':'chat')+(_yaResp?'':' y generé su respuesta')+'.');
+}
 function emLiberar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.tomado_por=null; t.tomado_email=''; t.tomado_at=null; emSave(); emPush(t); if(slot==='mail')emSelMail=null; else emSelChat=null; emSaveSel(); emRenderList(); emRenderSlot(slot); emRenderInterno(); toast('Liberada y quitada de tu panel'); }
 function emRenderClaim(slot){
   // el aviso vive ahora ARRIBA (header del inbox). Ocultamos la barra por panel y reflejamos el panel activo.

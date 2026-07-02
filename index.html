@@ -2411,6 +2411,13 @@ function emCliFiltro(){ const inp=$('emCliInput'), box=$('emCliBox'); if(!inp||!
 function emAttachCliente(usuario){ const c=CLIENTES.find(function(x){return x.usuario===usuario;}); const box=$('emCliBox'), inp=$('emCliInput'); if(box){box.classList.remove('on');box.innerHTML='';} if(inp)inp.value=''; if(!c)return; const t=emActiveThread(); if(!t){ toast('Selecciona primero una conversacion (panel activo)'); return; } t.cliente=c; emSave(); emPush(t); emRenderSlot(emFocus); emTryLink(t); toast('Cliente adjuntado: '+c.nombre); }
 function emDetachCliente(slot){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.cliente=null; emSave(); emPush(t); emRenderSlot(slot); }
 function emClienteDe(x){ if(!x)return null; if(x.cliente)return x.cliente; const ct=(x.mensajes||[]).map(function(m){return m.text;}).join(' '); return detectCliente(ct)||findCliente(x.de)||null; }
+// Claves para identificar al MISMO cliente entre canales: usuario, correo o nombre (en ese orden de confianza).
+function emClienteKeys(t){ var ks=[]; if(!t)return ks; var c=emClienteDe(t);
+  if(c){ if(c.usuario)ks.push('u:'+String(c.usuario).toLowerCase()); if(c.email)ks.push('e:'+String(c.email).toLowerCase()); if(c.nombre)ks.push('n:'+String(c.nombre).toLowerCase().trim()); }
+  var de=(t.de||''); var em=de.match(/([^\s<"']+@[^\s>"']+)/); if(em)ks.push('e:'+em[1].toLowerCase());
+  var nm=de.replace(/<[^>]*>/g,'').replace(/["']/g,'').trim().toLowerCase(); if(nm && nm.indexOf('@')<0)ks.push('n:'+nm);
+  return ks; }
+function emMismoCliente(a,b){ var ka=emClienteKeys(a), kb=emClienteKeys(b); for(var i=0;i<ka.length;i++){ if(ka[i] && kb.indexOf(ka[i])>=0) return true; } return false; }
 // Nombre para el saludo del correo: 1) cliente enganchado, 2) nombre visible en el "De:" (ej. Juan Perez <juan@x.com>). Si no hay, '' (la IA lo saca de la firma o usa "Estimado/a,").
 function emNombreCorreo(t){
   if(t&&t.cliente&&t.cliente.nombre) return t.cliente.nombre;
@@ -2426,8 +2433,8 @@ function emInterno(raw){ if(!raw)return ''; const s=''+raw;
   // Sin marca de respuesta al cliente: solo es interno si trae etiquetas internas; si no, es texto del cliente y no se duplica.
   return /(Para ti \(interno\)|Verificar en el CRM)/i.test(s) ? s.trim() : '';
 }
-function emTryLink(t){ if(!t)return; const cli=emClienteDe(t); if(!cli)return; const tIsChat=(t.canal==='mensaje');
-  const other=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if(((x.canal==='mensaje'))===tIsChat)return false; const xc=emClienteDe(x); return !!(xc && xc.usuario===cli.usuario); });
+function emTryLink(t){ if(!t || !emClienteKeys(t).length)return; const tIsChat=(t.canal==='mensaje');
+  const other=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if(((x.canal==='mensaje'))===tIsChat)return false; return emMismoCliente(t,x); });
   if(!other)return;
   t._linkOtro=other.id; other._linkOtro=t.id;   // CRUCE: la IA usara el contexto de AMBOS canales para responder coherente
   const oslot=(other.canal==='mensaje')?'chat':'mail'; const cur=(oslot==='mail')?emSelMail:emSelChat;
@@ -2469,7 +2476,7 @@ let _emDraftT=null; function emSaveDraftDebounced(){ clearTimeout(_emDraftT); _e
 let emCloudReady=false, emChan=null; const emPushT={};
 function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
 function emThreadToRow(t){ return { id:t.id, tenant:CONFIG.tenant, canal:t.canal, de:t.de||'cliente', asunto:t.asunto||'', pais:emThreadPais(t), estado:t.estado||'nuevo', mensajes:t.mensajes||[], cliente:t.cliente||null, draft:t.draft||'', ia_raw:t.iaRaw||'', tomado_por:t.tomado_por||null, tomado_email:t.tomado_email||'', tomado_at:t.tomado_at||null, updated_by:me?me.id:null, updated_at:new Date().toISOString() }; }
-async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(l && l.draftEdited && l.draft!=null){ n.draft=l.draft; n.draftEdited=true; } if(l && l.vertical){ n.vertical=l.vertical; } }); EMBANDEJA=incoming; } return true; }catch(e){ emCloudReady=false; return false; } }
+async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(l && l.draftEdited && l.draft!=null){ n.draft=l.draft; n.draftEdited=true; } if(l && l.vertical){ n.vertical=l.vertical; } }); const _inc={}; incoming.forEach(function(n){ _inc[n.id]=1; }); EMBANDEJA.forEach(function(l){ if(!_inc[l.id]) incoming.push(l); }); EMBANDEJA=incoming; emSave(); } return true; }catch(e){ emCloudReady=false; return false; } }
 async function emPush(t){ if(!emCloudReady||!sb||!t)return; try{ await sb.from('inbox_conversaciones').upsert(emThreadToRow(t)); }catch(e){} }
 function emPushDebounced(t){ if(!emCloudReady||!t)return; clearTimeout(emPushT[t.id]); emPushT[t.id]=setTimeout(function(){ emPush(t); }, 700); }
 async function emCloudDelete(id){ if(!emCloudReady||!sb||!id)return; try{ await sb.from('inbox_conversaciones').delete().eq('id',id); }catch(e){} }
@@ -2499,9 +2506,9 @@ function emTomar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:e
 // Complemento: al tomar una conversacion, si el MISMO cliente tiene otra en el OTRO canal,
 // tomala tambien y genera su respuesta (es la misma persona). No roba conversaciones ya tomadas por otro.
 function emTomarMismoCliente(t){
-  if(!t)return; var cli=emClienteDe(t); if(!cli)return;
+  if(!t || !emClienteKeys(t).length)return;
   var tIsChat=(t.canal==='mensaje');
-  var otro=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if((x.canal==='mensaje')===tIsChat)return false; var xc=emClienteDe(x); return !!(xc&&xc.usuario===cli.usuario); });
+  var otro=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if((x.canal==='mensaje')===tIsChat)return false; return emMismoCliente(t,x); });
   if(!otro)return;
   t._linkOtro=otro.id; otro._linkOtro=t.id;   // CRUCE de contexto entre canales
   if(typeof emTomadaPorOtro==='function' && emTomadaPorOtro(otro))return;   // ya la atiende alguien mas: no la robamos

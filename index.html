@@ -54,6 +54,8 @@
   header{display:flex;align-items:center;flex-wrap:wrap;gap:12px;row-gap:8px;padding:14px 18px;border-bottom:1px solid var(--line)}
   .mark{font-weight:800;font-size:18px;letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
   .mark .d{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  .mark .bh-logo{width:1.5em;height:1.5em;flex:0 0 auto;vertical-align:middle;border-radius:50%;
+    filter:drop-shadow(0 0 5px rgba(255,150,60,.4))}
   .sub{font-size:12px;color:var(--txt-2)}
   .hbtns{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;row-gap:6px;align-items:center}
   .who{font-size:11.5px;color:var(--txt-2);margin-right:4px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -576,7 +578,7 @@ body{background:transparent}
 <div class="app">
   <div class="main">
     <header>
-      <div><div class="mark"><span class="d"></span><span class="brandname">SINELI</span></div><div class="sub">Consola de soporte (interna)</div></div>
+      <div><div class="mark"><canvas class="bh-logo" width="56" height="56" aria-label="SINELI"></canvas><span class="brandname">SINELI</span></div><div class="sub">Consola de soporte (interna)</div></div>
       <span class="turno" title="Tu turno: pais y vertical que atiendes"><span class="turno-lbl">Turno</span>
         <select id="turnoPais" class="in mini" aria-label="Pais de tu turno"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option><option value="ALL">Todos</option></select>
         <select id="turnoVert" class="in mini" aria-label="Vertical de tu turno"><option value="online">Online</option><option value="retail">Retail</option></select>
@@ -2953,6 +2955,93 @@ renderAll();
 function dockUpdate(){ const d=document.getElementById('leftDock'); if(!d)return; const open=document.querySelector('.overlay.on, .email.on, .copiloto.on, .retail.on, .appmodal.on'); d.classList.toggle('min', !!open); }
 try{ new MutationObserver(dockUpdate).observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']}); dockUpdate(); }catch(e){}
 initAuth();
+</script>
+<script>
+/* Logo SINELI: agujero negro realista (WebGL) con lente gravitacional. Fondo transparente. */
+(function(){
+  var cv=document.querySelector('canvas.bh-logo'); if(!cv) return;
+  var gl=cv.getContext('webgl',{alpha:true,premultipliedAlpha:false})||cv.getContext('experimental-webgl',{alpha:true});
+  if(!gl){ cv.replaceWith(Object.assign(document.createElement('span'),{className:'d'})); return; }
+  var vs='attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+  var fs=[
+  'precision highp float;uniform vec2 uRes;uniform float uTime;uniform sampler2D uWord;',
+  '#define PI 3.14159265',
+  'vec4 diskC(vec3 pos){',
+  ' float r=length(pos.xz);float t=(r-2.2)/(8.2-2.2);',
+  ' if(t<0.0||t>1.0)return vec4(0.0);',
+  ' float phi=atan(pos.z,pos.x);',
+  ' float u=phi/(2.0*PI)+0.5+uTime*0.03;',
+  ' vec2 wuv=vec2(fract(u*3.0),clamp(t*0.62+0.19,0.0,1.0));',
+  ' float letters=texture2D(uWord,wuv).r;',
+  ' float turb=clamp(0.55+0.45*sin(phi*16.0-r*2.5-uTime*2.2),0.3,1.3);',
+  ' vec3 hot=vec3(1.0,0.98,0.92),mid=vec3(1.0,0.62,0.26),cool=vec3(0.82,0.26,0.07);',
+  ' vec3 col=mix(hot,mix(mid,cool,t),t);',
+  ' vec3 vel=normalize(vec3(-pos.z,0.0,pos.x));',
+  ' vec3 toCam=normalize(vec3(0.0,3.2,13.0)-pos);',
+  ' float dop=dot(vel,toCam);float beam=pow(clamp(1.0+0.6*dop,0.0,2.2),3.0);',
+  ' col=mix(col,col*vec3(0.82,0.9,1.25),clamp(dop,0.0,1.0)*0.55);',
+  ' float b=(0.25+1.5*letters)*turb*beam;',
+  ' float edge=smoothstep(0.0,0.09,t)*smoothstep(1.0,0.82,t);',
+  ' float a=clamp(b*edge,0.0,1.0);',
+  ' return vec4(col*b*edge,a);}',
+  'void main(){',
+  ' vec2 uv=(gl_FragCoord.xy-0.5*uRes)/uRes.y;',
+  ' vec3 ro=vec3(0.0,3.2,13.0),ta=vec3(0.0);',
+  ' vec3 f=normalize(ta-ro),rr=normalize(cross(f,vec3(0,1,0))),uu=cross(rr,f);',
+  ' vec3 rd=normalize(uv.x*rr*1.35+uv.y*uu*1.35+1.5*f);',
+  ' vec3 pos=ro,vel=rd,color=vec3(0.0);float tr=1.0;bool hz=false;',
+  ' for(int i=0;i<220;i++){',
+  '  float r=length(pos);',
+  '  if(r<1.0){hz=true;break;}',
+  '  if(r>30.0)break;',
+  '  float dt=clamp(r*0.06,0.02,0.4);',
+  '  vec3 h=cross(pos,vel);float h2=dot(h,h);',
+  '  vec3 acc=-1.5*h2*pos/pow(dot(pos,pos),2.5);',
+  '  vec3 np=pos+vel*dt;',
+  '  if(pos.y*np.y<0.0){float k=pos.y/(pos.y-np.y);vec4 d=diskC(mix(pos,np,k));',
+  '   color+=tr*d.rgb;tr*=(1.0-d.a*0.85);}',
+  '  vel+=acc*dt;pos=np;if(tr<0.02)break;}',
+  ' float alpha=hz?1.0:clamp(1.0-tr,0.0,1.0);',
+  ' if(hz)color=vec3(0.02,0.01,0.0);',
+  ' vec3 c=color/(1.0+color);c=pow(c,vec3(0.85));',
+  ' gl_FragColor=vec4(c*alpha,alpha);}'
+  ].join('\n');
+  function sh(t,s){var o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o;}
+  var pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));
+  gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){ cv.replaceWith(Object.assign(document.createElement('span'),{className:'d'})); return; }
+  gl.useProgram(pr);
+  var bf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  var lp=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(lp);gl.vertexAttribPointer(lp,2,gl.FLOAT,false,0,0);
+  var uRes=gl.getUniformLocation(pr,'uRes'),uTime=gl.getUniformLocation(pr,'uTime'),uWord=gl.getUniformLocation(pr,'uWord');
+  // textura: la palabra SINELI
+  var wc=document.createElement('canvas');wc.width=1024;wc.height=256;var wx=wc.getContext('2d');
+  wx.fillStyle='#000';wx.fillRect(0,0,1024,256);wx.fillStyle='#fff';wx.textAlign='center';wx.textBaseline='middle';
+  wx.font='700 150px "Space Grotesk",system-ui,sans-serif';wx.fillText('SINELI',410,128);
+  wx.font='700 120px "Space Grotesk",system-ui,sans-serif';wx.fillText('·',900,128);
+  var tx=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tx);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,wc);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+  gl.viewport(0,0,cv.width,cv.height);
+  var t0=performance.now(),reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function frame(){
+    gl.useProgram(pr);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tx);gl.uniform1i(uWord,0);
+    gl.uniform2f(uRes,cv.width,cv.height);gl.uniform1f(uTime,(performance.now()-t0)/1000.0);
+    gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,3);
+    if(!reduce) requestAnimationFrame(frame);
+  }
+  if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){ // redibuja textura con la fuente ya cargada
+    wx.fillStyle='#000';wx.fillRect(0,0,1024,256);wx.fillStyle='#fff';
+    wx.font='700 150px "Space Grotesk",system-ui,sans-serif';wx.fillText('SINELI',410,128);
+    wx.font='700 120px "Space Grotesk",system-ui,sans-serif';wx.fillText('·',900,128);
+    gl.bindTexture(gl.TEXTURE_2D,tx);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,wc);
+    frame();
+  });}
+  frame();
+})();
 </script>
 </body>
 </html>

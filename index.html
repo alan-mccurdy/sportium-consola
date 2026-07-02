@@ -566,6 +566,31 @@ body{background:transparent}
 .cmdk-empty{padding:18px;text-align:center;color:var(--txt-3);font-size:13px}
 .cmdk-hint{display:flex;gap:14px;padding:8px 16px;border-top:1px solid var(--line);font-size:11px;color:var(--txt-3)}
 .cmdk-hint b{color:var(--txt-2)}
+
+/* Tour guiado de la consola */
+.tour-ov{position:fixed;inset:0;z-index:85}
+.tour-hole{position:absolute;border-radius:16px;border:2px solid var(--accent);box-shadow:0 0 0 9999px rgba(15,10,4,.55);transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:none}
+.tour-card{position:absolute;width:min(320px,86vw);background:var(--glass-strong,var(--surface));border:1px solid var(--glass-brd,var(--line));border-radius:16px;box-shadow:var(--depth-3,var(--shadow)),var(--glass-hi);padding:16px;-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%);transition:top .3s cubic-bezier(.4,0,.2,1),left .3s cubic-bezier(.4,0,.2,1)}
+.tour-tt{font-weight:800;font-size:14.5px;margin-bottom:5px}
+.tour-tx{font-size:13px;line-height:1.5;color:var(--txt-2);margin-bottom:12px}
+.tour-row{display:flex;gap:8px;align-items:center}
+.tour-n{font-size:11px;color:var(--txt-3);margin-right:auto}
+
+/* Modo presentacion (Resultados) — KPIs grandes para decisores */
+.results{position:fixed;inset:0;z-index:75;display:none;flex-direction:column;background:var(--bg);overflow-y:auto}
+.results.on{display:flex}
+.res-head{display:flex;align-items:center;gap:12px;padding:18px 26px;border-bottom:1px solid var(--line);flex-shrink:0}
+.res-brand{font-weight:800;font-size:20px;letter-spacing:-.4px;background:linear-gradient(120deg,var(--txt) 35%,var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+.res-body{width:min(940px,94%);margin:0 auto;padding:34px 0 50px}
+.res-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:26px}
+.res-card{background:var(--surface);border:1px solid var(--glass-brd,var(--line));border-radius:20px;padding:22px 20px;box-shadow:var(--depth-1,var(--shadow)),var(--glass-hi);-webkit-backdrop-filter:blur(var(--blur,30px)) saturate(180%);backdrop-filter:blur(var(--blur,30px)) saturate(180%)}
+.res-n{font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1.05;color:var(--accent)}
+.res-l{font-size:12px;color:var(--txt-2);margin-top:7px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.res-bars{display:flex;gap:8px;align-items:flex-end;height:150px;padding:14px;background:var(--surface);border:1px solid var(--glass-brd,var(--line));border-radius:20px;box-shadow:var(--depth-1,var(--shadow))}
+.res-bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
+.res-bar i{display:block;width:100%;max-width:34px;background:linear-gradient(180deg,var(--accent),#a3000f);border-radius:7px 7px 3px 3px}
+.res-bar span{font-size:9.5px;color:var(--txt-3)}
+.res-note{margin-top:16px;font-size:11.5px;color:var(--txt-3);text-align:center}
 </style>
 </head>
 <body>
@@ -603,6 +628,7 @@ body{background:transparent}
       </span>
       <div class="hbtns">
         <span class="who" id="useMeter" style="cursor:help;display:none"></span>
+        <span class="who" id="presPill" style="display:none;cursor:pointer" onclick="openTeam()" title=""></span>
         <span class="who" id="who"></span>
         <button class="ic" id="copyToggle" title="Auto-copiar respuesta sugerida" onclick="toggleAutocopy()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
@@ -800,7 +826,8 @@ body{background:transparent}
 <aside class="panel wide" id="intelPanel">
   <div class="phead"><b data-pxi="chart">Inteligencia</b>
     <select class="in mini" id="intelDiasSel" onchange="setIntelDias(this.value)"><option value="1">Hoy</option><option value="7" selected>7 días</option><option value="30">30 días</option></select>
-    <span class="rm" onclick="closeIntel()" style="margin-left:auto;cursor:pointer">×</span></div>
+    <button class="btn ghost" style="margin-left:auto;padding:5px 11px;font-size:12px" title="Pantalla completa con los KPIs del equipo, para enseñar a un decisor" onclick="resOpen()">Presentación</button>
+    <span class="rm" onclick="closeIntel()" style="margin-left:8px;cursor:pointer">×</span></div>
   <div class="sec"><div id="intelMetricas"></div></div>
   <div class="sec"><div class="fld">Huecos de conocimiento</div><div id="intelHuecos"></div></div>
   <div class="sec"><div class="fld">Cobertura de la base (por país × vertical × audiencia)</div><div id="intelCobertura"></div></div>
@@ -1029,7 +1056,7 @@ body{background:transparent}
         <div class="em-claim" id="emMailClaim" style="display:none"></div>
         <div class="em-quad em-mailonly">
           <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div></div>
-          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" title="Resumir la conversacion del chat del cliente y armar el cuerpo del correo" onclick="event.stopPropagation();emResumirChatACorreo()">Resumir chat → correo</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
+          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" title="Resumir la conversacion del chat del cliente y armar el cuerpo del correo" onclick="event.stopPropagation();emResumirChatACorreo()">Resumir chat → correo</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" title="Copia el enlace para que el cliente califique la atención y lo agrega al final del correo" onclick="event.stopPropagation();emCsatLink()">Link CSAT</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
         </div>
       </div>
     </div>
@@ -1345,7 +1372,7 @@ async function loadSup(){
     L.innerHTML=agentes.map(function(u){
       const actv=u.active!==false; const c=u.consultasHoy||0, ok=u.consultasOk||0; const p=c?Math.round(ok*100/c):0;
       return '<div class="uitem"><div style="flex:1;min-width:0">'+
-        '<div class="nm">'+esc(u.full_name||u.email)+(actv?'':' <span style="color:#c0392b;font-size:11px">· bloqueado</span>')+'</div>'+
+        '<div class="nm">'+esc(u.full_name||u.email)+((typeof PRES!=='undefined'&&PRES[u.id])?' <span style="color:var(--ok);font-size:11px">· en línea</span>':'')+(actv?'':' <span style="color:#c0392b;font-size:11px">· bloqueado</span>')+'</div>'+
         '<small style="color:var(--txt-2)">'+esc(u.email)+' · '+c+' consultas hoy · '+p+'% con respaldo · '+(u.emailsHoy||0)+' accesos</small></div>'+
         '<button class="ubtn'+(actv?'':' on')+'" onclick="toggleAgent(\''+u.id+'\','+(!actv)+')">'+(actv?'Bloquear':'Desbloquear')+'</button>'+
       '</div>';
@@ -3018,6 +3045,8 @@ function ckActions(){
   add('Panel de administración','admin',()=>openPanel(),isAdmin());
   add('Supervisión — métricas de agentes','equipo',()=>openSup(),puedeSupervisar());
   add('Ver como agente (demo)','admin',()=>toggleDemo(),isRealAdmin());
+  add('Tour de la consola (guía rápida)','ayuda',()=>tourOpen());
+  add('Modo presentación — Resultados','admin',()=>resOpen(),isAdmin());
   add('Cerrar sesión','cuenta',()=>doLogout());
   return A;
 }
@@ -3066,6 +3095,161 @@ document.addEventListener('keydown',e=>{
   }
 });
 
+/* ============================================================
+   PRESENCIA — quién está en línea (Supabase Realtime Presence,
+   sin tablas: es efímero). Pill en el header + puntos verdes en
+   el chat de equipo y en Supervisión.
+   ============================================================ */
+let PRES={}, presChan=null;
+function initPresence(){
+  if(!sb||!me||presChan)return;
+  try{
+    presChan=sb.channel('online-'+CONFIG.tenant,{config:{presence:{key:me.id}}});
+    presChan.on('presence',{event:'sync'},function(){
+      PRES={};
+      try{ const st=presChan.presenceState(); Object.keys(st).forEach(function(k){ const m=(st[k]&&st[k][0])||{}; PRES[k]={email:m.email||'',name:m.name||m.email||'agente'}; }); }catch(e){}
+      presRender();
+    }).subscribe(function(status){
+      if(status==='SUBSCRIBED'){ try{ presChan.track({email:me.email,name:(myProfile&&myProfile.full_name)||me.email}); }catch(e){} }
+    });
+  }catch(e){}
+}
+function presRender(){
+  const el=$('presPill'); if(!el)return;
+  const n=Object.keys(PRES).length;
+  if(!n){ el.style.display='none'; }
+  else{
+    el.style.display='';
+    el.innerHTML='<span style="width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:5px;vertical-align:middle;box-shadow:0 0 0 3px rgba(27,122,82,.18)"></span>'+n+' en línea';
+    el.title='Conectados ahora: '+Object.keys(PRES).map(function(k){return PRES[k].name;}).join(', ');
+  }
+  if(tcOpen && typeof tcRenderList==='function') tcRenderList();
+}
+
+/* ============================================================
+   CSAT — link público para que el cliente califique (csat.html).
+   Requiere correr supabase-csat.sql (si no, la página lo avisa).
+   ============================================================ */
+function emCsatLink(){
+  const t=EMBANDEJA.find(function(x){return x.id===emSelMail;});
+  if(!t){ toast('Selecciona un correo primero'); return; }
+  const base=location.origin+location.pathname.replace(/[^\/]*$/,'');
+  const url=base+'csat.html?t='+encodeURIComponent(CONFIG.tenant)+'&c='+encodeURIComponent(t.id);
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url).catch(function(){});
+  const sug=$('emMailSug');
+  if(sug && (sug.value||'').indexOf('csat.html')<0){
+    sug.value=(sug.value?sug.value+'\n\n':'')+'¿Cómo fue la atención? Califícanos aquí: '+url;
+    t.draft=sug.value; t.draftEdited=true; emSave(); emPushDebounced(t);
+    toast('Link CSAT copiado y agregado al final del correo');
+  } else toast('Link CSAT copiado');
+}
+
+/* ============================================================
+   MODO PRESENTACIÓN (Resultados) — KPIs del equipo en pantalla
+   completa, pensado para enseñar a un decisor. Solo admin.
+   ============================================================ */
+let _resDias=7;
+function resOpen(){
+  if(!isAdmin())return;
+  let el=$('resPanel');
+  if(!el){
+    el=document.createElement('div'); el.id='resPanel'; el.className='results';
+    el.innerHTML='<div class="res-head"><span class="res-brand">'+escapeHtml(CONFIG.plataforma)+'</span><span class="sub">Resultados del soporte con IA</span>'+
+      '<select class="in mini" id="resDias" style="margin-left:auto" onchange="_resDias=parseInt(this.value,10)||7;resLoad()"><option value="7" selected>7 días</option><option value="30">30 días</option></select>'+
+      '<button class="ic" title="Cerrar" onclick="resClose()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'+
+      '<div class="res-body"><div class="res-grid" id="resGrid"></div>'+
+      '<div class="fld" style="margin-bottom:8px">Consultas por día</div><div class="res-bars" id="resBars"></div>'+
+      '<div class="res-note">Datos reales de la consola (consultas del equipo y calificaciones de clientes) · '+escapeHtml(CONFIG.plataforma)+'</div></div>';
+    document.body.appendChild(el);
+  }
+  el.classList.add('on'); resLoad();
+}
+function resClose(){ const el=$('resPanel'); if(el)el.classList.remove('on'); }
+async function resLoad(){
+  const g=$('resGrid'), bx=$('resBars'); if(!g)return;
+  g.innerHTML='<div class="res-card"><div class="res-l">Cargando métricas…</div></div>';
+  let m=null;
+  try{ const {data,error}=await sb.rpc('intel_resumen',{match_tenant:CONFIG.tenant,dias:_resDias}); if(error)throw error; m=data||{}; }catch(e){ m=null; }
+  let csat=null;
+  try{ const {data}=await sb.from('csat_respuestas').select('rating').eq('tenant',CONFIG.tenant); if(data&&data.length){ csat={n:data.length, avg:data.reduce(function(a,r){return a+(r.rating||0);},0)/data.length}; } }catch(e){}
+  if(!m){ g.innerHTML='<div class="res-card"><div class="res-l">No se pudieron cargar las métricas (revisa la sesión o el RPC intel_resumen)</div></div>'; if(bx)bx.innerHTML=''; return; }
+  const tasa=m.tasa_ok!=null?m.tasa_ok:0;
+  const online=Object.keys(PRES||{}).length;
+  const cards=[
+    {n:(m.consultas_periodo||0), l:'consultas resueltas · '+_resDias+' días'},
+    {n:tasa+'%', l:'respuestas con respaldo en la base'},
+    {n:(m.consultas_hoy||0), l:'consultas hoy'+(online?(' · '+online+' agentes en línea'):'')},
+    {n: csat?(csat.avg.toFixed(1)+' / 5'):'—', l: csat?('satisfacción del cliente ('+csat.n+' calificaciones)'):'satisfacción del cliente (aún sin calificaciones)'}
+  ];
+  g.innerHTML=cards.map(function(c){ return '<div class="res-card"><div class="res-n">'+c.n+'</div><div class="res-l">'+c.l+'</div></div>'; }).join('');
+  const dias=(m.por_dia||[]); const mx=Math.max.apply(null,[1].concat(dias.map(function(d){return d.n;})));
+  if(bx) bx.innerHTML=dias.map(function(d){ return '<div class="res-bar" title="'+escapeHtml(d.fecha||'')+': '+d.n+'"><i style="height:'+Math.round(8+92*d.n/mx)+'%"></i><span>'+escapeHtml((d.fecha||'').slice(5))+'</span></div>'; }).join('')||'<small style="color:var(--txt-3)">sin datos del período</small>';
+}
+
+/* ============================================================
+   TOUR GUIADO — recorrido de 60 segundos por la consola, con
+   spotlight sobre cada zona. Para demos y onboarding de agentes.
+   ============================================================ */
+let _tourI=0,_tourSteps=[],_tourKey=null;
+function tourSteps(){
+  const S=[];
+  const add=function(sel,title,text){ let el=null; if(sel){ el=document.querySelector(sel); if(!el||el.offsetParent===null)return; } S.push({el:el,title:title,text:text}); };
+  add(null,'Bienvenido a '+CONFIG.plataforma,'Este tour de 60 segundos te muestra lo esencial de la consola. Avanza con Siguiente o las flechas del teclado.');
+  add('.searchwrap','Busca clientes y salas','Escribe un usuario, correo, cédula o número de sala. Al abrirlo, la IA responde cruzando TODOS sus datos.');
+  add('.side','Ficha calculada en vivo','Bono, requisitos, rollover, alertas de multicuenta y si puede retirar: todo se calcula de los datos crudos, nada viene pre-masticado.');
+  add('.turno','Tu turno','El país y vertical que atiendes. La IA responde SOLO con información de ese país: nunca mezcla bonos o pagos de otro lado.');
+  add('#leftDock','Paneles de trabajo','Inbox multicanal (correo + chat), copiloto, salas retail, herramientas y chat de equipo. Todo a un clic.');
+  add('#emBtn','Inbox con IA','Cada conversación llega con respuesta sugerida, análisis interno para el agente y coherencia entre el chat y el correo del mismo cliente.');
+  add('#teamBtn','Equipo en línea','Chat interno estilo Messenger con ventanas flotantes, y presencia: ves quién está conectado ahora mismo.');
+  add(null,'Y todo con Ctrl+K','La paleta de comandos abre cualquier cliente, sala o panel sin tocar el mouse. Pruébala al salir del tour.');
+  return S;
+}
+function tourOpen(){
+  _tourSteps=tourSteps(); if(!_tourSteps.length)return; _tourI=0;
+  let ov=$('tourOv');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='tourOv'; ov.className='tour-ov';
+    ov.innerHTML='<div class="tour-hole" id="tourHole"></div><div class="tour-card" id="tourCard"></div>';
+    document.body.appendChild(ov);
+    ov.onclick=function(e){ if(e.target===ov) tourNext(); };
+  }
+  ov.style.display='';
+  _tourKey=function(e){
+    if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); tourEnd(); }
+    else if(e.key==='ArrowRight'||e.key==='Enter'){ e.preventDefault(); tourNext(); }
+    else if(e.key==='ArrowLeft'){ e.preventDefault(); tourPrev(); }
+  };
+  document.addEventListener('keydown',_tourKey,true);
+  tourShow();
+}
+function tourShow(){
+  const st=_tourSteps[_tourI]; if(!st){ tourEnd(); return; }
+  const hole=$('tourHole'), card=$('tourCard'); if(!hole||!card)return;
+  const total=_tourSteps.length;
+  card.innerHTML='<div class="tour-tt">'+escapeHtml(st.title)+'</div><div class="tour-tx">'+escapeHtml(st.text)+'</div>'+
+    '<div class="tour-row"><span class="tour-n">'+(_tourI+1)+' / '+total+'</span>'+
+    '<button class="btn ghost" style="padding:6px 12px;font-size:12px" onclick="tourEnd()">Salir</button>'+
+    (_tourI>0?'<button class="btn ghost" style="padding:6px 12px;font-size:12px" onclick="tourPrev()">Anterior</button>':'')+
+    '<button class="btn" style="padding:6px 14px;font-size:12px" onclick="tourNext()">'+(_tourI===total-1?'Terminar':'Siguiente')+'</button></div>';
+  if(st.el){
+    const r=st.el.getBoundingClientRect(); const p=8;
+    hole.style.borderWidth='2px';
+    hole.style.left=(r.left-p)+'px'; hole.style.top=(r.top-p)+'px';
+    hole.style.width=(r.width+2*p)+'px'; hole.style.height=(r.height+2*p)+'px';
+    card.style.transform='';
+    const cw=320, ch=card.offsetHeight||180;
+    let top=r.bottom+p+14; if(top+ch>innerHeight-10) top=Math.max(10,r.top-p-ch-14);
+    let left=Math.min(Math.max(10,r.left),Math.max(10,innerWidth-cw-10));
+    card.style.top=top+'px'; card.style.left=left+'px';
+  } else {
+    hole.style.borderWidth='0'; hole.style.left='50vw'; hole.style.top='42vh'; hole.style.width='0px'; hole.style.height='0px';
+    card.style.top='50%'; card.style.left='50%'; card.style.transform='translate(-50%,-50%)';
+  }
+}
+function tourNext(){ if(_tourI>=_tourSteps.length-1){ tourEnd(); return; } _tourI++; tourShow(); }
+function tourPrev(){ if(_tourI>0){ _tourI--; tourShow(); } }
+function tourEnd(){ const ov=$('tourOv'); if(ov)ov.remove(); if(_tourKey){ document.removeEventListener('keydown',_tourKey,true); _tourKey=null; } }
+
 /* ---- aplicar marca (CONFIG) ---- */
 function applyBrand(){
   try{
@@ -3097,7 +3281,7 @@ function tcRenderList(){ const L=$('tcList'); if(!L)return; const q=(($('tcSearc
   let convs=[{id:'team',nombre:'Equipo (todos)'}].concat(tcAgentes);
   if(q) convs=convs.filter(c=>c.nombre.toLowerCase().includes(q));
   L.innerHTML=convs.map(c=>{ const u=tcUnread[c.id]||0; const last=tcEsc(tcLastMsg(c.id).slice(0,42)); const ini=(c.id==='team'?'#':((c.nombre[0]||'A').toUpperCase()));
-    return '<div class="tc-li" onclick="tcOpenConv(\''+c.id+'\')"><div class="tc-av'+(c.id==='team'?' team':'')+'">'+tcEsc(ini)+'</div><div class="tc-li-b"><div class="tc-li-n">'+tcEsc(c.nombre)+(u?'<span class="tc-badge">'+u+'</span>':'')+'</div><div class="tc-li-l">'+(last||'—')+'</div></div></div>'; }).join('')||'<div class="em-empty" style="padding:14px;color:var(--txt-2)">Sin resultados.</div>';
+    return '<div class="tc-li" onclick="tcOpenConv(\''+c.id+'\')"><div class="tc-av'+(c.id==='team'?' team':'')+'">'+tcEsc(ini)+'</div><div class="tc-li-b"><div class="tc-li-n">'+tcEsc(c.nombre)+((c.id!=='team'&&typeof PRES!=='undefined'&&PRES[c.id])?'<span title="En línea" style="width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block;flex:none"></span>':'')+(u?'<span class="tc-badge">'+u+'</span>':'')+'</div><div class="tc-li-l">'+(last||'—')+'</div></div></div>'; }).join('')||'<div class="em-empty" style="padding:14px;color:var(--txt-2)">Sin resultados.</div>';
 }
 function tcBadges(){ const tot=Object.keys(tcUnread).reduce((a,k)=>a+(tcUnread[k]||0),0); const el=$('teamDot'); if(el){ if(tot){ el.style.display='grid'; el.textContent=tot>99?'99+':String(tot); } else { el.style.display='none'; el.textContent=''; } } if(tcOpen)tcRenderList(); }
 function tcOpenConv(conv){
@@ -3126,7 +3310,7 @@ function subTeam(){ if(!sb||tcChan)return; tcChan=sb.channel('team-'+CONFIG.tena
 async function delTeamMsg(id,mine){ if(!await appConfirm('¿Borrar este mensaje?',{danger:true}))return; try{ if(mine){ await sb.from('team_messages').delete().eq('id',id); } else if(isAdmin()){ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_delete',id})}); } else return; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo borrar: '+(e.message||e)); } }
 async function clearTeam(){ if(!isAdmin())return; if(!await appConfirm('¿Borrar TODO el chat de equipo (general, para todos)?',{danger:true}))return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_clear',tenant:CONFIG.tenant})}); tcMsgsArr=[]; Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo: '+(e.message||e)); } }
 function tcDownscale(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=1280; let w=img.width,h=img.height; if(w>max||h>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);} const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); res(c.toDataURL('image/jpeg',0.6)); }; img.onerror=()=>res(null); img.src=r.result; }; r.onerror=()=>res(null); r.readAsDataURL(file); }); }
-async function initTeam(){ await loadTeam(); subTeam(); tcLoadAgentes(); }
+async function initTeam(){ await loadTeam(); subTeam(); tcLoadAgentes(); initPresence(); }
 
 applyBrand();
 loadComandosExtra();

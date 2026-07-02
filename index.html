@@ -2532,7 +2532,7 @@ function emClienteInfoHTML(t, slot){
   rows.push((esChat?'Chat':'Correo')+' · '+pais+' · '+escapeHtml(est)+(emClaimTxt(t)?(' · '+escapeHtml(emClaimTxt(t))):''));
   if(cc){ rows.push('Saldo '+fmtMon(cc.saldo,cc.pais)+' · KYC '+((cc.kyc&&cc.kyc.verificado)?'verificado':'<b style="color:var(--bad,#e66)">pendiente</b>')+(cc.nivel==='VIP'?' · VIP':'')+(cc.autoexcluido?' · <b style="color:var(--bad,#e66)">autoexcluido</b>':'')+((cc.tickets_previos&&cc.tickets_previos.length)?(' · '+cc.tickets_previos.length+' tickets'):'')); }
   const quitar = cc ? '<span title="Quitar cliente" style="position:absolute;top:3px;right:6px;cursor:pointer;opacity:.55;font-size:13px" onclick="event.stopPropagation();emDetachCliente(\''+slot+'\')">×</span>' : '';
-  return '<div style="position:relative;font-size:11px;line-height:1.5;background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.18);border-radius:8px;padding:6px 9px;margin:2px 0">'+quitar+rows.map(function(r){return '<div>'+r+'</div>';}).join('')+'</div>';
+  return '<div style="position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:3px 12px;font-size:11px;line-height:1.45;background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.18);border-radius:8px;padding:6px 26px 6px 10px;margin:2px 0">'+quitar+rows.map(function(r,i){return '<div style="'+(i>0?'padding-left:12px;border-left:1px solid rgba(127,127,127,.22)':'')+'">'+r+'</div>';}).join('')+'</div>';
 }
 function emRenderSlot(slot){
   const isMail=(slot==='mail');

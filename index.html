@@ -3019,7 +3019,7 @@ async function sendMsg(){
   // ENRUTAMIENTO AUTOMATICO: imagen adjunta + pregunta de apuesta ("por que perdi", "cupon",
   // "mal saldada"...) -> va directo al VERIFICADOR (lee el ticket y busca el resultado en ESPN),
   // en vez de la respuesta generica. El boton "Verificar ticket" sigue disponible para el caso sin texto.
-  if(imgs.length && esConsultaTicket(t)){ if(!iaGuard())return; await verificarTicketFlow(imgs, s); return; }
+  if(imgs.length && esConsultaTicket(t)){ if(!iaGuard())return; await verificarTicketFlow(imgs.slice(-1), s); return; }
   // RESPUESTA RÁPIDA: si la pregunta coincide con una FAQ, responde al instante SIN gastar IA
   if(t && !imgs.length){ let faq=matchFaq(t); if(faq && typeof faqConfident==='function' && !faqConfident(faq,t)) faq=null; /* no dejar que una FAQ de disparador corto secuestre una pregunta larga/compleja */ if(faq){ s.mensajes.push({role:'assistant',content:faq.respuesta}); renderChat(); if(autocopy){ const sug=extraerSugerida(faq.respuesta); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); } return; } }
   if(!iaGuard()) return;   // anti-bucle (no afecta uso real)
@@ -3068,7 +3068,7 @@ async function verificarTicketFlow(imgs, s){
   finally{ $('typing').classList.remove('on'); $('send').disabled=false; renderChat(); }
 }
 async function verificaTicket(){
-  const imgs=pendingImgs.slice();
+  const imgs=pendingImgs.slice(-1);   // solo la imagen MAS RECIENTE (evita analizar un ticket viejo si quedo adjunto)
   if(!imgs.length){ toast('Adjunta primero la foto del ticket de apuesta.'); return; }
   if(!me){ authMsg('Inicia sesión primero.',true); gateShow(); return; }
   const s=activeS();

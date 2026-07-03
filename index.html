@@ -2993,7 +2993,10 @@ if($('faqAdd')) $('faqAdd').onclick=addFaq;
 let pendingImgs=[];
 function renderPending(){ const a=$('attach'); if(!a)return; a.innerHTML=pendingImgs.map((d,i)=>'<div class="athumb"><img src="'+d+'"><span class="rm" onclick="rmPending('+i+')">×</span></div>').join(''); const tb=$('ticketBtn'); if(tb) tb.style.display = pendingImgs.length ? '' : 'none'; }
 function rmPending(i){ pendingImgs.splice(i,1); renderPending(); }
-function _downscaleImg(dataUrl, cb){ try{ const im=new Image(); im.onload=function(){ const MX=1280; let w=im.naturalWidth||im.width, h=im.naturalHeight||im.height; if(!w||!h){ cb(dataUrl); return; } if(w>MX||h>MX){ const r=Math.min(MX/w,MX/h); w=Math.round(w*r); h=Math.round(h*r); } const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,w,h); x.drawImage(im,0,0,w,h); try{ cb(c.toDataURL('image/jpeg',0.72)); }catch(_){ cb(dataUrl); } }; im.onerror=function(){ cb(dataUrl); }; im.src=dataUrl; }catch(_){ cb(dataUrl); } }
+// Reduccion suave: MX 2000 y calidad 0.85 para que NO se pierda la letra pequena de un ticket
+// (una captura vertical de telefono ~1080x2400 antes se encogia a 576 de ancho y la vision no leia
+// los equipos/mercados). 2000/0.85 mantiene el texto legible y sigue por debajo del limite de Groq.
+function _downscaleImg(dataUrl, cb){ try{ const im=new Image(); im.onload=function(){ const MX=2000; let w=im.naturalWidth||im.width, h=im.naturalHeight||im.height; if(!w||!h){ cb(dataUrl); return; } if(w>MX||h>MX){ const r=Math.min(MX/w,MX/h); w=Math.round(w*r); h=Math.round(h*r); } const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,w,h); x.drawImage(im,0,0,w,h); try{ cb(c.toDataURL('image/jpeg',0.85)); }catch(_){ cb(dataUrl); } }; im.onerror=function(){ cb(dataUrl); }; im.src=dataUrl; }catch(_){ cb(dataUrl); } }
 function addPendingFiles(files){ for(const f of files){ if(f.type&&f.type.indexOf('image')===0){ const rd=new FileReader(); rd.onload=()=>{ _downscaleImg(rd.result, function(small){ pendingImgs.push(small); renderPending(); }); }; rd.readAsDataURL(f); } } }
 $('attBtn').onclick=()=>$('attFile').click();
 $('attFile').onchange=e=>{ addPendingFiles(e.target.files); e.target.value=''; };

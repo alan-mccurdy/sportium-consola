@@ -232,7 +232,7 @@
 
   /* CONFIG / ADMIN PANEL */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:.3s;z-index:20}
-  .appmodal{position:fixed;inset:0;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.42);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:.2s;z-index:60}
+  .appmodal{position:fixed;inset:0;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.42);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:.2s;z-index:88} /* SIEMPRE encima de splash (70), results (75), cmdk (80) y tour (85): aqui se pide el codigo 2FA */
   .appmodal.on{opacity:1;pointer-events:auto}
   .appmodal .am-card{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:22px 22px 18px;transform:translateY(10px) scale(.98);transition:.2s}
   .appmodal.on .am-card{transform:none}
@@ -1160,7 +1160,7 @@ async function handleSession(session){
   catch(e){ myProfile={role:'agent',email:me.email}; }
   // cuenta bloqueada por el admin -> cerrar sesión
   if(myProfile && myProfile.active===false){ authMsg('Tu cuenta está bloqueada. Contacta al administrador.',true); try{ await sb.auth.signOut(); }catch(e){} me=null; myProfile={role:'agent'}; gateShow(); return; }
-  if(isRealAdmin()){ await mfaGate(); }   // 2FA: si el admin tiene 2FA activo, pide el codigo antes de dar permisos
+  if(isRealAdmin()){ bootDone(); await mfaGate(); }   // 2FA: OCULTAR el splash ANTES de pedir el codigo (tapaba el modal y parecia que "no cargaba")
   gateHide(); applyRoleUI();
   $('who').innerHTML=(me.email||'')+(isAdmin()?' · <b>admin</b>':'');
   await loadContext();

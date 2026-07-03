@@ -3002,6 +3002,10 @@ async function sendMsg(){
   const s=activeS();
   $('input').value=''; $('input').style.height='auto'; pendingImgs=[]; renderPending();
   s.mensajes.push({role:'user',content:t||'(imagen adjunta)', imgs}); renderChat();
+  // ENRUTAMIENTO AUTOMATICO: imagen adjunta + pregunta de apuesta ("por que perdi", "cupon",
+  // "mal saldada"...) -> va directo al VERIFICADOR (lee el ticket y busca el resultado en ESPN),
+  // en vez de la respuesta generica. El boton "Verificar ticket" sigue disponible para el caso sin texto.
+  if(imgs.length && esConsultaTicket(t)){ if(!iaGuard())return; await verificarTicketFlow(imgs, s); return; }
   // RESPUESTA RÁPIDA: si la pregunta coincide con una FAQ, responde al instante SIN gastar IA
   if(t && !imgs.length){ let faq=matchFaq(t); if(faq && typeof faqConfident==='function' && !faqConfident(faq,t)) faq=null; /* no dejar que una FAQ de disparador corto secuestre una pregunta larga/compleja */ if(faq){ s.mensajes.push({role:'assistant',content:faq.respuesta}); renderChat(); if(autocopy){ const sug=extraerSugerida(faq.respuesta); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); } return; } }
   if(!iaGuard()) return;   // anti-bucle (no afecta uso real)
@@ -3029,13 +3033,11 @@ async function sendMsg(){
   finally{ $('typing').classList.remove('on'); $('send').disabled=false; renderChat(); }
 }
 const WEBHOOK_TICKET = WEBHOOK.replace('/sportium-chat','/verifica-ticket').replace('/soporte-chat','/verifica-ticket');
-async function verificaTicket(){
-  const imgs=pendingImgs.slice();
-  if(!imgs.length){ toast('Adjunta primero la foto del ticket de apuesta.'); return; }
-  if(!me){ authMsg('Inicia sesión primero.',true); gateShow(); return; }
-  const s=activeS();
-  s.mensajes.push({role:'user',content:'(ticket de apuesta para verificar)', imgs}); renderChat();
-  pendingImgs=[]; renderPending();
+// Detecta si el mensaje (con imagen adjunta) es una consulta de TICKET de apuesta -> enruta al
+// verificador (lookup en ESPN) en vez de la respuesta generica del chat.
+function esConsultaTicket(t){ t=(t||'').toLowerCase(); return /\bapuesta|\bapost|cup[oó]n|cupon|\bticket\b|combinada|parlay|no me pag|mal saldad|mal liquidad|liquidaci[oó]n|se perdi[oó]|perd[ií]\b|gan[eé]\b.*apuesta|por qu[eé][\s\S]{0,40}(perd|gan)/.test(t); }
+// Flujo compartido: manda la(s) imagen(es) al verificador de tickets y pega la respuesta en el chat.
+async function verificarTicketFlow(imgs, s){
   $('send').disabled=true; $('typing').classList.add('on'); $('chat').scrollTop=$('chat').scrollHeight;
   try{
     const {data:{session}}=await sb.auth.getSession();
@@ -3050,6 +3052,15 @@ async function verificaTicket(){
     if(autocopy){ const sug=extraerSugerida(r); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); }
   }catch(e){ s.mensajes.push({role:'assistant',content:'(No pude verificar el ticket: '+e.message+')'}); }
   finally{ $('typing').classList.remove('on'); $('send').disabled=false; renderChat(); }
+}
+async function verificaTicket(){
+  const imgs=pendingImgs.slice();
+  if(!imgs.length){ toast('Adjunta primero la foto del ticket de apuesta.'); return; }
+  if(!me){ authMsg('Inicia sesión primero.',true); gateShow(); return; }
+  const s=activeS();
+  s.mensajes.push({role:'user',content:'(ticket de apuesta para verificar)', imgs}); renderChat();
+  pendingImgs=[]; renderPending();
+  await verificarTicketFlow(imgs, s);
 }
 $('send').onclick=sendMsg;
 $('input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});

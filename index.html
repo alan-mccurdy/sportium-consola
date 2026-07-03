@@ -1193,7 +1193,7 @@ async function mfaGate(){
       try{ const {data:ch}=await sb.auth.mfa.challenge({factorId:v.id}); const {error}=await sb.auth.mfa.verify({factorId:v.id,challengeId:ch.id,code:(code||'').trim()}); if(!error){ mfaOk=true; toast('2FA verificado'); } else toast('Código incorrecto, reintenta'); }catch(e){ toast('Código incorrecto, reintenta'); }
     }
     if(!mfaOk) toast('2FA sin verificar: tu acceso de admin queda limitado hasta completarlo (recarga para reintentar).');
-  }catch(e){ mfaOk=true; }   // si MFA no esta disponible, no bloquear
+  }catch(e){ mfaOk=false; toast('No se pudo verificar el 2FA. Tu acceso de admin queda limitado; recarga para reintentar.'); }   // FAIL-CLOSED: ante error NO conceder admin (antes concedia sin verificar)
 }
 async function mfaRefresh(){
   const st=$('mfaStatus'), bt=$('mfaBtn'), off=$('mfaOff'), en=$('mfaEnroll'); if(!st)return;
@@ -1246,10 +1246,13 @@ $('authMagic').onclick=async()=>{
   authMsg('Enviando…'); $('authMagic').disabled=true;
   try{
     // pasa por el backend: solo envía el enlace si el agente está dado de alta y ACTIVO
-    const r=await fetch(LOGIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,redirect:location.href.split(/[?#]/)[0]})});
+    const r=await fetch(LOGIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
     const j=await r.json().catch(()=>({})); const d=Array.isArray(j)?j[0]:j;
-    if(d&&d.ok){ authMsg('Te envié un enlace a '+email+'. Ábrelo desde este dispositivo.'); }
-    else{ const M={bloqueado:'Tu cuenta está bloqueada. Contacta al administrador.',no_invitado:'Ese correo no está dado de alta. Pide acceso al administrador.',limite:'Llegaste al límite de enlaces por hoy. Intenta mañana.',email:'Correo inválido.'}; authMsg(M[d&&d.reason]||'No se pudo enviar el enlace. Intenta de nuevo en un momento.',true); }
+    // Respuesta GENERICA a proposito (el backend ya no revela si el correo existe/esta bloqueado):
+    // no confirmamos que el correo este dado de alta, solo que SI lo esta, llegara el enlace.
+    if(d&&d.ok){ authMsg('Si ese correo está dado de alta como agente activo, te enviamos un enlace. Ábrelo desde este dispositivo.'); }
+    else if(d&&d.reason==='email'){ authMsg('Correo inválido.',true); }
+    else{ authMsg('No se pudo procesar la solicitud. Intenta de nuevo en un momento.',true); }
   }catch(e){ authMsg('Error de conexión. Intenta de nuevo.',true); }
   finally{ $('authMagic').disabled=false; }
 };
@@ -1419,6 +1422,9 @@ const PAISN={MX:'México',PA:'Panamá',CO:'Colombia'};
    La IA y TODOS los indicadores se CALCULAN a partir de estos
    datos crudos + el catalogo de bonos. Nada viene "pre-masticado".
    ============================================================ */
+// Fecha de referencia SOLO para los datos demo (dias desde deposito, vigencia de bonos, rollover).
+// Es fija a proposito para que los casos de demostracion sean reproducibles; BUMP esta fecha a la
+// del dia antes de una presentacion para que los "dias desde deposito" no se vean viejos.
 const HOY = new Date('2026-06-11');
 const MON = {MX:'MXN', CO:'COP', PA:'PAB'};
 
@@ -2519,7 +2525,15 @@ function emPushDebounced(t){ if(!emCloudReady||!t)return; clearTimeout(emPushT[t
 async function emCloudDelete(id){ if(!emCloudReady||!sb||!id)return; try{ await sb.from('inbox_conversaciones').delete().eq('id',id); }catch(e){} }
 function subInbox(){ if(!sb||emChan||!emCloudReady)return; emChan=sb.channel('inbox-'+CONFIG.tenant)
   .on('postgres_changes',{event:'*',schema:'public',table:'inbox_conversaciones',filter:'tenant=eq.'+CONFIG.tenant}, function(p){ emOnRealtime(p); })
-  .subscribe(); }
+  .subscribe(function(status){
+    // Reconexion: si el canal se cae (suspender laptop, red intermitente) lo re-suscribimos
+    // para no quedarnos con una copia vieja del inbox sin enterarnos.
+    if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){ try{ sb.removeChannel(emChan); }catch(e){} emChan=null; setTimeout(function(){ if($('emailPanel')&&$('emailPanel').classList.contains('on')) subInbox(); }, 2500); }
+  }); }
+// Al volver a la pestaña (tras suspender/segundo plano) re-sincroniza el inbox y re-suscribe.
+let _emVisBound=false;
+function emBindVisibility(){ if(_emVisBound)return; _emVisBound=true; document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible' && $('emailPanel') && $('emailPanel').classList.contains('on')){ emCloudLoad().then(function(ok){ if(ok){ if(!emChan) subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); } }); } }); }
+emBindVisibility();
 function emOnRealtime(p){
   if(p.eventType==='DELETE'){ const id=p.old&&p.old.id; if(id){ EMBANDEJA=EMBANDEJA.filter(function(x){return x.id!==id;}); emRenderList(); } return; }
   const r=p.new; if(!r)return; const inc=emRowToThread(r);
@@ -2533,16 +2547,32 @@ function emOnRealtime(p){
 function emTomadaPorOtro(t){ return !!(t&&t.tomado_por&&me&&t.tomado_por!==me.id); }
 function emPuedeResponder(t){ return !emTomadaPorOtro(t) || (typeof isAdmin==='function'&&isAdmin()); }
 function emClaimTxt(t){ if(!t||!t.tomado_email)return ''; return (t.tomado_por===(me&&me.id))?('la tomaste tú'):('atiende: '+t.tomado_email); }
-function emTomar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t){ toast('Selecciona una conversacion'); return; }
+async function emClaimRow(t){
+  // Toma la conversacion de forma ATOMICA via RPC (un UPDATE condicional en la base): asi dos
+  // agentes NO pueden quedarse ambos con la misma. Devuelve true si quedo a mi nombre.
+  // Degradacion suave: sin nube, o si la RPC aun no esta desplegada/da error, cae al modo
+  // optimista de siempre para no romper el inbox antes de correr el SQL.
+  if(!emCloudReady||!sb||!t){ t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); return true; }
+  try{
+    const {data,error}=await sb.rpc('claim_conversacion',{p_id:t.id,p_agente:me.id,p_email:(myProfile&&myProfile.full_name)||me.email});
+    if(error) throw error;
+    const row=Array.isArray(data)?data[0]:data;
+    if(!row) return false;   // otro agente la tomo primero
+    t.tomado_por=row.tomado_por; t.tomado_email=row.tomado_email; t.tomado_at=row.tomado_at; return true;
+  }catch(e){ t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); return true; }
+}
+async function emTomar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t){ toast('Selecciona una conversacion'); return; }
   if(emTomadaPorOtro(t) && !(typeof isAdmin==='function'&&isAdmin())){ toast('Ya la está atendiendo '+(t.tomado_email||'otro agente')); return; }
-  t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); if((t.estado||'nuevo')==='nuevo')t.estado='leido'; emSave(); emPush(t); emRenderList(); emRenderSlot(slot); toast('La tomaste: '+t.tomado_email);
+  const _ok=await emClaimRow(t);
+  if(!_ok){ toast('Justo la tomó otro agente'); await emCloudLoad(); emRenderList(); emRenderSlot(slot); return; }
+  if((t.estado||'nuevo')==='nuevo')t.estado='leido'; emSave(); emPush(t); emRenderList(); emRenderSlot(slot); toast('La tomaste: '+t.tomado_email);
   // Al asignarte la conversacion, genera la respuesta sugerida si aun no hay (y no la has escrito tu).
   const _yaResp=(t.mensajes||[]).some(function(m){return m.from==='agente';});
   if(!t.iaRaw && !(t.draftEdited && t.draft) && !_yaResp){ emPedirSugerencia(slot); }
   emTomarMismoCliente(t); }
 // Complemento: al tomar una conversacion, si el MISMO cliente tiene otra en el OTRO canal,
 // tomala tambien y genera su respuesta (es la misma persona). No roba conversaciones ya tomadas por otro.
-function emTomarMismoCliente(t){
+async function emTomarMismoCliente(t){
   if(!t || !emClienteKeys(t).length)return;
   var tIsChat=(t.canal==='mensaje');
   var otro=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if((x.canal==='mensaje')===tIsChat)return false; return emMismoCliente(t,x); });
@@ -2550,7 +2580,8 @@ function emTomarMismoCliente(t){
   t._linkOtro=otro.id; otro._linkOtro=t.id;   // CRUCE de contexto entre canales
   if(typeof emTomadaPorOtro==='function' && emTomadaPorOtro(otro))return;   // ya la atiende alguien mas: no la robamos
   var oslot=(otro.canal==='mensaje')?'chat':'mail';
-  otro.tomado_por=me.id; otro.tomado_email=(myProfile&&myProfile.full_name)||me.email; otro.tomado_at=new Date().toISOString(); if((otro.estado||'nuevo')==='nuevo')otro.estado='leido';
+  const _ok2=await emClaimRow(otro); if(!_ok2)return;   // claim atomico: si otro la tomo justo ahora, no la robamos
+  if((otro.estado||'nuevo')==='nuevo')otro.estado='leido';
   emSave(); emPush(otro);
   if(oslot==='mail')emSelMail=otro.id; else emSelChat=otro.id; emSaveSel();
   emRenderList(); emRenderSlot(oslot);
@@ -2738,7 +2769,10 @@ async function emPedirSugerencia(slot){
       body:JSON.stringify({mensajes:mensajes, canal:canal, audiencia:(vert==='retail'?'interno':'cliente'), formato:(canal==='email'?'correo':'mensaje'), instruccion:dirFinal, cliente:(vert==='retail'?null:(cliente||null)), pais:pais, turno:{pais:pais,vertical:vert}, escalar:(vert==='retail'&&!!t.escalar), tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
     if(!res.ok) throw new Error('Servidor '+res.status);
     let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ j={}; }
-    t.iaRaw=(j.respuesta||'').trim(); emRaw=t.iaRaw; t.draft=(vert==='retail')?(extraerSugerida(t.iaRaw)||t.iaRaw):extraerSugerida(t.iaRaw); t.draftEdited=false;
+    const _iaTxt=(j.respuesta||'').trim();
+    // IA CAIDA: NO pisar el borrador con un texto de error (podria enviarse al cliente). Avisar y salir.
+    if((j.ok===false)||j.chainFailed||!_iaTxt){ toast('La IA no está disponible ahora (proveedores saturados). No generé sugerencia; escribe la respuesta o reintenta.'); emSave(); emRenderSlot(slot); return; }
+    t.iaRaw=_iaTxt; emRaw=t.iaRaw; t.draft=(vert==='retail')?(extraerSugerida(t.iaRaw)||t.iaRaw):extraerSugerida(t.iaRaw); t.draftEdited=false;
     var _lk=(vert==='retail')?[]:emEnlaces((t.mensajes||[]).map(function(m){return m.text;}).join(' '), pais);   // sin enlaces de autoservicio para personal de sala
     if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n' + _lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); }
     emSave(); emPush(t);
@@ -2981,10 +3015,16 @@ async function sendMsg(){
     if(!raw) throw new Error('el workflow de n8n respondió vacío. En n8n, el webhook "sportium-chat" debe terminar en un nodo «Respond to Webhook» que devuelva {"respuesta":"…"}.');
     let data; try{ data=JSON.parse(raw); }catch(_){ data={respuesta:raw}; }
     const d=Array.isArray(data)?data[0]:data;
-    const r=(d&&(d.respuesta||d.output||d.text||d.message))||'…';
-    if(d&&d.modelo) trackUsage(d.modelo, d.tokens);
-    s.mensajes.push({role:'assistant',content:r,log_id:(d&&d.log_id)||null, fuentes:(d&&d.fuentes)||[], sin_respaldo:!!(d&&d.sin_respaldo) && !s.cliente && !s.sala});
-    if(autocopy){ const sug=extraerSugerida(r); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); }
+    const r=(d&&(d.respuesta||d.output||d.text||d.message))||'';
+    // IA CAIDA: si la cadena de proveedores fallo (ok:false / chainFailed) o no vino texto, NO
+    // mostramos ni copiamos un texto de error como si fuera respuesta: avisamos claro.
+    if((d&&(d.ok===false||d.chainFailed))||!r){
+      s.mensajes.push({role:'assistant',content:'(La IA no está disponible en este momento: los proveedores están saturados o caídos. Espera unos segundos y reintenta, o escribe la respuesta manualmente.)', iaFallo:true});
+    } else {
+      if(d&&d.modelo) trackUsage(d.modelo, d.tokens);
+      s.mensajes.push({role:'assistant',content:r,log_id:(d&&d.log_id)||null, fuentes:(d&&d.fuentes)||[], sin_respaldo:!!(d&&d.sin_respaldo)});
+      if(autocopy){ const sug=extraerSugerida(r); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); }
+    }
   }catch(e){ s.mensajes.push({role:'assistant',content:'(No pude responder: '+e.message+')'}); }
   finally{ $('typing').classList.remove('on'); $('send').disabled=false; renderChat(); }
 }
@@ -3330,7 +3370,7 @@ async function loadTeam(){ if(!sb)return; try{ const {data}=await sb.from('team_
 function subTeam(){ if(!sb||tcChan)return; tcChan=sb.channel('team-'+CONFIG.tenant)
   .on('postgres_changes',{event:'INSERT',schema:'public',table:'team_messages',filter:'tenant=eq.'+CONFIG.tenant},payload=>{ const m=payload.new; if(tcMsgsArr.some(x=>x.id===m.id))return; if(m.to_id && !(me&&(m.from_id===me.id||m.to_id===me.id)))return; tcMsgsArr.push(m); const conv=tcConvOfMsg(m); const win=tcWins[conv]; if(win && !win.classList.contains('min')){ tcRenderWin(conv); } else if(!me||m.from_id!==me.id){ tcUnread[conv]=(tcUnread[conv]||0)+1; if(!tcWins[conv]&&!tcHeads[conv]){ tcHeads[conv]=true; } } tcBadges(); })
   .on('postgres_changes',{event:'DELETE',schema:'public',table:'team_messages'},payload=>{ const id=payload.old&&payload.old.id; if(id){ const n=tcMsgsArr.length; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); if(tcMsgsArr.length!==n){ Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); } } })
-  .subscribe(); }
+  .subscribe(function(status){ if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){ try{ sb.removeChannel(tcChan); }catch(e){} tcChan=null; setTimeout(function(){ subTeam(); }, 3000); } }); }
 async function delTeamMsg(id,mine){ if(!await appConfirm('¿Borrar este mensaje?',{danger:true}))return; try{ if(mine){ await sb.from('team_messages').delete().eq('id',id); } else if(isAdmin()){ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_delete',id})}); } else return; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo borrar: '+(e.message||e)); } }
 async function clearTeam(){ if(!isAdmin())return; if(!await appConfirm('¿Borrar TODO el chat de equipo (general, para todos)?',{danger:true}))return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_clear',tenant:CONFIG.tenant})}); tcMsgsArr=[]; Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo: '+(e.message||e)); } }
 function tcDownscale(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=1280; let w=img.width,h=img.height; if(w>max||h>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);} const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); res(c.toDataURL('image/jpeg',0.6)); }; img.onerror=()=>res(null); img.src=r.result; }; r.onerror=()=>res(null); r.readAsDataURL(file); }); }

@@ -3003,13 +3003,13 @@ async function sendMsg(){
   $('input').value=''; $('input').style.height='auto'; pendingImgs=[]; renderPending();
   s.mensajes.push({role:'user',content:t||'(imagen adjunta)', imgs}); renderChat();
   // RESPUESTA RÁPIDA: si la pregunta coincide con una FAQ, responde al instante SIN gastar IA
-  if(t && !imgs.length){ const faq=matchFaq(t); if(faq){ s.mensajes.push({role:'assistant',content:faq.respuesta}); renderChat(); if(autocopy){ const sug=extraerSugerida(faq.respuesta); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); } return; } }
+  if(t && !imgs.length){ let faq=matchFaq(t); if(faq && typeof faqConfident==='function' && !faqConfident(faq,t)) faq=null; /* no dejar que una FAQ de disparador corto secuestre una pregunta larga/compleja */ if(faq){ s.mensajes.push({role:'assistant',content:faq.respuesta}); renderChat(); if(autocopy){ const sug=extraerSugerida(faq.respuesta); if(sug) navigator.clipboard.writeText(sug).catch(()=>{}); } return; } }
   if(!iaGuard()) return;   // anti-bucle (no afecta uso real)
   $('send').disabled=true; $('typing').classList.add('on'); $('chat').scrollTop=$('chat').scrollHeight;
   try{
     const {data:{session}}=await sb.auth.getSession();
     const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
-      body:JSON.stringify({cliente_id:s.cliente?s.cliente.usuario:'', cliente:s.cliente||null, analisis:s.cliente?analizar(s.cliente):null, catalogo:s.cliente?BONOS[s.cliente.pais]:null, sala:s.sala||null, comandos:s.sala?COMANDOS:null, pais:s.cliente?s.cliente.pais:(s.sala?'PA':''), tenant:CONFIG.tenant, imagenes:getImagenes(), empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, base:getBase(), mensajes:s.mensajes.map(m=>({role:m.role,content:m.content})), adjuntos:imgs, agente:me.email, turno:{pais:turnoPais(),vertical:turnoVert()}, glosario:GLOS})});
+      body:JSON.stringify({cliente_id:s.cliente?s.cliente.usuario:'', cliente:s.cliente||null, analisis:s.cliente?analizar(s.cliente):null, catalogo:s.cliente?BONOS[s.cliente.pais]:null, sala:s.sala||null, comandos:s.sala?COMANDOS:null, pais:s.cliente?s.cliente.pais:(s.sala?(s.sala.pais||'PA'):''), tenant:CONFIG.tenant, imagenes:getImagenes(), empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, base:getBase(), mensajes:s.mensajes.map(m=>({role:m.role,content:m.content})), adjuntos:imgs, agente:me.email, turno:{pais:turnoPais(),vertical:turnoVert()}, glosario:GLOS})});
     if(!res.ok)throw new Error('Servidor '+res.status);
     const raw=(await res.text()||'').trim();
     if(!raw) throw new Error('el workflow de n8n respondió vacío. En n8n, el webhook "sportium-chat" debe terminar en un nodo «Respond to Webhook» que devuelva {"respuesta":"…"}.');

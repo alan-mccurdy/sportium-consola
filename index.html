@@ -883,6 +883,14 @@ body{background:transparent}
     <button class="btn" onclick="transIndexar()">Indexar al RAG</button>
     <div class="hint" id="transStatus" style="margin-top:8px"></div>
   </div>
+  <div class="sec" style="border-top:1px dashed var(--line);padding-top:10px">
+    <div class="fld">Cargar transcripción de CAPACITACIÓN (automático por país)</div>
+    <div class="hint">Sube el <b>.vtt</b> o <b>.txt</b> del video (o pega el texto). La IA lo <b>separa por país y tema</b>, <b>quita lo repetido y las muletillas</b>, y lo indexa donde va. Puede venir largo y mezclar países.</div>
+    <input type="file" id="capFile" accept=".vtt,.txt,.srt,text/plain" class="in" style="margin:6px 0" onchange="capLeerArchivo(event)">
+    <textarea class="ta" id="capText" rows="8" style="min-height:150px" placeholder="Aquí aparece el texto del .vtt (o pégalo). No importa que traiga tiempos, muletillas o mezcle países."></textarea>
+    <button class="btn" onclick="cargarCapacitacion()" style="margin-top:6px">Procesar y cargar por país</button>
+    <div class="hint" id="capStatus" style="margin-top:8px;white-space:pre-wrap"></div>
+  </div>
 </aside>
 
 <!-- ===== MIS HERRAMIENTAS (todos los agentes) ===== -->
@@ -2366,6 +2374,22 @@ function _stopLive(){
 }
 function openTrans(){ if(!isAdmin())return; $('transOverlay').classList.add('on'); $('transPanel').classList.add('on'); const st=$('transStatus'); if(st)st.textContent=''; }
 function closeTrans(){ if(_live.on){ _live.want=false; _stopLive(); } if(_recOn){ _recWant=false; try{_rec.stop();}catch(e){} } $('transOverlay').classList.remove('on'); $('transPanel').classList.remove('on'); }
+/* ===== Cargar transcripcion de CAPACITACION: segmenta por pais + limpia + indexa (auto) ===== */
+const CAP_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/kb-transcript";
+function capLeerArchivo(e){ const f=e.target.files&&e.target.files[0]; if(!f)return; const rd=new FileReader(); rd.onload=function(){ const ta=$('capText'); if(ta) ta.value=(rd.result||'').toString(); const st=$('capStatus'); if(st)st.textContent='Archivo cargado ('+Math.round(((rd.result||'').length)/1000)+' KB). Revisa y dale "Procesar y cargar por pais".'; }; rd.readAsText(f); e.target.value=''; }
+async function cargarCapacitacion(){
+  if(!isAdmin()){ toast('Solo el administrador puede cargar capacitaciones'); return; }
+  const txt=(($('capText')&&$('capText').value)||'').trim();
+  if(txt.length<40){ toast('Sube el .vtt o pega la transcripcion primero'); return; }
+  const st=$('capStatus'); if(st)st.textContent='Procesando... (segmentando por pais y limpiando; puede tardar unos segundos)';
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const res=await fetch(CAP_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({tenant:CONFIG.tenant, texto:txt, agente:me?me.email:''})});
+    const raw=(await res.text()||'').trim(); let d={}; try{ d=JSON.parse(raw); d=Array.isArray(d)?d[0]:d; }catch(e){ d={ok:false,error:'respuesta no valida del servidor'}; }
+    if(d&&d.ok){ if(st)st.textContent='Listo.\n'+(d.resumen||('Cargados '+d.cargados+' procedimiento(s).'))+(d.recortado?'\n\n(Nota: la transcripcion era muy larga; se proceso la primera parte. Sube el resto por separado.)':''); toast('Capacitacion cargada: '+((d&&d.cargados)||0)+' procedimiento(s)'); try{ if(typeof loadIntel==='function')loadIntel(); }catch(_){} }
+    else { if(st)st.textContent='No se pudo: '+((d&&d.error)||'error'); }
+  }catch(e){ if(st)st.textContent='Error de conexion: '+((e&&e.message)||e); }
+}
 async function transSubir(){
   const inp=$('transFile'); if(!inp||!inp.files||!inp.files[0]){ toast('Elige un archivo de audio'); return; }
   const f=inp.files[0]; if(f.size>24*1024*1024){ toast('Audio muy grande (max ~24MB). Trocea la llamada.'); return; }

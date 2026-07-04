@@ -2161,8 +2161,13 @@ async function loadFaqs(){ if(!sb)return; try{ const {data}=await sb.from('faqs'
 const FAQ_STOP={como:1,para:1,que:1,los:1,las:1,del:1,con:1,por:1,una:1,uno:1,unos:1,unas:1,este:1,esta:1,esto:1,mas:1,pero:1,sin:1,sobre:1,entre:1,son:1,fue:1,ser:1,estar:1,tengo:1,tiene:1,puedo:1,puede:1,quiero:1,necesito:1,donde:1,cuando:1,cual:1,cuales:1,porque:1,desde:1,hasta:1,algun:1,alguna:1,tipo:1,hace:1,hacer:1,manera:1,forma:1,favor:1,hola:1,buenas:1,buenos:1,dias:1,tardes:1};
 function faqRoot(w){ return w.length>5?w.slice(0,5):w; }
 function faqWords(s){ return normFaq(s).split(' ').filter(function(w){ return w.length>=3 && !FAQ_STOP[w]; }); }
-/* matchFaq tolerante: ignora muletillas, casa por raiz (verifico~verificar~verificacion) y gana la FAQ mas especifica */
-function matchFaq(text){ const t=normFaq(text); if(!t)return null; let best=null,bestN=0; for(const f of FAQS){ const words=faqWords(f.disparador); if(!words.length) continue; const ok=words.every(function(w){ return t.indexOf(faqRoot(w))>=0; }); if(ok && words.length>bestN){ best=f; bestN=words.length; } } return best; }
+/* Pais activo (nombre) para FAQs conscientes de pais: una FAQ con el pais en el disparador
+   (ej. "bono bienvenida colombia") solo casa cuando ESE pais esta activo; las universales casan
+   siempre. Se agrega el nombre del pais al texto comparado. */
+const _FAQ_PN={MX:'mexico',PA:'panama',CO:'colombia',RD:'republica dominicana'};
+function _faqPais(paisCode){ try{ if(!paisCode){ const s=(typeof activeS==='function')?activeS():null; paisCode=(s&&s.cliente&&s.cliente.pais)||(typeof turnoPais==='function'?turnoPais():''); } return _FAQ_PN[paisCode]||''; }catch(e){ return ''; } }
+/* matchFaq tolerante: ignora muletillas, casa por raiz (verifico~verificar~verificacion), gana la FAQ mas especifica, y considera el PAIS activo */
+function matchFaq(text, paisCode){ const t=normFaq(text+' '+_faqPais(paisCode)); if(!normFaq(text))return null; let best=null,bestN=0; for(const f of FAQS){ const words=faqWords(f.disparador); if(!words.length) continue; const ok=words.every(function(w){ return t.indexOf(faqRoot(w))>=0; }); if(ok && words.length>bestN){ best=f; bestN=words.length; } } return best; }
 /* Confianza de una FAQ frente a una pregunta larga (correo): la FAQ solo "gana" si cubre
    buena parte de lo que pregunta el cliente. Evita que un disparador suelto (ej. "promocion")
    secuestre un correo que en realidad pregunta otra cosa. */
@@ -2705,7 +2710,7 @@ async function emPedirSugerencia(slot){
   const gen=$(isMail?'emMailGen':'emChatGen'); if(!t)return;
   // Correcciones (Ensenar a la IA): si el mensaje del cliente coincide con una FAQ, usala (0 tokens)
   var _lastCli=''; for(var _k=(t.mensajes||[]).length-1;_k>=0;_k--){ if(t.mensajes[_k].from==='cliente'){ _lastCli=t.mensajes[_k].text||''; break; } }
-  var _faq=(typeof matchFaq==='function')?matchFaq(_lastCli):null;
+  var _faq=(typeof matchFaq==='function')?matchFaq(_lastCli, (typeof emThreadPais==='function'?emThreadPais(t):'')):null;
   if(_faq && typeof faqConfident==='function' && !faqConfident(_faq,_lastCli)) _faq=null; // no dejar que una FAQ suelta secuestre un correo largo
   if(_faq){ var _pais=emThreadPais(t); t.iaRaw='Para ti (interno): Respuesta tomada de una correccion guardada (FAQ), sin IA.\nRespuesta sugerida al cliente: '+_faq.respuesta; t.draft=extraerSugerida(t.iaRaw); t.draftEdited=false; var _lk=emEnlaces(_lastCli,_pais); if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n'+_lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); } emSave(); emPush(t); emRenderSlot(slot); return; }
   if(gen)gen.textContent='generando...'; const ab=$('emAddBtn'); if(ab)ab.disabled=true;

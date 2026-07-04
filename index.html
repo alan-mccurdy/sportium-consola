@@ -1064,7 +1064,7 @@ body{background:transparent}
         <div class="em-claim" id="emChatClaim" style="display:none"></div>
         <div class="em-quad em-lr">
           <div class="em-leftcol">
-            <div class="em-q em-conv"><div class="em-coltitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div></div>
+            <div class="em-q em-conv"><div class="em-coltitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emChatTicketImg"></span><label class="btn ghost" style="cursor:pointer;margin:0">Adjuntar ticket<input type="file" accept="image/*" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();emAdjuntarTicket('chat',event)"></label><button class="btn ghost" title="Analiza el ticket de apuesta (imagen o lo que describa el cliente) y explica por qué ganó o perdió" onclick="event.stopPropagation();emAnalizarTicket('chat')">Analizar ticket</button></div></div>
             <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('chat')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
           </div>
           <div class="em-q em-ana" id="emChatAna"><div class="em-coltitle">Interno (chat y correo)</div><div class="em-analisis" id="emChatAnalisis"></div></div>
@@ -1074,7 +1074,7 @@ body{background:transparent}
         <div class="em-slot-h"><span class="em-badge canal">Correo</span><span id="emMailWho">sin correo seleccionado</span><select class="em-pais-sel" id="emMailPais" style="display:none" title="País de esta conversación" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadPais('mail',this.value)"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select><select class="em-pais-sel" id="emMailVert" style="display:none" title="¿Es un cliente o personal de sala (retail)?" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadVert('mail',this.value)"><option value="online">Cliente</option><option value="retail">Sala</option></select><span id="emMailLink"></span><span id="emMailCli" style="margin-left:auto"></span></div>
         <div class="em-claim" id="emMailClaim" style="display:none"></div>
         <div class="em-quad em-mailonly">
-          <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div></div>
+          <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emMailTicketImg"></span><label class="btn ghost" style="cursor:pointer;margin:0">Adjuntar ticket<input type="file" accept="image/*" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();emAdjuntarTicket('mail',event)"></label><button class="btn ghost" title="Analiza el ticket de apuesta (imagen o lo que describa el cliente) y explica por qué ganó o perdió" onclick="event.stopPropagation();emAnalizarTicket('mail')">Analizar ticket</button></div></div>
           <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" title="Resumir la conversacion del chat del cliente y armar el cuerpo del correo" onclick="event.stopPropagation();emResumirChatACorreo()">Resumir chat → correo</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" title="Copia el enlace para que el cliente califique la atención y lo agrega al final del correo" onclick="event.stopPropagation();emCsatLink()">Link CSAT</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
         </div>
       </div>
@@ -2686,8 +2686,11 @@ function emRenderSlot(slot){
     if($('emPara'))$('emPara').value=t.de||'';
     if($('emAsuntoOut'))$('emAsuntoOut').value=(t.asunto&&!/^re:/i.test(t.asunto))?('Re: '+t.asunto):(t.asunto||'');
   } else {
-    const th=$('emChatThread'); if(th) th.innerHTML=(t.mensajes||[]).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+escapeHtml(m.text)+'</div>'; }).join('');
+    const th=$('emChatThread'); if(th) th.innerHTML=(t.mensajes||[]).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+escapeHtml(m.text||'')+((m.img||m.image_url)?('<br><img src="'+(m.img||m.image_url)+'" style="max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();emVerImg(this.src)">'):'')+'</div>'; }).join('');
   }
+  // miniatura del ticket de apuesta adjuntado a esta conversacion (si hay)
+  const _tkImg=$(isMail?'emMailTicketImg':'emChatTicketImg');
+  if(_tkImg) _tkImg.innerHTML = t.ticketImg ? ('<img src="'+t.ticketImg+'" style="max-width:60px;max-height:60px;border-radius:6px;vertical-align:middle;cursor:pointer" title="Ver ticket" onclick="event.stopPropagation();emVerImg(this.src)">') : '';
   if(sug){
     sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):'');
     const _tid=t.id;
@@ -2737,6 +2740,12 @@ async function emPedirSugerencia(slot){
   var _faq=(typeof matchFaq==='function')?matchFaq(_lastCli, (typeof emThreadPais==='function'?emThreadPais(t):'')):null;
   if(_faq && typeof faqConfident==='function' && !faqConfident(_faq,_lastCli)) _faq=null; // no dejar que una FAQ suelta secuestre un correo largo
   if(_faq){ var _pais=emThreadPais(t); t.iaRaw='Para ti (interno): Respuesta tomada de una correccion guardada (FAQ), sin IA.\nRespuesta sugerida al cliente: '+_faq.respuesta; t.draft=extraerSugerida(t.iaRaw); t.draftEdited=false; var _lk=emEnlaces(_lastCli,_pais); if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n'+_lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); } emSave(); emPush(t); emRenderSlot(slot); return; }
+  // RECLAMO DE APUESTA: si hay imagen de ticket adjunta, o el cliente describe una liquidacion con
+  // evento/mercado concreto ("gane/perdi ... Argentina vs Cabo Verde resultado exacto"), analiza el
+  // ticket con el verificador (misma calidad del chat) en vez de la sugerencia normal. Un reclamo
+  // vago ("no me pagaron") NO entra aqui -> lo atiende la sugerencia normal (RAG de pagos).
+  var _disputa = (typeof esConsultaTicket==='function' && esConsultaTicket(_lastCli)) && /(\bvs\b|contra\b|resultado exacto|pr[oó]rroga|ambos marcan|doble oportunidad|goleador|h[aá]ndicap|\bover\b|\bunder\b|marcador|combinada|parlay|1x2)/i.test(_lastCli);
+  if(emThreadVert(t)!=='retail' && (t.ticketImg || _disputa)){ return emAnalizarTicket(slot); }
   if(gen)gen.textContent='generando...'; const ab=$('emAddBtn'); if(ab)ab.disabled=true;
   try{
     const canal=(t.canal==='mensaje'?'mensaje':'email');
@@ -2809,6 +2818,44 @@ async function emPedirSugerencia(slot){
     emRenderSlot(slot);
   }catch(e){ toast('No se pudo generar la sugerencia'); }
   finally{ if(gen)gen.textContent=''; const ab2=$('emAddBtn'); if(ab2)ab2.disabled=false; }
+}
+/* ===== Ticket de apuesta en el inbox: adjuntar imagen + analizar (imagen o texto) ===== */
+function emAdjuntarTicket(slot, ev){
+  const f=ev&&ev.target&&ev.target.files&&ev.target.files[0]; if(ev&&ev.target)ev.target.value='';
+  if(!f)return;
+  const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;});
+  if(!t){ toast('Selecciona primero la conversación'); return; }
+  const rd=new FileReader(); rd.onload=function(){ _downscaleImg(rd.result, function(small){ t.ticketImg=small; emSave(); emRenderSlot(slot); toast('Imagen del ticket adjuntada. Dale "Analizar ticket".'); }); }; rd.readAsDataURL(f);
+}
+function emVerImg(src){ const w=window.open('','_blank'); if(w) w.document.write('<img src="'+src+'" style="max-width:100%">'); }
+// Analiza el ticket con el MISMO verificador del chat general (imagen y/o descripcion del cliente).
+// El verificador devuelve el formato "Para ti (interno): ... Respuesta sugerida al cliente: ...",
+// asi que reusamos todo el render del inbox (panel interno + borrador de respuesta al cliente).
+async function emAnalizarTicket(slot){
+  slot=slot||emFocus; const isMail=(slot==='mail');
+  const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;});
+  if(!t){ toast('Selecciona una conversación'); return; }
+  const cliTxt=(t.mensajes||[]).filter(function(m){return m.from!=='agente';}).map(function(m){return m.text||'';}).join('\n').trim();
+  const img=t.ticketImg||null;
+  if(!img && !(typeof esConsultaTicket==='function'&&esConsultaTicket(cliTxt)) && cliTxt.length<12){ toast('Adjunta la imagen del ticket o deja que el cliente describa la apuesta (equipos y mercado).'); return; }
+  const gen=$(isMail?'emMailGen':'emChatGen'); if(gen)gen.textContent='analizando ticket...';
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const payload={ tenant:CONFIG.tenant, agente:(me?me.email:''), texto:cliTxt };
+    if(img) payload.adjuntos=[img];
+    const res=await fetch(WEBHOOK_TICKET,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')}, body:JSON.stringify(payload)});
+    if(!res.ok) throw new Error('Servidor '+res.status);
+    const raw=(await res.text()||'').trim(); let data; try{ data=JSON.parse(raw); }catch(_){ data={respuesta:raw}; }
+    const d=Array.isArray(data)?data[0]:data; const r=(d&&d.respuesta)||'';
+    if(!r){ toast('No pude analizar el ticket'); return; }
+    // si el verificador devolvio el formato con respuesta al cliente, se reusa tal cual; si fue un
+    // error de lectura (texto suelto), lo ponemos como interno para que el agente lo vea.
+    t.iaRaw = /respuesta sugerida al cliente/i.test(r) ? r : ('Para ti (interno): '+r);
+    t.draft = extraerSugerida(t.iaRaw) || t.draft || '';
+    t.draftEdited=false; emSave(); emPush(t); emRenderSlot(slot);
+    toast('Ticket analizado');
+  }catch(e){ toast('No se pudo analizar el ticket'); }
+  finally{ if(gen)gen.textContent=''; }
 }
 function emResugerir(){ const t=emActiveThread(); if(!t){ toast('Selecciona una conversacion'); return; } t.draftEdited=false; emPedirSugerencia(emFocus); }
 // Re-sugiere la respuesta en AMBOS paneles a la vez: el chat y el correo, segun cuales tengan

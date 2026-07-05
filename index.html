@@ -2869,10 +2869,12 @@ async function emAnalizarTicket(slot){
     const raw=(await res.text()||'').trim(); let data; try{ data=JSON.parse(raw); }catch(_){ data={respuesta:raw}; }
     const d=Array.isArray(data)?data[0]:data; const r=(d&&d.respuesta)||'';
     if(!r){ toast('No pude analizar el ticket'); return; }
-    // si el verificador devolvio el formato con respuesta al cliente, se reusa tal cual; si fue un
-    // error de lectura (texto suelto), lo ponemos como interno para que el agente lo vea.
-    t.iaRaw = /respuesta sugerida al cliente/i.test(r) ? r : ('Para ti (interno): '+r);
-    t.draft = extraerSugerida(t.iaRaw) || t.draft || '';
+    // si el verificador devolvio el formato con respuesta al cliente, se reusa tal cual y el borrador
+    // = SOLO la parte del cliente. Si NO trae seccion cliente (error/solo interno), va al panel interno
+    // y el borrador del correo queda VACIO (nunca metemos texto interno en la respuesta al cliente).
+    const tieneCli = /respuesta\s+(?:sugerida\s+)?al\s+cliente/i.test(r);
+    t.iaRaw = tieneCli ? r : ('Para ti (interno): '+r);
+    t.draft = tieneCli ? (extraerSugerida(t.iaRaw)||'') : (t.draft||'');
     t.draftEdited=false; emSave(); emPush(t); emRenderSlot(slot);
     toast('Ticket analizado');
   }catch(e){ toast('No se pudo analizar el ticket'); }

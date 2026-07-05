@@ -2859,7 +2859,10 @@ async function emAnalizarTicket(slot){
   const gen=$(isMail?'emMailGen':'emChatGen'); if(gen)gen.textContent='analizando ticket...';
   try{
     const {data:{session}}=await sb.auth.getSession();
-    const payload={ tenant:CONFIG.tenant, agente:(me?me.email:''), texto:cliTxt };
+    const payload={ tenant:CONFIG.tenant, agente:(me?me.email:''), texto:cliTxt,
+      canal:(t.canal==='mensaje'?'mensaje':'email'),
+      nombreCli:((typeof emNombreCorreo==='function')?(emNombreCorreo(t)||''):''),
+      empresa:(CONFIG.cliente||'Sportium') };
     if(img) payload.adjuntos=[img];
     const res=await fetch(WEBHOOK_TICKET,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')}, body:JSON.stringify(payload)});
     if(!res.ok) throw new Error('Servidor '+res.status);

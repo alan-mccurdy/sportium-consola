@@ -2981,10 +2981,11 @@ async function emAprender(t, respuesta){
   var pregunta=''; for(var k=(t.mensajes||[]).length-1;k>=0;k--){ if(t.mensajes[k].from==='cliente'){ pregunta=t.mensajes[k].text||''; break; } }
   pregunta=(pregunta||t.asunto||'').trim(); respuesta=(respuesta||'').trim();
   if(pregunta.length<8 || respuesta.length<8){ toast('Marcado como respondido'); return; }
-  // APRENDIZAJE POR CASO (RAG): guarda la consulta + tu respuesta FINAL como "Caso resuelto" por
-  // pais, para que la IA responda parecido en casos similares de otros clientes. Admin, corto o largo,
-  // con dedup en el backend (no ensucia la base). Va en segundo plano (no bloquea).
-  if(typeof isAdmin==='function' && isAdmin() && sb){
+  // APRENDIZAJE POR CASO (RAG): guarda la consulta + la respuesta FINAL como "Caso resuelto" por
+  // pais, para que la IA responda parecido en casos similares de otros clientes. TODOS los agentes
+  // (la respuesta ya fue revisada/corregida antes de enviarla). Corto o largo, con dedup en el
+  // backend (no ensucia la base). Va en segundo plano (no bloquea).
+  if(sb){
     (async function(){ try{ const s=(await sb.auth.getSession()).data.session; if(s) await fetch(CASO_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+s.access_token},body:JSON.stringify({tenant:CONFIG.tenant, pregunta:pregunta, respuesta:respuesta, pais:emThreadPais(t), vertical:(typeof emThreadVert==='function'?emThreadVert(t):'online'), agente:(me?me.email:'')})}); }catch(e){} })();
   }
   // YA NO se indexa al RAG (eso generaba docs "Inbox · ..." duplicados). Solo guardamos una

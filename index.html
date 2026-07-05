@@ -2395,18 +2395,39 @@ function closeTrans(){ if(_live.on){ _live.want=false; _stopLive(); } if(_recOn)
 /* ===== Cargar transcripcion de CAPACITACION: segmenta por pais + limpia + indexa (auto) ===== */
 const CAP_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/kb-transcript";
 function capLeerArchivo(e){ const f=e.target.files&&e.target.files[0]; if(!f)return; const rd=new FileReader(); rd.onload=function(){ const ta=$('capText'); if(ta) ta.value=(rd.result||'').toString(); const st=$('capStatus'); if(st)st.textContent='Archivo cargado ('+Math.round(((rd.result||'').length)/1000)+' KB). Revisa y dale "Procesar y cargar por pais".'; }; rd.readAsText(f); e.target.value=''; }
+let _capBusy=false;
 async function cargarCapacitacion(){
   if(!isAdmin()){ toast('Solo el administrador puede cargar capacitaciones'); return; }
+  if(_capBusy){ toast('Ya se está procesando una carga, espera a que termine'); return; }
   const txt=(($('capText')&&$('capText').value)||'').trim();
   if(txt.length<40){ toast('Sube el .vtt o pega la transcripcion primero'); return; }
-  const st=$('capStatus'); if(st)st.textContent='Procesando... (segmentando por pais y limpiando; puede tardar unos segundos)';
-  try{
+  const st=$('capStatus');
+  // TROCEO EN PANTALLA: se envia el VTT en partes de ~26k para que cada peticion sea CORTA y NO se
+  // caiga la conexion ("Failed to fetch") con videos largos. El backend consolida entre partes (no
+  // duplica). Cada parte es una peticion aparte, con reintento.
+  const CH=26000; const partes=[]; { let buf=''; for(const ln of txt.split('\n')){ if((buf.length+ln.length+1)>CH && buf){ partes.push(buf); buf=''; } buf+=(buf?'\n':'')+ln; } if(buf.trim()) partes.push(buf); }
+  _capBusy=true;
+  let totalCargados=0, resumenTodo=[], hubo=false, fallidas=0;
+  async function enviar(parte){
     const {data:{session}}=await sb.auth.getSession();
-    const res=await fetch(CAP_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({tenant:CONFIG.tenant, texto:txt, agente:me?me.email:''})});
-    const raw=(await res.text()||'').trim(); let d={}; try{ d=JSON.parse(raw); d=Array.isArray(d)?d[0]:d; }catch(e){ d={ok:false,error:'respuesta no valida del servidor'}; }
-    if(d&&d.ok){ if(st)st.textContent='Listo.\n'+(d.resumen||('Cargados '+d.cargados+' procedimiento(s).'))+(d.recortado?'\n\n(Nota: la transcripcion era muy larga; se proceso la primera parte. Sube el resto por separado.)':''); toast('Capacitacion cargada: '+((d&&d.cargados)||0)+' procedimiento(s)'); try{ if(typeof loadIntel==='function')loadIntel(); }catch(_){} }
-    else { if(st)st.textContent='No se pudo: '+((d&&d.error)||'error'); }
-  }catch(e){ if(st)st.textContent='Error de conexion: '+((e&&e.message)||e); }
+    const res=await fetch(CAP_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({tenant:CONFIG.tenant, texto:parte, agente:me?me.email:''})});
+    const raw=(await res.text()||'').trim(); let d={}; try{ d=JSON.parse(raw); d=Array.isArray(d)?d[0]:d; }catch(e){ d={ok:false}; }
+    return d;
+  }
+  try{
+    for(let i=0;i<partes.length;i++){
+      if(st) st.textContent='Procesando parte '+(i+1)+' de '+partes.length+'... (segmentando por país y limpiando)';
+      let d=null;
+      for(let intento=0; intento<2 && !(d&&d.ok); intento++){   // 1 reintento por parte
+        try{ d=await enviar(partes[i]); }catch(e){ d={ok:false}; }
+        if(!(d&&d.ok) && intento===0) await new Promise(r=>setTimeout(r,1500));
+      }
+      if(d&&d.ok){ hubo=true; totalCargados+=(d.cargados||0); if(d.resumen) resumenTodo.push(d.resumen); }
+      else fallidas++;
+    }
+    if(hubo){ if(st) st.textContent='Listo. Se procesaron '+totalCargados+' procedimiento(s) en '+partes.length+' parte(s).'+(fallidas?(' ('+fallidas+' parte(s) no se pudieron ahora; vuelve a darle "Procesar" en un momento para completarlas — no se duplica lo ya cargado)'):'')+'\n\n'+resumenTodo.join('\n'); toast('Capacitación cargada: '+totalCargados+' procedimiento(s)'); try{ if(typeof loadIntel==='function')loadIntel(); }catch(_){} }
+    else { if(st) st.textContent='No se pudo procesar ahora (proveedores saturados o conexión). Reintenta en un par de minutos; los correos/chat siguen funcionando.'; }
+  } finally { _capBusy=false; }
 }
 async function transSubir(){
   const inp=$('transFile'); if(!inp||!inp.files||!inp.files[0]){ toast('Elige un archivo de audio'); return; }

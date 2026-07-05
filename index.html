@@ -2747,6 +2747,8 @@ function emRenderInterno(){
     const sameClient = !!((ct && ct.cliente && mt.cliente && ct.cliente.usuario===mt.cliente.usuario) || (ct && mt && ct.de && (ct.de||'').toLowerCase()===(mt.de||'').toLowerCase()));
     if(!sameClient){ const mi=renderContent(emInterno(mt.iaRaw)); if(mi) html += '<div class="em-coltitle" style="margin-top:10px">Interno del correo ('+escapeHtml(mt.de||'cliente')+')</div>'+mi; }
   }
+  if(ct) html += emCalidadHTML(ct);
+  if(mt && mt!==ct) html += emCalidadHTML(mt);
   box.innerHTML = html || '<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
   emRenderLink();
 }
@@ -2985,10 +2987,34 @@ function emOutlook(){
   if(cuerpo.length>1800){ if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(cuerpo); toast('Abriendo Outlook. El correo es largo: tambien lo copie por si se corta (Ctrl+V).'); }
   else toast('Abriendo Outlook con el correo listo. Revisa y envialo tu.');
 }
-function emResponder(slot){
+/* ===== REVISOR DE CALIDAD (IA supervisor): evalua la respuesta del agente ===== */
+async function emRevisarCalidad(t, txt){
+  if(!sb || !txt) return null;
+  var pregunta=''; for(var k=(t.mensajes||[]).length-1;k>=0;k--){ if(t.mensajes[k].from!=='agente'){ pregunta=t.mensajes[k].text||''; break; } }
+  pregunta=(pregunta||t.asunto||'').replace(/^asunto:\s*/i,'');
+  var vert=(typeof emThreadVert==='function')?emThreadVert(t):'online';
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const res=await fetch(CALIDAD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({pregunta:pregunta, respuesta:txt, pais:emThreadPais(t), canal:(t.canal==='mensaje'?'mensaje':'email'), audiencia:(vert==='retail'?'interno':'cliente')})});
+    if(!res.ok) return null;
+    const raw=(await res.text()||'').trim(); let d={}; try{ d=JSON.parse(raw); d=Array.isArray(d)?d[0]:d; }catch(e){ return null; }
+    return (d&&d.ok)?{score:d.score, grave:!!d.grave, problemas:Array.isArray(d.problemas)?d.problemas:[], at:Date.now()}:null;
+  }catch(e){ return null; }
+}
+function emCalidadHTML(t){ if(!t||!t.calidad)return ''; const c=t.calidad; const col=c.grave?'#e0564b':((c.score||0)>=4?'#2a9d5c':'var(--accent)'); return '<div style="margin-top:8px;padding:6px 8px;border-left:3px solid '+col+';background:rgba(127,127,127,.06);font-size:12px;border-radius:4px"><b>Revisor de calidad:</b> '+((c.score!=null)?('★ '+c.score+'/5'):'')+(c.grave?' · <b style="color:'+col+'">revisar antes de enviar</b>':' · sin problemas graves')+((c.problemas&&c.problemas.length)?('<br>'+c.problemas.map(function(p){return '· '+escapeHtml(p);}).join('<br>')):'')+'</div>'; }
+async function emResponder(slot){
   slot=slot||emFocus; const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); const sug=$(isMail?'emMailSug':'emChatSug'); if(!t||!sug){ toast('Selecciona una conversacion'); return; }
   const txt=(sug.value||'').trim(); if(!txt){ toast('Escribe o genera una respuesta primero'); return; }
   if(!emPuedeResponder(t)){ toast('La está atendiendo '+(t.tomado_email||'otro agente')+'. Pulsa "Tomar" si te la asignas (o pide al admin).'); return; }
+  // REVISOR DE CALIDAD (tiempo real): revisa ANTES de enviar; si detecta algo grave, avisa y deja decidir.
+  try{
+    const gen=$(isMail?'emMailGen':'emChatGen'); if(gen)gen.textContent='revisando calidad...';
+    const cal=await emRevisarCalidad(t, txt);
+    if(gen)gen.textContent='';
+    if(cal){ t.calidad=cal; emSave(); try{ if(typeof emPushDebounced==='function')emPushDebounced(t); }catch(_){}; emRenderInterno();
+      if(cal.grave){ const seguir=await appConfirm('El revisor de calidad detectó posibles problemas ANTES de enviar:\n\n· '+((cal.problemas||[]).join('\n· '))+'\n\n¿Enviar de todos modos?',{okText:'Enviar igual',cancelText:'Corregir',danger:true}); if(!seguir){ return; } }
+    }
+  }catch(e){}
   if(!t.tomado_por && me){ t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); }
   t.mensajes.push({from:'agente',text:txt,t:Date.now()}); t.estado='respondido'; t.draft=''; t.aprendido=true; sug.value=''; emSave(); emPush(t);
   if(slot==='mail')emSelMail=null; else emSelChat=null; emSaveSel();   // al responder se quita del panel; queda en la bandeja por si lo buscas
@@ -3179,6 +3205,7 @@ async function sendMsg(){
 }
 const WEBHOOK_TICKET = WEBHOOK.replace('/sportium-chat','/verifica-ticket').replace('/soporte-chat','/verifica-ticket');
 const CASO_WEBHOOK = WEBHOOK.replace('/sportium-chat','/kb-caso').replace('/soporte-chat','/kb-caso');
+const CALIDAD_WEBHOOK = WEBHOOK.replace('/sportium-chat','/revisar-calidad').replace('/soporte-chat','/revisar-calidad');
 // Detecta si el mensaje (con imagen adjunta) es una consulta de TICKET de apuesta -> enruta al
 // verificador (lookup en ESPN) en vez de la respuesta generica del chat.
 function esConsultaTicket(t){ t=(t||'').toLowerCase(); return /\bapuesta|\bapost|cup[oó]n|cupon|\bticket\b|combinada|parlay|no me pag|mal saldad|mal liquidad|liquidaci[oó]n|se perdi[oó]|perd[ií]\b|gan[eé]\b.*apuesta|por qu[eé][\s\S]{0,40}(perd|gan)/.test(t); }

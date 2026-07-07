@@ -2588,9 +2588,9 @@ let _emDraftT=null; function emSaveDraftDebounced(){ clearTimeout(_emDraftT); _e
 let emCloudReady=false, emChan=null; const emPushT={};
 function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
 function emThreadToRow(t){ return { id:t.id, tenant:CONFIG.tenant, canal:t.canal, de:t.de||'cliente', asunto:t.asunto||'', pais:emThreadPais(t), estado:t.estado||'nuevo', mensajes:t.mensajes||[], cliente:t.cliente||null, draft:t.draft||'', ia_raw:t.iaRaw||'', tomado_por:t.tomado_por||null, tomado_email:t.tomado_email||'', tomado_at:t.tomado_at||null, updated_by:me?me.id:null, updated_at:new Date().toISOString() }; }
-async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(!l) return; const isOpen=(n.id===emSelChat||n.id===emSelMail); if(isOpen || l.draftEdited){ /* conversacion ABIERTA o con TU edicion: NO pisar tu trabajo (borrador + interno) */ if(l.draft!=null) n.draft=l.draft; if(l.draftEdited) n.draftEdited=true; if(l.iaRaw) n.iaRaw=l.iaRaw; } else if(l.draft && !n.draft){ n.draft=l.draft; if(l.iaRaw) n.iaRaw=l.iaRaw; } if(l.vertical) n.vertical=l.vertical; }); const _inc={}; incoming.forEach(function(n){ _inc[n.id]=1; }); EMBANDEJA.forEach(function(l){ if(!_inc[l.id]) incoming.push(l); }); EMBANDEJA=incoming; emSave(); } return true; }catch(e){ emCloudReady=false; return false; } }
-async function emPush(t){ if(!emCloudReady||!sb||!t)return; try{ await sb.from('inbox_conversaciones').upsert(emThreadToRow(t)); }catch(e){} }
-function emPushDebounced(t){ if(!emCloudReady||!t)return; clearTimeout(emPushT[t.id]); emPushT[t.id]=setTimeout(function(){ emPush(t); }, 700); }
+async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(!l) return; const isOpen=(n.id===emSelChat||n.id===emSelMail); if(_emActive && !_emAdopt){ /* solo la pestaña ACTIVA conserva su trabajo; las pasivas ADOPTAN la nube (espejo) */ if(isOpen || l.draftEdited){ if(l.draft!=null) n.draft=l.draft; if(l.draftEdited) n.draftEdited=true; if(l.iaRaw) n.iaRaw=l.iaRaw; } else if(l.draft && !n.draft){ n.draft=l.draft; if(l.iaRaw) n.iaRaw=l.iaRaw; } } if(l.vertical) n.vertical=l.vertical; }); const _inc={}; incoming.forEach(function(n){ _inc[n.id]=1; }); EMBANDEJA.forEach(function(l){ if(!_inc[l.id]) incoming.push(l); }); EMBANDEJA=incoming; emSave(); } return true; }catch(e){ emCloudReady=false; return false; } }
+async function emPush(t){ if(!emCloudReady||!sb||!t)return; if(typeof _emActive!=='undefined' && !_emActive) return; /* pestaña pasiva: no sube (no pisa a la activa) */ try{ await sb.from('inbox_conversaciones').upsert(emThreadToRow(t)); }catch(e){} }
+function emPushDebounced(t){ if(!emCloudReady||!t)return; if(typeof _emActive!=='undefined' && !_emActive) return; clearTimeout(emPushT[t.id]); emPushT[t.id]=setTimeout(function(){ emPush(t); }, 700); }
 async function emCloudDelete(id){ if(!emCloudReady||!sb||!id)return; try{ await sb.from('inbox_conversaciones').delete().eq('id',id); }catch(e){} }
 function subInbox(){ if(!sb||emChan||!emCloudReady)return; emChan=sb.channel('inbox-'+CONFIG.tenant)
   .on('postgres_changes',{event:'*',schema:'public',table:'inbox_conversaciones',filter:'tenant=eq.'+CONFIG.tenant}, function(p){ emOnRealtime(p); })
@@ -2603,13 +2603,30 @@ function subInbox(){ if(!sb||emChan||!emCloudReady)return; emChan=sb.channel('in
 let _emVisBound=false;
 function emBindVisibility(){ if(_emVisBound)return; _emVisBound=true; document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible' && $('emailPanel') && $('emailPanel').classList.contains('on')){ emCloudLoad().then(function(ok){ if(ok){ if(!emChan) subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); } }); } }); }
 emBindVisibility();
+/* ===== CANDADO DE PESTAÑA UNICA: evita que 2 pestañas de la consola se pisen el borrador/interno.
+   La pestaña que MIRAS es la ACTIVA (la unica que sube cambios a la nube). Las demas quedan de solo
+   lectura reflejando a la activa (adoptan todo) y muestran un aviso para trabajar en una sola. ===== */
+const _emTabId = 'tab-'+Math.random().toString(36).slice(2);
+let _emActive = true, _emAdopt = false, _emBC = null;
+function _emReadActive(){ try{ return (JSON.parse(localStorage.getItem('sineli-active')||'{}')||{}).id; }catch(e){ return null; } }
+function _emShowDup(){ let b=$('emDupBanner'); if(!b){ b=document.createElement('div'); b.id='emDupBanner'; b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:99999;background:#e0564b;color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.35);max-width:92%;text-align:center'; document.body.appendChild(b); } b.innerHTML='SINELI está abierto en otra pestaña. Para no perder respuestas, trabaja en UNA sola. <button onclick="_emTakeOver()" style="margin-left:8px;background:#fff;color:#e0564b;border:0;border-radius:6px;padding:5px 12px;cursor:pointer;font-weight:700">Trabajar aquí</button>'; b.style.display='block'; }
+function _emHideDup(){ const b=$('emDupBanner'); if(b)b.style.display='none'; }
+function _emTakeOver(){ _emClaim(); }
+function _emSync(){ const a=_emReadActive(); const yo=(a===_emTabId || a==null); if(yo && !_emActive){ _emActive=true; _emHideDup(); } else if(!yo && _emActive){ _emActive=false; _emShowDup(); } }
+function _emClaim(){ const wasPassive=!_emActive; try{ localStorage.setItem('sineli-active', JSON.stringify({id:_emTabId,ts:Date.now()})); }catch(e){} _emActive=true; _emHideDup(); if(_emBC)try{ _emBC.postMessage({t:'claim'}); }catch(e){} if(wasPassive && $('emailPanel') && $('emailPanel').classList.contains('on')){ _emAdopt=true; emCloudLoad().then(function(){ _emAdopt=false; emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); }); } }
+(function(){ try{ _emBC=new BroadcastChannel('sineli-tabs'); _emBC.onmessage=function(){ _emSync(); }; }catch(e){}
+  window.addEventListener('storage', function(e){ if(e.key==='sineli-active') _emSync(); });
+  window.addEventListener('focus', _emClaim);
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible') _emClaim(); });
+  if(document.visibilityState==='visible') _emClaim(); else _emSync();   // al abrir: si la ves, tomas el control
+})();
 function emOnRealtime(p){
   if(p.eventType==='DELETE'){ const id=p.old&&p.old.id; if(id){ EMBANDEJA=EMBANDEJA.filter(function(x){return x.id!==id;}); emRenderList(); } return; }
   const r=p.new; if(!r)return; const inc=emRowToThread(r);
   const idx=EMBANDEJA.findIndex(function(x){return x.id===r.id;});
   const open=(r.id===emSelChat||r.id===emSelMail);
   if(idx<0){ EMBANDEJA.unshift(inc); }
-  else { const l=EMBANDEJA[idx]; if(open || l.draftEdited || (l.draft && !inc.draft)){ inc.draft=l.draft; if(l.draftEdited) inc.draftEdited=true; if(l.iaRaw) inc.iaRaw=l.iaRaw; } if(l.vertical) inc.vertical=l.vertical; /* no pisar lo que escribo, el interno, ni el tipo cliente/sala */ EMBANDEJA[idx]=inc; }
+  else { const l=EMBANDEJA[idx]; if(_emActive && (open || l.draftEdited || (l.draft && !inc.draft))){ inc.draft=l.draft; if(l.draftEdited) inc.draftEdited=true; if(l.iaRaw) inc.iaRaw=l.iaRaw; } if(l.vertical) inc.vertical=l.vertical; /* solo la pestaña activa conserva; las pasivas reflejan la nube */ EMBANDEJA[idx]=inc; }
   emRenderList();
   if(r.id===emSelChat) emRenderClaim('chat'); if(r.id===emSelMail) emRenderClaim('mail');
 }

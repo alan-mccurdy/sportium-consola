@@ -2803,6 +2803,7 @@ async function emPedirSugerencia(slot){
       '"Para ti (interno):" diagnostico, causa y pasos para el AGENTE (aqui van los datos internos: IPs, comandos, multicuenta, montos de referencia).',
       '"Verificar en el CRM:" 2 a 4 datos a confirmar.',
       '"Respuesta sugerida al cliente:" el mensaje FINAL listo para ENVIAR al cliente, de "usted", SIN ningun dato interno ni instrucciones para el agente.',
+      'COHERENCIA OBLIGATORIA: la "Respuesta sugerida al cliente" debe decir al cliente la MISMA conclusion de tu "Para ti (interno)" (traducida a lenguaje sencillo, sin datos internos). Responde EXACTAMENTE lo que el cliente pregunto en su mensaje; NO cambies de tema, NO contradigas tu diagnostico, NO des una respuesta generica. Si el interno concluye que falta un requisito, que se escala, o cual es la causa, la respuesta al cliente debe reflejar ESO mismo.',
       (canal==='email'
         ? ('Esa respuesta al cliente es un CORREO. '+(nombreCli
             ? ('Empieza con "Estimado/a '+nombreCli+'," en su propia linea. ')

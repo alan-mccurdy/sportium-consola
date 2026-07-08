@@ -94,6 +94,9 @@
   .msgsave{position:absolute;top:-7px;right:66px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--txt-2);cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow);display:grid;place-items:center}
   .msg:hover .msgsave{opacity:1} @media(hover:none){.msgsave{opacity:.55}}
   .msgsave svg{width:11px;height:11px}
+  .msgok{position:absolute;top:-7px;right:90px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--good,#2e9e5b);cursor:pointer;opacity:0;transition:.15s;box-shadow:var(--shadow);display:grid;place-items:center}
+  .msg:hover .msgok{opacity:1} @media(hover:none){.msgok{opacity:.55}}
+  .msgok svg{width:11px;height:11px}
   .msg.ai{align-self:flex-start;background:var(--bubble-ai);border-bottom-left-radius:5px}
   .msg-src{margin-top:7px;font-size:11px;color:var(--txt-2);display:flex;flex-wrap:wrap;gap:5px;align-items:center}
   .msg-src-lbl{font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:10px}
@@ -759,6 +762,14 @@ body{background:transparent}
     <div class="hint">Lo que los agentes marcan como incorrecto. Corrige una y la IA aprende (queda como FAQ, 0 tokens).</div>
     <div class="btnrow"><button class="btn" id="repLoad">Cargar reportes</button><span class="savemsg" id="repMsg"></span></div>
     <div class="ulist" id="repList"></div>
+  </div>
+
+  <!-- Huecos de conocimiento (preguntas que la KB no supo cubrir) -->
+  <div class="sec">
+    <h4 data-pxi="search">Huecos de conocimiento</h4>
+    <div class="hint">Preguntas reales donde la base NO tenía info suficiente. Agrega la respuesta y la KB deja de tener ese hueco.</div>
+    <div class="btnrow"><button class="btn" id="gapLoad">Cargar huecos</button><span class="savemsg" id="gapMsg"></span></div>
+    <div class="ulist" id="gapList"></div>
   </div>
 
   <!-- Base de conocimientos -->
@@ -1866,7 +1877,7 @@ function renderContent(text){ let t=esc(text);
   return t.replace(/\n/g,'<br>'); }
 function renderChat(){
   const c=$('chat'); c.querySelectorAll('.msg').forEach(e=>e.remove());
-  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); if(m.role==='assistant'&&m.sin_respaldo) h+='<div class="msg-warn">Sin respaldo en la base — verifícalo antes de enviarlo al cliente.</div>'; if(m.role==='assistant'&&m.fuentes&&m.fuentes.length&&isAdmin()) h+='<div class="msg-src"><span class="msg-src-lbl">Fuente:</span> '+m.fuentes.slice(0,4).map(f=>'<span class="srcchip">'+esc(f)+'</span>').join('')+'</div>'; if(m.role==='assistant') h+='<span class="msgrep" title="Reportar respuesta incorrecta" onclick="reportarIA('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2H7.3a2 2 0 0 0-2 1.7L4 12a2 2 0 0 0 2 2.3h4l-1 5a2 2 0 0 0 3.6 1.2L17 14"/><path d="M17 2v12"/></svg></span>'; if(m.role==='assistant') h+='<span class="msgsave" title="Guardar en mis favoritas" onclick="guardarFav('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>'; if(m.role==='assistant'&&isAdmin()) h+='<span class="msgteach" title="Corregir / Enseñar a la IA" onclick="ensenar('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>'; h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
+  activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); if(m.role==='assistant'&&m.sin_respaldo) h+='<div class="msg-warn">Sin respaldo en la base — verifícalo antes de enviarlo al cliente.</div>'; if(m.role==='assistant'&&m.fuentes&&m.fuentes.length&&isAdmin()) h+='<div class="msg-src"><span class="msg-src-lbl">Fuente:</span> '+m.fuentes.slice(0,4).map(f=>'<span class="srcchip">'+esc(f)+'</span>').join('')+'</div>'; if(m.role==='assistant') h+='<span class="msgok" title="Buena respuesta (guardar como ejemplo para casos parecidos)" onclick="aprobarIA('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg></span>'; if(m.role==='assistant') h+='<span class="msgrep" title="Reportar respuesta incorrecta" onclick="reportarIA('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2H7.3a2 2 0 0 0-2 1.7L4 12a2 2 0 0 0 2 2.3h4l-1 5a2 2 0 0 0 3.6 1.2L17 14"/><path d="M17 2v12"/></svg></span>'; if(m.role==='assistant') h+='<span class="msgsave" title="Guardar en mis favoritas" onclick="guardarFav('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>'; if(m.role==='assistant'&&isAdmin()) h+='<span class="msgteach" title="Corregir / Enseñar a la IA" onclick="ensenar('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>'; h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
   c.appendChild($('typing')); c.scrollTop=c.scrollHeight;
 }
 function delMsg(i){ const s=activeS(); if(!s||!s.mensajes[i])return; s.mensajes.splice(i,1); renderChat(); }
@@ -1910,12 +1921,36 @@ async function reportarIA(i){
   }
   catch(e){ toast('No se pudo reportar: '+(e.message||e)); }
 }
+/* 👍 Buena respuesta -> la guarda como CASO ejemplo (kb-caso) para reforzar respuestas parecidas */
+async function aprobarIA(i){
+  const s=activeS(); if(!s||!s.mensajes[i])return;
+  let pregunta=''; for(let k=i-1;k>=0;k--){ if(s.mensajes[k].role==='user'){ pregunta=(s.mensajes[k].content||'').trim(); break; } }
+  const bruto=(s.mensajes[i].content||'').trim();
+  const respuesta=(typeof extraerSugerida==='function' ? (extraerSugerida(bruto)||bruto) : bruto);
+  if(!pregunta||respuesta.length<10){ toast('No pude tomar la pregunta/respuesta.'); return; }
+  try{ const sess=(await sb.auth.getSession()).data.session;
+    await fetch(CASO_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(sess?sess.access_token:'')},body:JSON.stringify({tenant:CONFIG.tenant, pregunta:pregunta, respuesta:respuesta, pais:((s.cliente&&s.cliente.pais)||(typeof turnoPais==='function'?turnoPais():'MX')), vertical:(s.sala?'retail':'online'), agente:(me?me.email:'')})});
+    logAudit('aprobar_ia',{pregunta:pregunta.slice(0,300)});
+    toast('¡Gracias! La guardé como buena respuesta para casos parecidos.');
+  }catch(e){ toast('No se pudo guardar: '+(e.message||e)); }
+}
 /* Admin: lista de respuestas reportadas (lee audit_log) para corregirlas */
 async function loadReportes(){ if(!sb||!isAdmin())return; const L=$('repList'); if(L)L.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
   try{ const {data}=await sb.from('audit_log').select('detail,created_at').eq('action','reporte_ia').order('created_at',{ascending:false}).limit(30);
     const rows=data||[]; if(!L)return; if(!rows.length){ L.innerHTML='<small style="color:var(--txt-2)">Sin reportes por ahora.</small>'; return; }
     L.innerHTML=rows.map(r=>{ const d=r.detail||{}; const q=esc(d.pregunta||'(sin pregunta)'); const a=esc((d.respuesta||'').slice(0,180)); const qa=(d.pregunta||'').replace(/'/g,"\\'");
       return '<div class="uitem" style="flex-direction:column;align-items:stretch;gap:5px"><div style="font-size:12px"><b>Preguntó:</b> '+q+'</div><div style="font-size:11px;color:var(--txt-2)"><b>Respondió:</b> '+a+'…</div><button class="btn" onclick="ensenarReporte(\''+qa+'\')">Corregir / Enseñar</button></div>'; }).join('');
+  }catch(e){ if(L)L.innerHTML='<small style="color:#c0392b">No se pudo cargar.</small>'; }
+}
+/* Admin: HUECOS DE CONOCIMIENTO (audit_log action=kb_gap). Agrupa por pregunta y cuenta repeticiones
+   -> prioriza lo que mas piden y la KB no cubre. "Enseñar" reusa el mismo flujo que los reportes. */
+async function loadGaps(){ if(!sb||!isAdmin())return; const L=$('gapList'); if(L)L.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
+  try{ const {data}=await sb.from('audit_log').select('detail,created_at').eq('action','kb_gap').order('created_at',{ascending:false}).limit(100);
+    const rows=data||[]; if(!L)return;
+    const map={}; rows.forEach(r=>{ const d=r.detail||{}; const q=(d.pregunta||'').trim(); if(!q)return; const k=q.toLowerCase().slice(0,80); if(!map[k])map[k]={q:q,n:0,pais:d.pais||''}; map[k].n++; });
+    const items=Object.values(map).sort((a,b)=>b.n-a.n).slice(0,30);
+    if(!items.length){ L.innerHTML='<small style="color:var(--txt-2)">Sin huecos por ahora. Buena señal: la base cubre lo que preguntan.</small>'; return; }
+    L.innerHTML=items.map(it=>{ const q=esc(it.q); const qa=(it.q).replace(/'/g,"\\'"); return '<div class="uitem" style="flex-direction:column;align-items:stretch;gap:5px"><div style="font-size:12px"><b>'+(it.n>1?('×'+it.n+' '):'')+'Preguntaron:</b> '+q+(it.pais?(' <span style="color:var(--txt-2)">('+esc(it.pais)+')</span>'):'')+'</div><button class="btn" onclick="ensenarReporte(\''+qa+'\')">Agregar a la base / Enseñar</button></div>'; }).join('');
   }catch(e){ if(L)L.innerHTML='<small style="color:#c0392b">No se pudo cargar.</small>'; }
 }
 async function ensenarReporte(pregunta){ if(!isAdmin())return; pregunta=(pregunta||'').trim(); if(!pregunta)return;
@@ -2228,8 +2263,9 @@ if($('ctxAdd')) $('ctxAdd').onclick=agregarContexto;
 if($('kbUrlBtn')) $('kbUrlBtn').onclick=indexFromUrl;
 ['dragover','dragenter'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();}));
 $('drop').addEventListener('drop',e=>{e.preventDefault(); if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);});
-function openPanel(){ if(!isAdmin())return; $('overlay').classList.add('on');$('cpanel').classList.add('on'); loadUsers(); loadReportes(); mfaRefresh(); }
+function openPanel(){ if(!isAdmin())return; $('overlay').classList.add('on');$('cpanel').classList.add('on'); loadUsers(); loadReportes(); loadGaps(); mfaRefresh(); }
 if($('repLoad')) $('repLoad').onclick=loadReportes;
+if($('gapLoad')) $('gapLoad').onclick=loadGaps;
 function closePanel(){$('overlay').classList.remove('on');$('cpanel').classList.remove('on')}
 
 /* ---- Salas Retail (terminal) ---- */

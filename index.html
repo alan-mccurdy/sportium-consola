@@ -303,6 +303,8 @@
   .em-badge{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:6px}
   .em-badge.nuevo{background:var(--accent);color:#fff}
   .em-badge.resp{background:var(--ok);color:#fff}
+  .em-badge.espera{background:#f59e0b;color:#fff}
+  .em-item.esp{box-shadow:inset 3px 0 0 #f59e0b}
   .em-pane{display:grid;grid-template-columns:1fr 1fr;min-height:0}
   .em-col{display:flex;flex-direction:column;min-height:0;min-width:0;overflow-y:auto;padding:14px 16px;gap:10px}
   .em-col.em-left{border-right:1px solid var(--line)}
@@ -1068,8 +1070,10 @@ body{background:transparent}
         <button class="em-fbtn" data-f="nuevo" onclick="emSetFiltro('nuevo')">Nuevo</button>
         <button class="em-fbtn" data-f="leido" onclick="emSetFiltro('leido')">Leido</button>
         <button class="em-fbtn" data-f="respondido" onclick="emSetFiltro('respondido')">Respondido</button>
+        <button class="em-fbtn" data-f="espera" onclick="emSetFiltro('espera')" title="Correos que quedaron esperando informacion de un compañero/sala">En espera</button>
         <button class="em-fbtn" data-f="sintomar" onclick="emSetFiltro('sintomar')">Sin tomar</button>
         <button class="em-fbtn" data-f="todos" onclick="emSetFiltro('todos')">Todos</button>
+        <button class="em-fbtn" style="margin-left:auto;border-color:var(--accent);color:var(--accent)" onclick="emPendientesTurno()" title="Al terminar tu turno: lista de tus correos sin resolver para dejarlos identificados">Mis pendientes de turno</button>
       </div>
       <div id="emItems"></div>
     </div>
@@ -1080,7 +1084,7 @@ body{background:transparent}
         <div class="em-quad em-lr">
           <div class="em-leftcol">
             <div class="em-q em-conv"><div class="em-coltitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emChatTicketImg"></span><label class="btn ghost" style="cursor:pointer;margin:0">Adjuntar ticket<input type="file" accept="image/*" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();emAdjuntarTicket('chat',event)"></label><button class="btn ghost" title="Analiza el ticket de apuesta (imagen o lo que describa el cliente) y explica por qué ganó o perdió" onclick="event.stopPropagation();emAnalizarTicket('chat')">Analizar ticket</button></div></div>
-            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('chat')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
+            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('chat')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn ghost" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('chat')">En espera</button><button class="btn" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
           </div>
           <div class="em-q em-ana" id="emChatAna"><div class="em-coltitle">Interno (chat y correo)</div><div class="em-analisis" id="emChatAnalisis"></div></div>
         </div>
@@ -1090,7 +1094,7 @@ body{background:transparent}
         <div class="em-claim" id="emMailClaim" style="display:none"></div>
         <div class="em-quad em-mailonly">
           <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emMailTicketImg"></span><label class="btn ghost" style="cursor:pointer;margin:0">Adjuntar ticket<input type="file" accept="image/*" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();emAdjuntarTicket('mail',event)"></label><button class="btn ghost" title="Analiza el ticket de apuesta (imagen o lo que describa el cliente) y explica por qué ganó o perdió" onclick="event.stopPropagation();emAnalizarTicket('mail')">Analizar ticket</button></div></div>
-          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" title="Resumir la conversacion del chat del cliente y armar el cuerpo del correo" onclick="event.stopPropagation();emResumirChatACorreo()">Resumir chat → correo</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" title="Copia el enlace para que el cliente califique la atención y lo agrega al final del correo" onclick="event.stopPropagation();emCsatLink()">Link CSAT</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
+          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" title="Resumir la conversacion del chat del cliente y armar el cuerpo del correo" onclick="event.stopPropagation();emResumirChatACorreo()">Resumir chat → correo</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" title="Copia el enlace para que el cliente califique la atención y lo agrega al final del correo" onclick="event.stopPropagation();emCsatLink()">Link CSAT</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn ghost" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('mail')">En espera</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
         </div>
       </div>
     </div>
@@ -2712,6 +2716,32 @@ async function emTomarMismoCliente(t){
   toast('Mismo cliente: también tomé su '+(oslot==='mail'?'correo':'chat')+(_yaResp?'':' y generé su respuesta')+'.');
 }
 function emLiberar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.tomado_por=null; t.tomado_email=''; t.tomado_at=null; emSave(); emPush(t); if(slot==='mail')emSelMail=null; else emSelChat=null; emSaveSel(); emRenderList(); emRenderSlot(slot); emRenderInterno(); toast('Liberada y quitada de tu panel'); }
+// ---- EN ESPERA + CIERRE DE TURNO: un correo/chat que no se puede cerrar porque falta info de un
+// compañero/sala se marca "En espera" (con nota) y NO se pierde en el cambio de turno. Al terminar,
+// "Mis pendientes de turno" lista lo no resuelto para dejarlo identificado y pasarlo al siguiente.
+function emEsperaNota(t){ if(!t||t.estado!=='espera')return ''; var e=(t.mensajes||[]).filter(function(m){return m.from==='espera';}); return e.length?(e[e.length-1].text||''):''; }
+async function emEnEspera(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t){ toast('Selecciona una conversacion'); return; }
+  const nota=await appPrompt('¿Qué información falta para cerrar este caso? (ej. "falta que sala 60001 confirme el número de terminal")',{multiline:true}); if(nota===null)return;
+  if(!t.tomado_por && me){ t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); }
+  t.estado='espera';
+  t.mensajes=(t.mensajes||[]).filter(function(m){return m.from!=='espera';});
+  t.mensajes.push({from:'espera', text:(nota||'').trim(), por:(me?((myProfile&&myProfile.full_name)||me.email):''), at:new Date().toISOString()});
+  emSave(); emPush(t); emRenderList(); emRenderSlot(slot); emRenderInterno(); toast('Marcado EN ESPERA. Queda identificado para el siguiente turno.');
+}
+async function emPendientesTurno(){
+  const yo=(me&&me.id); const yoMail=(((myProfile&&myProfile.full_name)||(me&&me.email))||'').toLowerCase();
+  const mios=EMBANDEJA.filter(function(t){ const est=(t.estado||'nuevo'); if(est==='respondido')return false; return (t.tomado_por&&t.tomado_por===yo)||(t.tomado_email&&t.tomado_email.toLowerCase()===yoMail); });
+  if(!mios.length){ toast('No tienes pendientes sin resolver. ¡Buen cierre de turno!'); return; }
+  function edad(t){ const ms=Date.now()-(t.tomado_at?Date.parse(t.tomado_at):(t.t||Date.now())); const h=Math.floor(ms/3600000); return h<1?'<1h':(h<24?(h+'h'):(Math.floor(h/24)+'d')); }
+  const orden={espera:0, leido:1, nuevo:2};
+  mios.sort(function(a,b){ return (orden[a.estado||'nuevo']||3)-(orden[b.estado||'nuevo']||3); });
+  const enEspera=mios.filter(function(t){return t.estado==='espera';}).length;
+  const lineas=mios.map(function(t,i){ const canal=(t.canal==='mensaje')?'CHAT':'CORREO'; const quien=t.de||((t.cliente&&t.cliente.nombre)||'cliente'); const asu=(t.canal==='mensaje')?'':(' — '+(t.asunto||'(sin asunto)')); const est=(t.estado==='espera')?'EN ESPERA':(t.estado||'nuevo').toUpperCase(); const nota=(t.estado==='espera'&&emEsperaNota(t))?('\n     falta: '+emEsperaNota(t)):''; return (i+1)+') ['+canal+'] '+quien+asu+'\n     estado: '+est+' · hace '+edad(t)+nota; }).join('\n');
+  const resumen='PENDIENTES DE MI TURNO — '+yoMail+'\n'+new Date().toLocaleString()+'\nTotal sin resolver: '+mios.length+' (en espera de info: '+enEspera+')\n\n'+lineas+'\n\n(Correos "en espera" = esperando info de un compañero/sala.)';
+  await appPrompt('Tus pendientes de turno (cópialo y pásalo al siguiente turno):',{value:resumen, multiline:true});
+  const marcar=await appConfirm('¿Marcar tus '+mios.length+' pendientes como "En espera" para que el siguiente turno los ubique fácil en ese filtro?');
+  if(marcar){ mios.forEach(function(t){ if((t.estado||'nuevo')!=='espera'){ t.estado='espera'; if(!(t.mensajes||[]).some(function(m){return m.from==='espera';})){ t.mensajes=(t.mensajes||[]); t.mensajes.push({from:'espera', text:'No se alcanzó a resolver en el turno anterior.', por:yoMail, at:new Date().toISOString()}); } emPush(t); } }); emSave(); emRenderList(); emRenderSlot('mail'); emRenderSlot('chat'); toast(mios.length+' pendientes marcados "En espera" para el siguiente turno.'); }
+}
 function emRenderClaim(slot){
   // el aviso vive ahora ARRIBA (header del inbox). Ocultamos la barra por panel y reflejamos el panel activo.
   const bar=$((slot==='mail')?'emMailClaim':'emChatClaim'); if(bar)bar.style.display='none';
@@ -2729,7 +2759,7 @@ function emRenderClaimTop(){
   top.innerHTML = (otro?('<b>'+canal+':</b> ⚠ la atiende <b>'+escapeHtml(t.tomado_email)+'</b> — evita responder doble.'+((typeof isAdmin==='function'&&isAdmin())?' <a href="#" onclick="event.preventDefault();emTomar(\''+slot+'\')">Tomar de todos modos</a>':''))
     : ('<b>'+canal+':</b> la tomaste tú. <a href="#" onclick="event.preventDefault();emLiberar(\''+slot+'\')">Liberar</a>'));
 }
-function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var est=(t.estado||'nuevo'); var fok=(emFiltro==='todos')?true:(emFiltro==='activos')?(est!=='respondido'):(emFiltro==='sintomar')?!t.tomado_por:(est===emFiltro); return ch===emBandeja && fok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); var body=(t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'')||''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='leido'?'leido':'nuevo')); var bl=est; return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags"><span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+'</div>'; }).join('')||'<div class="em-empty">Sin conversaciones en este filtro.</div>'; }
+function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var est=(t.estado||'nuevo'); var fok=(emFiltro==='todos')?true:(emFiltro==='activos')?(est!=='respondido'):(emFiltro==='sintomar')?!t.tomado_por:(est===emFiltro); return ch===emBandeja && fok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); var body=(t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'')||''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='espera'?'espera':(est==='leido'?'leido':'nuevo'))); var bl=(est==='espera'?'en espera':est); return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+(est==='espera'?' esp':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags"><span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+'</div>'; }).join('')||'<div class="em-empty">Sin conversaciones en este filtro.</div>'; }
 // Ficha FIJA de datos del cliente en el inbox (contador de mensajes/correos + KYC + saldo + más detalles).
 function emClienteInfoHTML(t, slot){
   if(!t) return '';
@@ -2767,18 +2797,18 @@ function emRenderSlot(slot){
     if(isMail){ if($('emMailHead'))$('emMailHead').innerHTML=''; if($('emMailBody'))$('emMailBody').textContent=''; if($('emPara'))$('emPara').value=''; if($('emAsuntoOut'))$('emAsuntoOut').value=''; }
     else { if($('emChatThread'))$('emChatThread').innerHTML=''; }
     const cle=$(isMail?'emMailCli':'emChatCli'); if(cle)cle.innerHTML=''; emRenderClaim(slot); emRenderInterno(); return; }
-  if(who)who.textContent=(t.de||'cliente')+((t.estado&&t.estado!=='nuevo')?(' · '+t.estado):'')+((t._consol&&t._consol.total>1)?(' · '+t._consol.total+' correos'):'')+(emClaimTxt(t)?(' · '+emClaimTxt(t)):'');
+  if(who)who.textContent=(t.de||'cliente')+((t.estado==='espera')?(' · ⏳ EN ESPERA'+(emEsperaNota(t)?(': '+emEsperaNota(t)):'')):((t.estado&&t.estado!=='nuevo')?(' · '+t.estado):''))+((t._consol&&t._consol.total>1)?(' · '+t._consol.total+' correos'):'')+(emClaimTxt(t)?(' · '+emClaimTxt(t)):'');
   const cliEl=$(isMail?'emMailCli':'emChatCli');
   if(cliEl){ cliEl.innerHTML=emClienteInfoHTML(t, slot); }
   if(isMail){
-    const clis=(t.mensajes||[]).filter(function(m){return m.from!=='agente';});
+    const clis=(t.mensajes||[]).filter(function(m){return m.from!=='agente' && m.from!=='espera';});
     const consol=(t._consol && t._consol.pendientes>1) ? ('<div style="font-size:11px;color:var(--accent);margin-bottom:4px">Este cliente tiene '+t._consol.pendientes+' correos pendientes en la bandeja'+(t._consol.repetidos?(' · '+t._consol.repetidos+' repetido(s) spam'):'')+'. Los respondidos quedan en el filtro Respondido.</div>') : '';
     if($('emMailHead'))$('emMailHead').innerHTML=consol+'<b>De:</b> '+escapeHtml(t.de||'cliente')+'<br><b>Asunto:</b> '+escapeHtml(t.asunto||'(sin asunto)');
     if($('emMailBody'))$('emMailBody').textContent=clis.map(function(m,i){return (clis.length>1?('['+(i+1)+'] '):'')+(m.text||'');}).join('\n\n———\n\n');
     if($('emPara'))$('emPara').value=t.de||'';
     if($('emAsuntoOut'))$('emAsuntoOut').value=(t.asunto&&!/^re:/i.test(t.asunto))?('Re: '+t.asunto):(t.asunto||'');
   } else {
-    const th=$('emChatThread'); if(th) th.innerHTML=(t.mensajes||[]).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+escapeHtml(m.text||'')+((m.img||m.image_url)?('<br><img src="'+(m.img||m.image_url)+'" style="max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();emVerImg(this.src)">'):'')+'</div>'; }).join('');
+    const th=$('emChatThread'); if(th) th.innerHTML=(t.mensajes||[]).filter(function(m){return m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+escapeHtml(m.text||'')+((m.img||m.image_url)?('<br><img src="'+(m.img||m.image_url)+'" style="max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();emVerImg(this.src)">'):'')+'</div>'; }).join('');
   }
   // miniatura del ticket de apuesta adjuntado a esta conversacion (si hay)
   const _tkImg=$(isMail?'emMailTicketImg':'emChatTicketImg');

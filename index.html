@@ -78,20 +78,25 @@
     #input{font-size:16px}
     .em-crmchk label{font-size:12px}
     /* ACORDEON MOVIL: cada seccion del inbox se pliega tocando su titulo (nada encimado en iPhone) */
-    .email .em-coltitle{cursor:pointer;display:flex;align-items:center;gap:6px;padding:9px 4px;margin:0;position:sticky;top:0;background:var(--surface);z-index:2;border-bottom:1px solid var(--line);font-size:12.5px}
+    .email .em-coltitle{cursor:pointer;display:flex;align-items:center;gap:6px;padding:10px 4px;margin:0;border-bottom:1px solid var(--line);font-size:12.5px}
     .email .em-coltitle::before{content:'';width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--accent);transition:.15s;flex:none}
     .email .em-q.mcerrada .em-coltitle::before{transform:rotate(-90deg)}
     .email .em-q.mcerrada > *:not(.em-coltitle){display:none!important}
-    .email .em-q{min-height:0!important;overflow:visible}
-    .em-shell,.em-quad,.em-leftcol{display:block!important}
+    /* SCROLL NATURAL EN MOVIL: el panel completo desliza hacia abajo (una sola pagina), en vez de
+       columnas fijas con scroll interno que dejaban contenido inalcanzable. */
+    .email{display:block;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:84px}
+    .em-shell,.em-quad,.em-leftcol,.em-wrap,.em-pane{display:block!important;min-height:0;height:auto!important}
+    .em-slot{display:block;overflow:visible;height:auto!important;margin:8px;border-radius:12px}
+    .email .em-q{display:block;min-height:0!important;height:auto!important;overflow:visible!important;padding:8px 12px}
     .em-quad .em-q{border-right:none!important;border-bottom:1px solid var(--line)}
-    .em-list{max-height:none}
-    .em-list.mcerrada .em-items,.em-list.mcerrada .em-filtros{display:none!important}
-    .email{padding-bottom:70px}   /* que el dock flotante no tape los botones */
-    .em-thread{max-height:38vh;overflow:auto}
-    .em-analisis{max-height:none}
-    .em-ana{max-height:50vh}
-    .htur-in{padding-bottom:80px}
+    .em-list{max-height:none;overflow:visible}
+    .em-items{max-height:34vh;overflow:auto}
+    .em-thread{max-height:45vh;overflow:auto}
+    .em-mailbody{max-height:45vh;overflow:auto}
+    .em-analisis{max-height:none;overflow:visible}
+    .em-ana{max-height:none}
+    .em-dock{position:sticky;top:0;z-index:5;background:var(--surface)}
+    .htur-in{padding-bottom:84px}
   }
 
   header{display:flex;align-items:center;flex-wrap:wrap;gap:12px;row-gap:8px;padding:14px 18px;border-bottom:1px solid var(--line)}

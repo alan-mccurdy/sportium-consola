@@ -2511,21 +2511,27 @@ async function transIndexar(){
 }
 let CPCONV=[]; let cpRaw='';
 // Enlaces de autoservicio (apartados donde el cliente revisa sus datos). Rutas placeholder — ajustar a las reales.
-const LINK_BASE={ MX:'https://www.sportium.com.mx', PA:'https://www.sportium.com.pa', CO:'https://sportium.com.co' };
+// Bases REALES verificadas (2026-07-08, mapa del sitio): PA es www.sportium.pa (el .com.pa
+// redirige). OJO: sportium.com.mx es un GIMNASIO de CDMX, NO la casa de apuestas — Sportium
+// no opera online en MX, por eso MX no lleva enlaces (los clientes MX del demo son sinteticos).
+const LINK_BASE={ MX:null, PA:'https://www.sportium.pa', CO:'https://www.sportium.com.co' };
+// Rutas REALES por pais (extraidas del mapa de cada sitio 2026-07-08). PA tiene area de cuenta
+// con rutas propias; CO solo expone paginas publicas (el area de cuenta va tras login), por eso
+// algunos temas de CO llevan a la pagina publica que explica el tramite. Si un tema no tiene
+// ruta para el pais, ese enlace simplemente no se agrega.
 const LINKS_CLIENTE=[
- {kw:['verific','kyc','identidad','documento','cedula','cédula'], label:'Verificar mi identidad', path:'/mi-cuenta/verificacion'},
- // RETIRO -> dos enlaces: (1) ver el estado de sus movimientos (para saber si ya esta aprobado) y (2) el apartado para retirar.
- {kw:['retiro','retirar','retira','cobr','pago aprob','estado de mi pago'], label:'Ver el estado de mis transacciones', path:'/mi-cuenta/transacciones'},
- {kw:['retiro','retirar','retira','como retiro','quiero retirar','sacar mi dinero'], label:'Solicitar un retiro', path:'/mi-cuenta/retiros'},
- {kw:['deposit','depósit','recarg','abonar'], label:'Hacer un deposito', path:'/mi-cuenta/depositos'},
- {kw:['bono','promo','codigo','código','rollover'], label:'Mis bonos y promociones', path:'/promociones/mis-bonos'},
- {kw:['acceso','contraseña','contrasena','login','entrar','ingresar','bloque'], label:'Recuperar el acceso a mi cuenta', path:'/recuperar-acceso'},
- {kw:['autoexclu','juego responsable','reabrir','reapertura'], label:'Juego responsable / reapertura', path:'/juego-responsable'}
+ {kw:['verific','kyc','identidad','documento','cedula','cédula'], label:'Verificar mi identidad', paths:{ PA:'/update-my-details', CO:'/info/preguntas-frecuentes.html' }},
+ // RETIRO -> (1) estado de sus movimientos/pendientes y (2) el apartado para retirar.
+ {kw:['retiro','retirar','retira','cobr','pago aprob','estado de mi pago'], label:'Ver mis retiros pendientes', paths:{ PA:'/pending-withdraw', CO:'/info/atencion-al-cliente.html' }},
+ {kw:['retiro','retirar','retira','como retiro','quiero retirar','sacar mi dinero'], label:'Solicitar un retiro', paths:{ PA:'/withdraw' }},
+ {kw:['transaccion','transacción','movimiento','historial'], label:'Ver el estado de mis transacciones', paths:{ PA:'/transaction-history' }},
+ {kw:['deposit','depósit','recarg','abonar'], label:'Hacer un deposito', paths:{ PA:'/deposit', CO:'/ayuda/metodos-de-pago.html' }},
+ {kw:['bono','promo','codigo','código','rollover'], label:'Mis bonos y promociones', paths:{ PA:'/bonos-activos-apuestas', CO:'/promociones.html' }},
+ {kw:['acceso','contraseña','contrasena','login','entrar','ingresar','bloque'], label:'Recuperar el acceso a mi cuenta', paths:{ PA:'/forgot-password', CO:'/info/atencion-al-cliente.html' }},
+ {kw:['autoexclu','juego responsable','reabrir','reapertura'], label:'Juego responsable / autoexclusion', paths:{ PA:'/self-exclusion', CO:'/info/juego-responsable.html' }}
 ];
-// Enlaces reales por tema (Alan pidio que SIEMPRE lleguen). Rutas base por pais en LINK_BASE.
-// NOTA: confirmar las rutas exactas con Alan; si alguna cambia, se ajusta el path aqui.
 const LINKS_REALES=true;
-function emEnlaces(texto, pais){ if(!LINKS_REALES) return []; const low=(texto||'').toLowerCase(); const base=LINK_BASE[pais]||LINK_BASE.MX; const out=[]; LINKS_CLIENTE.forEach(function(L){ if(L.kw.some(function(k){return low.indexOf(k)>=0;})){ out.push({label:L.label, url:base+L.path}); } }); return out.slice(0,3); }
+function emEnlaces(texto, pais){ if(!LINKS_REALES) return []; const low=(texto||'').toLowerCase(); const base=LINK_BASE[pais]; if(!base) return []; const out=[]; const vistos={}; LINKS_CLIENTE.forEach(function(L){ const p=L.paths&&L.paths[pais]; if(!p||vistos[p])return; if(L.kw.some(function(k){return low.indexOf(k)>=0;})){ vistos[p]=1; out.push({label:L.label, url:base+p}); } }); return out.slice(0,3); }
 const EM_DEMO=[
  {canal:'mensaje', de:'Juan Perez', texto:'Hola, hice mi deposito con el codigo MAXSPORT pero no veo el bono reflejado en mi cuenta. Me pueden ayudar?'},
  {canal:'correo', de:'juan@mail.com', asunto:'Bono no acreditado', texto:'Buenas tardes, depositE 225 y use MAXSPORT pero el bono no aparece. Quedo atento.'},

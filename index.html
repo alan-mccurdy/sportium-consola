@@ -1249,6 +1249,9 @@ async function handleSession(session){
   if(isRealAdmin()){ bootDone(); await mfaGate(); }   // 2FA: OCULTAR el splash ANTES de pedir el codigo (tapaba el modal y parecia que "no cargaba")
   gateHide(); applyRoleUI();
   $('who').innerHTML=(me.email||'')+(isAdmin()?' · <b>admin</b>':'');
+  // Restaurar la última vista AQUI (mismo tick que se revela la app): si se hace despues de las
+  // cargas de red, el chat general se ve un rato antes de que aparezca el inbox (parpadeo).
+  try{ const v=localStorage.getItem('sptm-view'); if(v==='inbox')openEmail(); else if(v==='retail')openRetail(); else if(v==='copiloto')openCopiloto(); }catch(e){}
   await loadContext();
   await loadKB();
   loadFaqs();
@@ -1259,8 +1262,6 @@ async function handleSession(session){
   initTeam();
   cargarTeamN();
   logAudit('login',{});
-  // Restaurar la última vista (no regresar siempre al chat general)
-  try{ const v=localStorage.getItem('sptm-view'); if(v==='inbox')openEmail(); else if(v==='retail')openRetail(); else if(v==='copiloto')openCopiloto(); }catch(e){}
 }
 function setView(v){ try{ localStorage.setItem('sptm-view', v||'chat'); }catch(e){} }
 /* ===== 2FA (verificacion en dos pasos, MFA TOTP de Supabase) ===== */

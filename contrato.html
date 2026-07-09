@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SINELI — Contrato de Licencia de Uso (SaaS)</title>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<style>
+:root{--ink:#17191D;--ink2:#5A6069;--line:#D9DCE0;--bg:#FAFBFC;--acc:#17191D}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Georgia,'Times New Roman',serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.65}
+.toolbar{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);padding:10px 18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-family:'Segoe UI',system-ui,sans-serif}
+.toolbar b{margin-right:auto;font-size:15px}
+.btn{font-family:inherit;font-size:13px;font-weight:600;padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.btn:hover{border-color:var(--ink)}
+.doc{max-width:820px;margin:26px auto 60px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:56px 64px;box-shadow:0 2px 14px rgba(23,25,29,.06)}
+h1{font-size:22px;text-align:center;letter-spacing:.02em;margin-bottom:4px}
+.sub{text-align:center;color:var(--ink2);font-size:13px;margin-bottom:34px}
+h2{font-size:15px;margin:26px 0 8px;text-transform:uppercase;letter-spacing:.04em}
+p,li{margin-bottom:9px;text-align:justify}
+ol.cl{counter-reset:cl;list-style:none}
+ol.cl>li{counter-increment:cl;margin-bottom:9px}
+ol.cl>li::before{content:counter(cl) ". ";font-weight:700}
+.campo{display:inline-block;min-width:160px;border-bottom:1px solid var(--ink);padding:0 6px;font-family:inherit;font-size:inherit;background:#FDFBEA;outline:none}
+.campo:empty::before{content:attr(data-ph);color:#A9ACB2}
+table.pl{width:100%;border-collapse:collapse;margin:12px 0}
+table.pl th,table.pl td{border:1px solid var(--line);padding:8px 10px;text-align:left;font-size:13px}
+table.pl th{background:#F3F4F6;font-family:'Segoe UI',system-ui,sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.firmas{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:44px}
+.firma .pad{border:1px dashed #B9BDC4;border-radius:6px;height:120px;width:100%;touch-action:none;background:#fff}
+.firma .lin{border-top:1px solid var(--ink);margin-top:8px;padding-top:6px;font-size:13px}
+.firma .rol{color:var(--ink2);font-size:12px}
+.firma .limpiar{font-size:11px;font-family:'Segoe UI',system-ui,sans-serif;color:var(--ink2);background:none;border:none;cursor:pointer;text-decoration:underline;margin-top:4px}
+.nota{font-size:12px;color:var(--ink2);border-left:3px solid var(--line);padding:8px 12px;margin:18px 0}
+.pdfbox{max-width:820px;margin:0 auto 60px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:26px 32px;font-family:'Segoe UI',system-ui,sans-serif}
+.pdfbox h3{font-size:15px;margin-bottom:8px}
+.pdfbox p{font-size:13px;color:var(--ink2);text-align:left}
+@media print{
+  .toolbar,.pdfbox,.firma .limpiar,.no-print{display:none!important}
+  body{background:#fff}
+  .doc{border:none;box-shadow:none;margin:0;max-width:none;padding:10mm 6mm}
+  .campo{background:transparent}
+  .firma .pad{border:none}
+}
+@media(max-width:700px){.doc{padding:28px 20px}.firmas{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <b>Contrato de licencia SINELI</b>
+  <button class="btn" onclick="document.querySelectorAll('.campo').forEach(function(c){c.textContent='';})">Vaciar campos</button>
+  <button class="btn pri" onclick="window.print()">Imprimir / Guardar PDF</button>
+</div>
+
+<div class="doc" id="doc">
+  <h1>CONTRATO DE LICENCIA DE USO DE SOFTWARE COMO SERVICIO (SaaS)</h1>
+  <div class="sub">Plataforma de consola de soporte con inteligencia artificial "SINELI"</div>
+
+  <p>Contrato que celebran, por una parte, <span class="campo" contenteditable data-ph="nombre del licenciante"></span> (en adelante, el "LICENCIANTE"), y por la otra, <span class="campo" contenteditable data-ph="razon social del cliente"></span>, representada por <span class="campo" contenteditable data-ph="nombre del representante"></span> (en adelante, el "CLIENTE"), en la ciudad de <span class="campo" contenteditable data-ph="ciudad"></span>, a fecha <span class="campo" contenteditable data-ph="dd/mm/aaaa"></span>, al tenor de las siguientes cláusulas.</p>
+
+  <h2>Primera — Objeto</h2>
+  <p>El LICENCIANTE otorga al CLIENTE una licencia de uso <b>no exclusiva, intransferible y revocable</b> sobre la plataforma de software denominada SINELI (la "Plataforma"), consistente en una consola de soporte con inteligencia artificial que incluye: bandeja unificada de conversaciones (chat, correo y canales de mensajería), sugerencias de respuesta asistidas por IA con revisión humana, base de conocimientos con indexación semántica, transcripción de llamadas, panel de supervisión y métricas, y personalización de marca (white-label). La Plataforma se provee en modalidad de software como servicio (SaaS).</p>
+
+  <h2>Segunda — Propiedad intelectual</h2>
+  <ol class="cl">
+    <li>La totalidad del código fuente, arquitectura, diseño, flujos de automatización, prompts, documentación y demás elementos que componen la Plataforma son y permanecerán en todo momento <b>propiedad exclusiva del LICENCIANTE</b>. Este contrato NO constituye una venta, cesión ni transferencia de propiedad intelectual, total ni parcial.</li>
+    <li>El CLIENTE no adquiere más derecho que el uso de la Plataforma conforme a este contrato. Queda expresamente prohibido copiar, descompilar, realizar ingeniería inversa, sublicenciar, revender o crear obras derivadas de la Plataforma.</li>
+    <li>La información, documentos y datos que el CLIENTE cargue a la Plataforma (base de conocimientos, contexto, conversaciones con sus usuarios) son y permanecerán <b>propiedad del CLIENTE</b>.</li>
+    <li>Los desarrollos, mejoras o módulos nuevos que el LICENCIANTE construya durante la vigencia, aun cuando deriven de solicitudes del CLIENTE, pertenecen al LICENCIANTE, sin perjuicio del derecho de uso del CLIENTE mientras el contrato esté vigente.</li>
+  </ol>
+
+  <h2>Tercera — Plan contratado y alcance del servicio</h2>
+  <table class="pl">
+    <tr><th>Concepto</th><th>Incluido en el plan</th></tr>
+    <tr><td>Agentes con acceso simultáneo</td><td><span class="campo" contenteditable data-ph="3">3</span> agentes</td></tr>
+    <tr><td>Mensajes procesados con IA</td><td>Hasta <span class="campo" contenteditable data-ph="1,500">1,500</span> por mes</td></tr>
+    <tr><td>Transcripción de llamadas</td><td>Hasta <span class="campo" contenteditable data-ph="340">340</span> llamadas por mes</td></tr>
+    <tr><td>Países / contextos configurados</td><td><span class="campo" contenteditable data-ph="3">3</span></td></tr>
+    <tr><td>Marca personalizada (white-label)</td><td>Incluida</td></tr>
+    <tr><td>Soporte del LICENCIANTE</td><td>Horario hábil, respuesta en 24 h</td></tr>
+  </table>
+  <p>El consumo que exceda el plan se notificará al CLIENTE y podrá facturarse como excedente o mediante ampliación de plan, previo acuerdo por escrito.</p>
+
+  <h2>Cuarta — Precio y forma de pago</h2>
+  <ol class="cl">
+    <li>Cuota única de implementación y puesta en marcha: <span class="campo" contenteditable data-ph="$ monto y moneda"></span>, pagadera a la firma de este contrato.</li>
+    <li>Licencia mensual: <span class="campo" contenteditable data-ph="$ monto y moneda"></span> por mes, pagadera por adelantado dentro de los primeros 5 días naturales de cada mes.</li>
+    <li>La falta de pago de dos mensualidades faculta al LICENCIANTE a suspender el servicio previa notificación con 5 días hábiles de anticipación.</li>
+  </ol>
+
+  <h2>Quinta — Seguridad de la información y protección de datos</h2>
+  <ol class="cl">
+    <li>La Plataforma implementa controles de seguridad alineados al estándar ISO/IEC 27001:2022, documentados en el whitepaper de seguridad del LICENCIANTE: autenticación sin contraseñas (enlace mágico) y con proveedor de identidad, control de acceso por roles con aislamiento a nivel de base de datos (RLS), aislamiento multi-tenant, registro de auditoría de acciones y cifrado de datos en tránsito (TLS).</li>
+    <li>Cada empresa cliente opera en un espacio de datos aislado; el CLIENTE no puede acceder a datos de otros clientes ni viceversa.</li>
+    <li>El CLIENTE es responsable del contenido que carga y de contar con las autorizaciones necesarias para el tratamiento de los datos personales de sus usuarios. El LICENCIANTE actúa como encargado del tratamiento, limitándose a procesar los datos para prestar el servicio.</li>
+    <li>Las consultas procesadas con IA se envían a proveedores de modelos de lenguaje bajo el principio de minimización: la Plataforma no envía a la IA datos sensibles del CRM del CLIENTE (saldos, documentos de identidad, credenciales).</li>
+    <li>En caso de incidente de seguridad que afecte datos del CLIENTE, el LICENCIANTE lo notificará dentro de las 72 horas siguientes a su conocimiento.</li>
+    <li>A la terminación del contrato, el LICENCIANTE entregará al CLIENTE una exportación de sus datos y los eliminará de la Plataforma dentro de los 30 días siguientes, salvo obligación legal de conservación.</li>
+  </ol>
+
+  <h2>Sexta — Confidencialidad</h2>
+  <p>Las partes se obligan a guardar confidencialidad sobre la información no pública que conozcan con motivo de este contrato (incluidos procesos internos, precios, datos operativos y know-how), durante su vigencia y por 3 años posteriores a su terminación. Esta obligación no aplica a información que sea pública, se conozca lícitamente por un tercero o deba revelarse por mandato de autoridad.</p>
+
+  <h2>Séptima — Nivel de servicio y soporte</h2>
+  <ol class="cl">
+    <li>Objetivo de disponibilidad de la Plataforma: 99% mensual, excluyendo mantenimientos programados notificados con 24 horas de anticipación y causas de fuerza mayor o fallas de terceros (proveedores de nube e IA).</li>
+    <li>Las sugerencias generadas por IA son material de apoyo sujeto a revisión humana; el envío final al usuario es decisión y responsabilidad del agente del CLIENTE. La Plataforma cuenta con revisor de calidad automático y mecanismos de contingencia entre múltiples proveedores de IA.</li>
+    <li>Canal de soporte: <span class="campo" contenteditable data-ph="correo/telefono de soporte"></span>.</li>
+  </ol>
+
+  <h2>Octava — Limitación de responsabilidad</h2>
+  <p>La responsabilidad total acumulada del LICENCIANTE por cualquier causa derivada de este contrato se limita al monto efectivamente pagado por el CLIENTE en los 3 meses anteriores al hecho que la origine. El LICENCIANTE no responde por daños indirectos, lucro cesante ni pérdida de datos imputable a terceros proveedores, ni por decisiones comerciales tomadas por el CLIENTE con base en las respuestas de la IA.</p>
+
+  <h2>Novena — Vigencia y terminación</h2>
+  <ol class="cl">
+    <li>Vigencia inicial de <span class="campo" contenteditable data-ph="12">12</span> meses a partir de la fecha de firma, renovable automáticamente por periodos iguales salvo aviso de no renovación con 30 días de anticipación.</li>
+    <li>Cualquiera de las partes podrá terminar por incumplimiento grave no subsanado en 15 días hábiles tras notificación por escrito.</li>
+    <li>A la terminación cesa el derecho de uso del CLIENTE, aplicándose la cláusula Quinta, numeral 6, respecto de sus datos.</li>
+  </ol>
+
+  <h2>Décima — Firma electrónica</h2>
+  <p>Las partes acuerdan que este contrato podrá celebrarse mediante firma autógrafa o mediante <b>firma electrónica</b> (incluyendo firma trazada en pantalla, intercambio por correo electrónico de la versión firmada en PDF, o plataformas de firma electrónica), reconociéndole plena validez y fuerza obligatoria en términos de la legislación aplicable en materia de comercio electrónico y firma electrónica de la jurisdicción pactada (en México, el Código de Comercio y la NOM-151-SCFI-2016; o las normas equivalentes de la jurisdicción aplicable). Cada parte conservará un ejemplar electrónico como constancia.</p>
+
+  <h2>Décima primera — Ley aplicable y jurisdicción</h2>
+  <p>Este contrato se rige por las leyes de <span class="campo" contenteditable data-ph="pais/estado"></span> y las partes se someten a los tribunales competentes de <span class="campo" contenteditable data-ph="ciudad"></span>, renunciando a cualquier otro fuero.</p>
+
+  <div class="nota no-print">Plantilla preparada como base de negociación. Antes de firmar con un cliente real, revísala con un abogado de tu jurisdicción — en particular la cláusula de datos personales del país del cliente (México: LFPDPPP; Colombia: Ley 1581; Panamá: Ley 81).</div>
+
+  <div class="firmas">
+    <div class="firma">
+      <canvas class="pad" id="padA"></canvas>
+      <button class="limpiar" onclick="limpiar('padA')">Limpiar firma</button>
+      <div class="lin"><span class="campo" contenteditable data-ph="nombre del licenciante"></span></div>
+      <div class="rol">EL LICENCIANTE</div>
+    </div>
+    <div class="firma">
+      <canvas class="pad" id="padB"></canvas>
+      <button class="limpiar" onclick="limpiar('padB')">Limpiar firma</button>
+      <div class="lin"><span class="campo" contenteditable data-ph="nombre del representante"></span></div>
+      <div class="rol">EL CLIENTE</div>
+    </div>
+  </div>
+</div>
+
+<div class="pdfbox">
+  <h3>Firmar un PDF existente</h3>
+  <p>Si el contrato ya está en PDF (por ejemplo, la versión que te devolvió el cliente), cárgalo aquí, dibuja la firma arriba (recuadro del LICENCIANTE) y estámpala en la página y posición que elijas. El PDF firmado se descarga a tu equipo; nada se sube a ningún servidor.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
+    <input type="file" id="pdfIn" accept="application/pdf">
+    <label>Página <input type="number" id="pdfPag" value="1" min="1" style="width:56px;padding:6px"></label>
+    <select id="pdfPos" style="padding:7px">
+      <option value="izq">Firma izquierda (licenciante)</option>
+      <option value="der">Firma derecha (cliente)</option>
+    </select>
+    <button class="btn pri" onclick="firmarPdf()">Estampar firma y descargar</button>
+  </div>
+  <p id="pdfMsg" style="margin-top:8px"></p>
+</div>
+
+<script>
+/* Pads de firma: trazo con mouse o dedo (touch), respaldado en memoria para reescalar sin perderse */
+function initPad(id){
+  const cv=document.getElementById(id), ctx=cv.getContext('2d');
+  function fit(){ const img=cv.width>0?cv.toDataURL():null; const r=cv.getBoundingClientRect(); cv.width=r.width*2; cv.height=r.height*2; ctx.scale(2,2); ctx.lineWidth=2; ctx.lineCap='round'; ctx.strokeStyle='#17191D'; if(img){ const im=new Image(); im.onload=function(){ ctx.drawImage(im,0,0,r.width,r.height); }; im.src=img; } }
+  fit(); addEventListener('resize',fit);
+  let on=false;
+  function pos(e){ const r=cv.getBoundingClientRect(); const p=e.touches?e.touches[0]:e; return {x:p.clientX-r.left,y:p.clientY-r.top}; }
+  function down(e){ on=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
+  function move(e){ if(!on)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); }
+  function up(){ on=false; }
+  cv.addEventListener('mousedown',down); cv.addEventListener('mousemove',move); addEventListener('mouseup',up);
+  cv.addEventListener('touchstart',down,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',up);
+}
+function limpiar(id){ const cv=document.getElementById(id); const ctx=cv.getContext('2d'); ctx.clearRect(0,0,cv.width,cv.height); }
+initPad('padA'); initPad('padB');
+
+/* Estampar la firma dibujada sobre un PDF existente (pdf-lib, 100% local) */
+async function firmarPdf(){
+  const msg=document.getElementById('pdfMsg');
+  const f=document.getElementById('pdfIn').files[0];
+  if(!f){ msg.textContent='Elige primero el archivo PDF.'; return; }
+  const cual=(document.getElementById('pdfPos').value==='der')?'padB':'padA';
+  const pad=document.getElementById(cual);
+  const blank=document.createElement('canvas'); blank.width=pad.width; blank.height=pad.height;
+  if(pad.toDataURL()===blank.toDataURL()){ msg.textContent='Dibuja la firma en el recuadro correspondiente antes de estampar.'; return; }
+  try{
+    msg.textContent='Firmando...';
+    const bytes=await f.arrayBuffer();
+    const pdf=await PDFLib.PDFDocument.load(bytes);
+    const png=await pdf.embedPng(pad.toDataURL('image/png'));
+    const pags=pdf.getPages();
+    const n=Math.min(Math.max(1,parseInt(document.getElementById('pdfPag').value||'1',10)),pags.length);
+    const pg=pags[n-1]; const {width}=pg.getSize();
+    const w=170, h=w*(png.height/png.width);
+    const x=(document.getElementById('pdfPos').value==='der')?(width-w-60):60;
+    pg.drawImage(png,{x:x,y:90,width:w,height:h});
+    const out=await pdf.save();
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([out],{type:'application/pdf'}));
+    a.download=f.name.replace(/\.pdf$/i,'')+'-firmado.pdf';
+    a.click();
+    msg.textContent='Listo: se descargó el PDF firmado (página '+n+').';
+  }catch(e){ msg.textContent='No se pudo firmar el PDF: '+(e.message||e); }
+}
+</script>
+</body>
+</html>

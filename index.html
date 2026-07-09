@@ -806,6 +806,13 @@ body{background:transparent}
     <div class="hint" style="margin-top:7px">Instalar: descomprime el .zip → <b>edge://extensions</b> → activa "Modo de desarrollador" → "Cargar desempaquetada" → elige la carpeta. Luego abre Chatra, selecciona el mensaje del cliente y pulsa <b>Sugerir</b> (o clic derecho → "Sugerir respuesta (SINELI)").</div>
   </div>
 
+  <!-- Contrato de licencia (solo admin real) -->
+  <div class="sec realadminonly-sec" style="display:none" data-realadmin>
+    <h4 data-pxi="flag">Contrato de licencia (venta)</h4>
+    <div class="hint">Contrato de licencia SaaS de SINELI listo para llenar, imprimir o guardar como PDF, con firma en pantalla y estampado de firma sobre un PDF existente. La propiedad intelectual queda del licenciante.</div>
+    <div class="btnrow"><a class="btn" href="contrato.html" target="_blank" rel="noopener">Abrir contrato</a></div>
+  </div>
+
   <!-- Respuestas reportadas -->
   <div class="sec">
     <h4 data-pxi="flag">Respuestas reportadas</h4>
@@ -1310,6 +1317,7 @@ async function mfaDisable(){
 function applyRoleUI(){
   document.querySelectorAll('.adminonly').forEach(el=>el.style.display=isAdmin()?'grid':'none');
   document.querySelectorAll('.realadminonly').forEach(el=>el.style.display=isRealAdmin()?'grid':'none');
+  document.querySelectorAll('[data-realadmin]').forEach(el=>el.style.display=isRealAdmin()?'':'none');
   document.querySelectorAll('.supok').forEach(el=>el.style.display=puedeSupervisar()?'':'none');   // dashboard de supervision: admin o supervisor
   const dm=$('demoBar'); if(dm) dm.classList.toggle('on', demoAgent);
   document.body.classList.toggle('demo-on', demoAgent);

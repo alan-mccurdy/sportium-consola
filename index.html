@@ -50,6 +50,26 @@
     .panel{width:100%} #teampanel{width:100%}
     .panel-in{padding:18px 16px}
   }
+  /* ===== MOVIL (admin en vivo desde el telefono): mismas funciones, acomodo apilado.
+     Solo aplica en pantallas chicas; la version de escritorio no cambia. ===== */
+  @media(max-width:600px){
+    .email{border-radius:0}
+    .em-head{flex-wrap:wrap;gap:6px;row-gap:6px;padding:8px 10px}
+    .em-head .ubtn{padding:8px 10px;font-size:12px}
+    .ubtn,.btn{min-height:38px}
+    .em-respacts{gap:5px}
+    .em-respacts .btn{padding:8px 9px;font-size:12px;flex:1 1 auto}
+    .em-sug{min-height:120px;font-size:16px}      /* 16px evita el zoom automatico de iOS al enfocar */
+    .em-lr .em-resp .em-sug{min-height:120px}
+    .em-mailfields{display:flex;flex-direction:column;gap:6px}
+    .em-list{max-height:32vh}
+    .em-slot-h{flex-wrap:wrap;row-gap:4px}
+    .em-ana{max-height:40vh;overflow:auto}
+    .leftdock{top:auto;bottom:12px;right:10px;flex-direction:row;gap:6px;padding:6px 7px;border-radius:14px}
+    .em-dbtn{width:38px;height:38px}
+    #input{font-size:16px}
+    .em-crmchk label{font-size:12px}
+  }
 
   header{display:flex;align-items:center;flex-wrap:wrap;gap:12px;row-gap:8px;padding:14px 18px;border-bottom:1px solid var(--line)}
   .mark{font-weight:800;font-size:18px;letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
@@ -189,7 +209,8 @@
   .brow.off .bv{color:var(--txt-3);font-weight:500}
   .brow .bi{color:var(--accent)} .brow.off .bi{color:var(--txt-3)}
   .pxi{width:16px;height:16px;display:block}
-  .cmd{font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,.14);border-radius:3px;padding:0 4px;font-size:.9em;color:var(--accent);word-break:break-all;box-decoration-break:clone;-webkit-box-decoration-break:clone;line-height:inherit}
+  .cmd{font-weight:700;cursor:pointer;word-break:break-all}
+  .cmd:hover{text-decoration:underline}
   .em-crmchk{margin-top:8px;padding:6px 8px;border-left:3px solid #3b82f6;background:rgba(59,130,246,.07);font-size:12px;border-radius:4px}
   .em-crmchk label{display:flex;gap:6px;align-items:flex-start;margin-top:4px;cursor:pointer}
   .em-crmchk input{margin-top:1px;flex-shrink:0}
@@ -1958,9 +1979,9 @@ function renderContent(text){ let t=esc(text);
   t=t.replace(/(?<!["(=])(https?:\/\/[^\s<"]+(?:\.(?:png|jpe?g|gif|webp)|pollinations\.ai\/prompt\/[^\s<"]+))/gi,(m,u)=>imgTag(u));
   // resaltado: **negrita** -> destacado pixel (sin mostrar asteriscos)
   t=t.replace(/\*\*([^*]+)\*\*/g,'<strong class="hl">$1</strong>');
-  // COMANDOS: `entre backticks` o comandos tecnicos detectados -> pildora monoespaciada para que resalten
-  t=t.replace(/`([^`\n]+)`/g,'<code class="cmd">$1</code>');
-  t=t.replace(/(^|[\s])((?:sudo\s+)?(?:putty|plink|ssh|vncviewer|systemctl|service|reboot|shutdown|ping|ipconfig|ifconfig|tracert|traceroute|telnet|nslookup|netstat|taskkill|tasklist|gpupdate|chkdsk|sfc|mstsc|scp|sftp|net\s+(?:start|stop|use)|sc\s+(?:start|stop|query))\b[^\n<`]*)/gim,'$1<code class="cmd">$2</code>');
+  // COMANDOS: `entre backticks` o comandos tecnicos detectados -> NEGRITAS con clic para copiar
+  t=t.replace(/`([^`\n]+)`/g,'<b class="cmd" title="Clic para copiar">$1</b>');
+  t=t.replace(/(^|[\s])((?:sudo\s+)?(?:putty|plink|ssh|vncviewer|systemctl|service|reboot|shutdown|ping|ipconfig|ifconfig|tracert|traceroute|telnet|nslookup|netstat|taskkill|tasklist|gpupdate|chkdsk|sfc|mstsc|scp|sftp|net\s+(?:start|stop|use)|sc\s+(?:start|stop|query))\b[^\n<`]*)/gim,'$1<b class="cmd" title="Clic para copiar">$2</b>');
   // ===== ACOMODO CLARO: cada bloque de la respuesta se vuelve una TARJETA con encabezado =====
   // (interno = ambar, verificar = azul, respuesta al cliente/sala = verde con boton Copiar)
   const HDRS=[
@@ -1987,6 +2008,8 @@ function renderContent(text){ let t=esc(text);
     return out.replace(/\n/g,'<br>');
   }
   return t.replace(/\n/g,'<br>'); }
+/* Comandos resaltados: un clic copia el comando al portapapeles */
+document.addEventListener('click',function(e){ var c=e.target&&e.target.closest&&e.target.closest('.cmd'); if(!c)return; try{ navigator.clipboard.writeText(c.innerText.trim()); toast('Comando copiado'); }catch(_){} });
 /* Copia SOLO el texto de una seccion (ej. la respuesta sugerida, sin lo interno) */
 function copiarSec(btn){ try{ const b=btn.closest('.blocksec').querySelector('.bs-b'); navigator.clipboard.writeText(b.innerText.trim()); toast('Respuesta copiada'); }catch(e){} }
 /* SCROLL DE LECTURA: si el ultimo mensaje es LARGO (no cabe comodo en pantalla), deja su INICIO arriba
@@ -2691,7 +2714,7 @@ function emSetBandeja(b){ emBandeja=b; try{ localStorage.setItem('inbox-bandeja-
 function emActiveThread(){ const id=(emFocus==='mail')?emSelMail:emSelChat; return EMBANDEJA.find(function(x){return x.id===id;}); }
 function emThreadPais(t){ return (t&&t.pais) || (t&&t.cliente&&t.cliente.pais) || turnoPais(); }
 function emSetThreadPais(slot,val){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.pais=val; emSave(); emPush(t); emRenderSlot(slot); toast('País de la conversación: '+((typeof PAISN!=='undefined'&&PAISN[val])||val)); }
-function emThreadVert(t){ return (t&&t.vertical) || 'online'; }   // online = cliente externo; retail = personal interno de sala
+function emThreadVert(t){ return (t&&t.vertical) || (t&&t.cliente&&t.cliente.vertical) || 'online'; }   // online = cliente externo; retail = personal de sala (el buzon de correo puede fijarlo via cliente.vertical)
 function emToggleList(){ const sh=$('emShell'); if(!sh)return; const col=!sh.classList.contains('listcol'); sh.classList.toggle('listcol',col); try{ localStorage.setItem('inbox-listcol', col?'1':'0'); }catch(e){} }
 function emSetThreadVert(slot,val){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.vertical=val; emSave(); emRenderSlot(slot); toast(val==='retail'?'Marcado como PERSONAL DE SALA (retail): la IA dará pasos internos, sin respuesta de cliente.':'Marcado como CLIENTE.'); }
 function emSaveSel(){ try{ localStorage.setItem('inbox-sel', JSON.stringify({chat:emSelChat,mail:emSelMail,focus:emFocus})); }catch(e){} }

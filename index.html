@@ -2,8 +2,16 @@
 <html lang="es" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SINELI — Consola de soporte</title>
+<!-- App instalable (PWA): en iPhone Safari -> Compartir -> Anadir a pantalla de inicio -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SINELI">
+<meta name="theme-color" content="#17191D">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -65,10 +73,25 @@
     .em-list{max-height:32vh}
     .em-slot-h{flex-wrap:wrap;row-gap:4px}
     .em-ana{max-height:40vh;overflow:auto}
-    .leftdock{top:auto;bottom:12px;right:10px;flex-direction:row;gap:6px;padding:6px 7px;border-radius:14px}
+    .leftdock{top:auto;bottom:calc(12px + env(safe-area-inset-bottom));right:10px;flex-direction:row;gap:6px;padding:6px 7px;border-radius:14px}
     .em-dbtn{width:38px;height:38px}
     #input{font-size:16px}
     .em-crmchk label{font-size:12px}
+    /* ACORDEON MOVIL: cada seccion del inbox se pliega tocando su titulo (nada encimado en iPhone) */
+    .email .em-coltitle{cursor:pointer;display:flex;align-items:center;gap:6px;padding:9px 4px;margin:0;position:sticky;top:0;background:var(--surface);z-index:2;border-bottom:1px solid var(--line);font-size:12.5px}
+    .email .em-coltitle::before{content:'';width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--accent);transition:.15s;flex:none}
+    .email .em-q.mcerrada .em-coltitle::before{transform:rotate(-90deg)}
+    .email .em-q.mcerrada > *:not(.em-coltitle){display:none!important}
+    .email .em-q{min-height:0!important;overflow:visible}
+    .em-shell,.em-quad,.em-leftcol{display:block!important}
+    .em-quad .em-q{border-right:none!important;border-bottom:1px solid var(--line)}
+    .em-list{max-height:none}
+    .em-list.mcerrada .em-items,.em-list.mcerrada .em-filtros{display:none!important}
+    .email{padding-bottom:70px}   /* que el dock flotante no tape los botones */
+    .em-thread{max-height:38vh;overflow:auto}
+    .em-analisis{max-height:none}
+    .em-ana{max-height:50vh}
+    .htur-in{padding-bottom:80px}
   }
 
   header{display:flex;align-items:center;flex-wrap:wrap;gap:12px;row-gap:8px;padding:14px 18px;border-bottom:1px solid var(--line)}
@@ -2122,6 +2145,22 @@ function renderContent(text){ let t=esc(text);
     return out.replace(/\n/g,'<br>');
   }
   return t.replace(/\n/g,'<br>'); }
+/* ACORDEON MOVIL del inbox: tocar el titulo de una seccion la pliega/despliega (solo en pantallas
+   chicas; en escritorio no cambia nada). Al abrir el inbox en movil, se pliegan interno y lista
+   para que la conversacion y la respuesta se lean sin encimarse. */
+document.addEventListener('click',function(e){
+  if(innerWidth>600) return;
+  var t=e.target&&e.target.closest&&e.target.closest('.email .em-coltitle'); if(!t) return;
+  var q=t.closest('.em-q'); if(q){ q.classList.toggle('mcerrada'); }
+});
+function mAcordeonInit(){
+  if(innerWidth>600) return;
+  try{
+    document.querySelectorAll('.email .em-ana').forEach(function(a){ a.classList.add('mcerrada'); });   // interno plegado por defecto
+  }catch(e){}
+}
+/* Registro del service worker de la PWA (app instalable); silencioso si no aplica */
+if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
 /* Comandos resaltados: un clic copia el comando al portapapeles */
 document.addEventListener('click',function(e){ var c=e.target&&e.target.closest&&e.target.closest('.cmd'); if(!c)return; try{ navigator.clipboard.writeText(c.innerText.trim()); toast('Comando copiado'); }catch(_){} });
 /* Copia SOLO el texto de una seccion (ej. la respuesta sugerida, sin lo interno) */
@@ -2891,7 +2930,7 @@ function emConsolidarCliente(t){
   pendientes.forEach(function(x){ (x.mensajes||[]).forEach(function(m){ if(m.from==='agente')return; var nm=_normMsg(m.text); if(!nm)return; if(vistos[nm]){ repetidos++; return; } vistos[nm]=1; unicos++; }); });
   t._consol={ total:grupo.length, respondidos:respondidos.length, pendientes:pendientes.length, nuevos:nuevos, unicos:unicos, repetidos:repetidos };
 }
-function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'activos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); var _epg=$('emPegar'); if(_epg)_epg.style.display=isAdmin()?'':'none'; var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); try{ if(localStorage.getItem('inbox-listcol')==='1'&&$('emShell'))$('emShell').classList.add('listcol'); }catch(e){} if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); }
+function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'activos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); mAcordeonInit(); var _epg=$('emPegar'); if(_epg)_epg.style.display=isAdmin()?'':'none'; var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); try{ if(localStorage.getItem('inbox-listcol')==='1'&&$('emShell'))$('emShell').classList.add('listcol'); }catch(e){} if(emModo==='auto'&&EMAIL_AUTO.on) emFetchAuto(); emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); }
 function closeEmail(){ $('emailPanel').classList.remove('on'); setView('chat'); }
 function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = emModo==='manual' ? '' : 'none'; }
 function emSetModo(modo){ if(modo==='auto' && !EMAIL_AUTO.on){ toast('Modo automatico no configurado todavia — avisame para activar el correo de reenvio'); return; } emModo=modo; try{ localStorage.setItem('email-modo', modo); }catch(e){} emReflectModo(); if(modo==='auto') emFetchAuto(); else emRenderList(); }

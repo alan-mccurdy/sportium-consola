@@ -189,6 +189,10 @@
   .brow.off .bv{color:var(--txt-3);font-weight:500}
   .brow .bi{color:var(--accent)} .brow.off .bi{color:var(--txt-3)}
   .pxi{width:16px;height:16px;display:block}
+  .cmd{font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,.13);border:1px solid rgba(127,127,127,.3);border-radius:4px;padding:1px 5px;font-size:.92em;color:var(--accent)}
+  .em-crmchk{margin-top:8px;padding:6px 8px;border-left:3px solid #3b82f6;background:rgba(59,130,246,.07);font-size:12px;border-radius:4px}
+  .em-crmchk label{display:flex;gap:6px;align-items:flex-start;margin-top:4px;cursor:pointer}
+  .em-crmchk input{margin-top:1px;flex-shrink:0}
   .blk-h .pxi{width:12px;height:12px}
   .tile .pxi{width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:5px}
   .sec h4 .pxi{width:14px;height:14px;color:var(--accent);flex-shrink:0}
@@ -1107,7 +1111,7 @@ body{background:transparent}
         <div class="em-quad em-lr">
           <div class="em-leftcol">
             <div class="em-q em-conv"><div class="em-coltitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emChatTicketImg"></span><label class="btn ghost" style="cursor:pointer;margin:0">Adjuntar ticket<input type="file" accept="image/*" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();emAdjuntarTicket('chat',event)"></label><button class="btn ghost" title="Analiza el ticket de apuesta (imagen o lo que describa el cliente) y explica por qué ganó o perdió" onclick="event.stopPropagation();emAnalizarTicket('chat')">Analizar ticket</button></div></div>
-            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('chat')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn ghost" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('chat')">En espera</button><button class="btn" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
+            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" id="emChatTomarBtn" onclick="event.stopPropagation();emTomarToggle('chat')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn ghost" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('chat')">En espera</button><button class="btn" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
           </div>
           <div class="em-q em-ana" id="emChatAna"><div class="em-coltitle">Interno (chat y correo)</div><div class="em-analisis" id="emChatAnalisis"></div></div>
         </div>
@@ -1117,7 +1121,7 @@ body{background:transparent}
         <div class="em-claim" id="emMailClaim" style="display:none"></div>
         <div class="em-quad em-mailonly">
           <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emMailTicketImg"></span><label class="btn ghost" style="cursor:pointer;margin:0">Adjuntar ticket<input type="file" accept="image/*" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();emAdjuntarTicket('mail',event)"></label><button class="btn ghost" title="Analiza el ticket de apuesta (imagen o lo que describa el cliente) y explica por qué ganó o perdió" onclick="event.stopPropagation();emAnalizarTicket('mail')">Analizar ticket</button></div></div>
-          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" onclick="event.stopPropagation();emTomar('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" title="Resumir la conversacion del chat del cliente y armar el cuerpo del correo" onclick="event.stopPropagation();emResumirChatACorreo()">Resumir chat → correo</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" title="Copia el enlace para que el cliente califique la atención y lo agrega al final del correo" onclick="event.stopPropagation();emCsatLink()">Link CSAT</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn ghost" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('mail')">En espera</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
+          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" id="emMailTomarBtn" onclick="event.stopPropagation();emTomarToggle('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" title="Resumir la conversacion del chat del cliente y armar el cuerpo del correo" onclick="event.stopPropagation();emResumirChatACorreo()">Resumir chat → correo</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" title="Copia el enlace para que el cliente califique la atención y lo agrega al final del correo" onclick="event.stopPropagation();emCsatLink()">Link CSAT</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn ghost" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('mail')">En espera</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
         </div>
       </div>
     </div>
@@ -1260,7 +1264,7 @@ async function mfaGate(){
 async function mfaRefresh(){
   const st=$('mfaStatus'), bt=$('mfaBtn'), off=$('mfaOff'), en=$('mfaEnroll'); if(!st)return;
   try{ const {data:fl}=await sb.auth.mfa.listFactors(); const v=((fl&&fl.totp)||[]).find(f=>f.status==='verified');
-    if(v){ _mfaFactor=v; st.textContent='✓ 2FA activado en esta cuenta.'; if(bt)bt.style.display='none'; if(off)off.style.display=''; if(en)en.style.display='none'; }
+    if(v){ _mfaFactor=v; st.textContent='2FA activado en esta cuenta.'; if(bt)bt.style.display='none'; if(off)off.style.display=''; if(en)en.style.display='none'; }
     else { st.textContent='2FA no activado (recomendado para administradores).'; if(bt)bt.style.display=''; if(off)off.style.display='none'; if(en)en.style.display='none'; }
   }catch(e){ st.textContent='MFA no disponible — actívalo en Supabase → Authentication.'; }
 }
@@ -1954,6 +1958,9 @@ function renderContent(text){ let t=esc(text);
   t=t.replace(/(?<!["(=])(https?:\/\/[^\s<"]+(?:\.(?:png|jpe?g|gif|webp)|pollinations\.ai\/prompt\/[^\s<"]+))/gi,(m,u)=>imgTag(u));
   // resaltado: **negrita** -> destacado pixel (sin mostrar asteriscos)
   t=t.replace(/\*\*([^*]+)\*\*/g,'<strong class="hl">$1</strong>');
+  // COMANDOS: `entre backticks` o comandos tecnicos detectados -> pildora monoespaciada para que resalten
+  t=t.replace(/`([^`\n]+)`/g,'<code class="cmd">$1</code>');
+  t=t.replace(/(^|[\s])((?:sudo\s+)?(?:putty|plink|ssh|vncviewer|systemctl|service|reboot|shutdown|ping|ipconfig|ifconfig|tracert|traceroute|telnet|nslookup|netstat|taskkill|tasklist|gpupdate|chkdsk|sfc|mstsc|scp|sftp|net\s+(?:start|stop|use)|sc\s+(?:start|stop|query))\b[^\n<`]*)/gim,'$1<code class="cmd">$2</code>');
   // ===== ACOMODO CLARO: cada bloque de la respuesta se vuelve una TARJETA con encabezado =====
   // (interno = ambar, verificar = azul, respuesta al cliente/sala = verde con boton Copiar)
   const HDRS=[
@@ -2015,7 +2022,7 @@ async function ensenar(i){
 }
 /* Guardar respuesta de la IA en favoritas del agente */
 async function guardarFav(i){ const s=activeS(); if(!s||!s.mensajes[i])return; let pregunta=''; for(let k=i-1;k>=0;k--){ if(s.mensajes[k].role==='user'){ pregunta=(s.mensajes[k].content||'').trim(); break; } } const respuesta=(s.mensajes[i].content||'').trim(); if(!respuesta)return; try{ await sb.from('agente_favoritos').insert({pregunta:pregunta.slice(0,2000),respuesta:respuesta.slice(0,4000)}); toast('Guardado en favoritas'); }catch(e){ toast('No se pudo guardar: '+(e.message||e)); } }
-/* 👎 Reportar respuesta de la IA -> queda en audit_log para que el admin la revise/corrija */
+/* Reportar respuesta de la IA -> queda en audit_log para que el admin la revise/corrija */
 async function reportarIA(i){
   const s=activeS(); if(!s||!s.mensajes[i])return;
   let pregunta=''; for(let k=i-1;k>=0;k--){ if(s.mensajes[k].role==='user'){ pregunta=(s.mensajes[k].content||'').trim(); break; } }
@@ -2028,7 +2035,7 @@ async function reportarIA(i){
   }
   catch(e){ toast('No se pudo reportar: '+(e.message||e)); }
 }
-/* 👍 Buena respuesta -> la guarda como CASO ejemplo (kb-caso) para reforzar respuestas parecidas */
+/* Buena respuesta -> la guarda como CASO ejemplo (kb-caso) para reforzar respuestas parecidas */
 async function aprobarIA(i){
   const s=activeS(); if(!s||!s.mensajes[i])return;
   let pregunta=''; for(let k=i-1;k>=0;k--){ if(s.mensajes[k].role==='user'){ pregunta=(s.mensajes[k].content||'').trim(); break; } }
@@ -2815,9 +2822,12 @@ async function emTomar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSel
   const _ok=await emClaimRow(t);
   if(!_ok){ toast('Justo la tomó otro agente'); await emCloudLoad(); emRenderList(); emRenderSlot(slot); return; }
   if((t.estado||'nuevo')==='nuevo')t.estado='leido'; emSave(); emPush(t); emRenderList(); emRenderSlot(slot); toast('La tomaste: '+t.tomado_email);
-  // Al asignarte la conversacion, genera la respuesta sugerida si aun no hay (y no la has escrito tu).
+  // Al asignarte la conversacion, genera la respuesta sugerida si aun no hay una USABLE (y no la has escrito tu).
+  // Un fallo de sesion guardado por error en iaRaw NO cuenta como sugerencia: se limpia y se regenera.
+  if(t.iaRaw && /sesi[oó]n no v[aá]lida/i.test(t.iaRaw)){ t.iaRaw=''; if(!t.draftEdited) t.draft=''; }
   const _yaResp=(t.mensajes||[]).some(function(m){return m.from==='agente';});
-  if(!t.iaRaw && !(t.draftEdited && t.draft) && !_yaResp){ emPedirSugerencia(slot); }
+  const _usable=(t.draftEdited && t.draft) || (t.draft||'').trim() || (t.iaRaw && extraerSugerida(t.iaRaw));
+  if(!_usable && !_yaResp){ emPedirSugerencia(slot); }
   emTomarMismoCliente(t); }
 // Complemento: al tomar una conversacion, si el MISMO cliente tiene otra en el OTRO canal,
 // tomala tambien y genera su respuesta (es la misma persona). No roba conversaciones ya tomadas por otro.
@@ -2834,10 +2844,15 @@ async function emTomarMismoCliente(t){
   emSave(); emPush(otro);
   if(oslot==='mail')emSelMail=otro.id; else emSelChat=otro.id; emSaveSel();
   emRenderList(); emRenderSlot(oslot);
+  if(otro.iaRaw && /sesi[oó]n no v[aá]lida/i.test(otro.iaRaw)){ otro.iaRaw=''; if(!otro.draftEdited) otro.draft=''; }
   var _yaResp=(otro.mensajes||[]).some(function(m){return m.from==='agente';});
-  if(!otro.iaRaw && !(otro.draftEdited && otro.draft) && !_yaResp){ emPedirSugerencia(oslot); }
+  var _usable2=(otro.draftEdited && otro.draft) || (otro.draft||'').trim() || (otro.iaRaw && extraerSugerida(otro.iaRaw));
+  if(!_usable2 && !_yaResp){ emPedirSugerencia(oslot); }
   toast('Mismo cliente: también tomé su '+(oslot==='mail'?'correo':'chat')+(_yaResp?'':' y generé su respuesta')+'.');
 }
+/* El boton Tomar es un TOGGLE: si la conversacion ya es tuya, muestra "Liberar" y la suelta desde ahi. */
+function emTomarToggle(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(t && me && t.tomado_por===me.id){ emLiberar(slot); } else { emTomar(slot); } }
+function emTomarBtnSync(){ ['chat','mail'].forEach(function(sl){ const b=$(sl==='mail'?'emMailTomarBtn':'emChatTomarBtn'); if(!b)return; const id=(sl==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); const mia=!!(t && me && t.tomado_por===me.id); b.textContent=mia?'Liberar':'Tomar'; b.title=mia?'Soltar esta conversación (queda libre para el equipo)':'Asignarte esta conversación'; }); }
 function emLiberar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.tomado_por=null; t.tomado_email=''; t.tomado_at=null; emSave(); emPush(t); if(slot==='mail')emSelMail=null; else emSelChat=null; emSaveSel(); emRenderList(); emRenderSlot(slot); emRenderInterno(); toast('Liberada y quitada de tu panel'); }
 // ---- EN ESPERA + CIERRE DE TURNO: un correo/chat que no se puede cerrar porque falta info de un
 // compañero/sala se marca "En espera" (con nota) y NO se pierde en el cambio de turno. Al terminar,
@@ -2871,6 +2886,7 @@ function emRenderClaim(slot){
   emRenderClaimTop();
 }
 function emRenderClaimTop(){
+  emTomarBtnSync();
   const top=$('emClaimTop'); if(!top)return;
   const slot=emFocus||'chat'; const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat;
   const t=EMBANDEJA.find(function(x){return x.id===id;});
@@ -2879,10 +2895,10 @@ function emRenderClaimTop(){
   top.style.display='';
   if(!txt){ top.className='em-claimtop'; top.innerHTML='<b>'+canal+':</b> nadie la ha tomado. <a href="#" onclick="event.preventDefault();emTomar(\''+slot+'\')">Tomar yo</a>'; return; }
   top.className='em-claimtop'+(otro?' otro':' mia');
-  top.innerHTML = (otro?('<b>'+canal+':</b> ⚠ la atiende <b>'+escapeHtml(t.tomado_email)+'</b> — evita responder doble.'+((typeof isAdmin==='function'&&isAdmin())?' <a href="#" onclick="event.preventDefault();emTomar(\''+slot+'\')">Tomar de todos modos</a>':''))
+  top.innerHTML = (otro?('<b>'+canal+':</b> la atiende <b>'+escapeHtml(t.tomado_email)+'</b> — evita responder doble.'+((typeof isAdmin==='function'&&isAdmin())?' <a href="#" onclick="event.preventDefault();emTomar(\''+slot+'\')">Tomar de todos modos</a>':''))
     : ('<b>'+canal+':</b> la tomaste tú. <a href="#" onclick="event.preventDefault();emLiberar(\''+slot+'\')">Liberar</a>'));
 }
-function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var est=(t.estado||'nuevo'); var fok=(emFiltro==='todos')?true:(emFiltro==='activos')?(est!=='respondido'):(emFiltro==='sintomar')?!t.tomado_por:(est===emFiltro); return ch===emBandeja && fok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); var body=(t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'')||''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='espera'?'espera':(est==='leido'?'leido':'nuevo'))); var bl=(est==='espera'?'en espera':est); return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+(est==='espera'?' esp':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags"><span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+'</div>'; }).join('')||'<div class="em-empty">Sin conversaciones en este filtro.</div>'; }
+function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var est=(t.estado||'nuevo'); var fok=(emFiltro==='todos')?true:(emFiltro==='activos')?(est!=='respondido'):(emFiltro==='sintomar')?!t.tomado_por:(est===emFiltro); return ch===emBandeja && fok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); var body=(t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'')||''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='espera'?'espera':(est==='leido'?'leido':'nuevo'))); var bl=(est==='espera'?'en espera':est); return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+(est==='espera'?' esp':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags"><span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+(function(){var _ms=emTiempoResp(t);return _ms!=null?('<div class="em-claimline">respondida en '+fmtMs(_ms)+'</div>'):'';})()+'</div>'; }).join('')||'<div class="em-empty">Sin conversaciones en este filtro.</div>'; }
 // Ficha FIJA de datos del cliente en el inbox (contador de mensajes/correos + KYC + saldo + más detalles).
 function emClienteInfoHTML(t, slot){
   if(!t) return '';
@@ -2944,6 +2960,23 @@ function emRenderSlot(slot){
   }
   emRenderInterno(); emRenderClaim(slot);
 }
+/* ---- Checklist de verificacion CRM: guia INTERNA de calidad. Convierte la seccion "Verificar en el
+   CRM:" del analisis en casillas que el agente marca al comprobar cada dato; si falta alguna al enviar,
+   se le pregunta antes (el dato de la respuesta al cliente debe estar comprobado, no supuesto). ---- */
+function emChecklistItems(t){
+  if(!t||!t.iaRaw)return [];
+  var m=t.iaRaw.match(/Verificar en el (?:CRM|sistema):([\s\S]*?)(?:Respuesta sugerida al (?:cliente|personal de sala):|$)/i);
+  if(!m)return [];
+  return m[1].split('\n').map(function(l){return l.replace(/^\s*[-·•\d.)\s]+/,'').trim();}).filter(function(l){return l.length>3;}).slice(0,6);
+}
+function emCrmChk(id,i,on){ var t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.crmChk=t.crmChk||{}; t.crmChk[i]=!!on; emSave(); }
+function emChecklistHTML(t){
+  var items=emChecklistItems(t); if(!items.length)return '';
+  var chk=t.crmChk||{};
+  return '<div class="em-crmchk"><b>Comprueba en el CRM antes de enviar:</b>'+items.map(function(it,i){
+    return '<label><input type="checkbox" '+(chk[i]?'checked':'')+' onchange="emCrmChk(\''+t.id+'\','+i+',this.checked)"> '+escapeHtml(it)+'</label>';
+  }).join('')+'</div>';
+}
 function emRenderInterno(){
   const box=$('emChatAnalisis'); if(!box)return;
   const ct=EMBANDEJA.find(function(x){return x.id===emSelChat;});
@@ -2954,6 +2987,8 @@ function emRenderInterno(){
     const sameClient = !!((ct && ct.cliente && mt.cliente && ct.cliente.usuario===mt.cliente.usuario) || (ct && mt && ct.de && (ct.de||'').toLowerCase()===(mt.de||'').toLowerCase()));
     if(!sameClient){ const mi=renderContent(emInterno(mt.iaRaw)); if(mi) html += '<div class="em-coltitle" style="margin-top:10px">Interno del correo ('+escapeHtml(mt.de||'cliente')+')</div>'+mi; }
   }
+  if(ct) html += emChecklistHTML(ct);
+  if(mt && mt!==ct) html += emChecklistHTML(mt);
   if(ct) html += emCalidadHTML(ct);
   if(mt && mt!==ct) html += emCalidadHTML(mt);
   box.innerHTML = html || '<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
@@ -2979,7 +3014,30 @@ function emAddManual(){
   emSave(); emPush(EMBANDEJA.find(function(x){return x.id===id;})); emRenderList(); emRenderSlot(slot); emFocusSet(slot); emPedirSugerencia(slot);
 }
 function emNueva(){ emSelChat=null; emSelMail=null; emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); }
-async function emPedirSugerencia(slot){
+/* Tiempo legible (ej. 45s, 3m 20s, 1h 05m) */
+function fmtMs(ms){ if(ms==null||isNaN(ms)||ms<0)return''; var s=Math.round(ms/1000); if(s<60)return s+'s'; var m=Math.floor(s/60); if(m<60)return m+'m '+String(s%60).padStart(2,'0')+'s'; var h=Math.floor(m/60); return h+'h '+String(m%60).padStart(2,'0')+'m'; }
+/* Tiempo de respuesta del ultimo envio del agente en esta conversacion (leido de los mensajes, sobrevive recargas) */
+function emTiempoResp(t){ var ms=null; (t.mensajes||[]).forEach(function(m){ if(m.from==='agente'&&m.trespMs!=null)ms=m.trespMs; }); return ms; }
+/* Formatea un cuerpo (ej. una FAQ guardada) como mensaje FINAL para el cliente cumpliendo el estandar:
+   saludo con nombre y firma en correo, saludo corto en chat, y CONTINUIDAD: si la conversacion ya venia
+   andando (el agente ya respondio antes), NO se vuelve a saludar; se retoma el hilo directo. */
+function emFormatoCliente(t, cuerpo){
+  cuerpo=(cuerpo||'').trim(); if(!cuerpo)return cuerpo;
+  var esMail=(t.canal!=='mensaje');
+  var yaHablamos=(t.mensajes||[]).some(function(m){return m.from==='agente';});
+  var nom=(typeof emNombreCorreo==='function')?(emNombreCorreo(t)||''):'';
+  var emp=(CONFIG.cliente||'Sportium');
+  if(yaHablamos){ cuerpo=cuerpo.replace(/^\s*(estimado\/?a?\b[^,\n]*,|hola\b[^,\n]*,|buen[oa]s\s*(d[ií]as|tardes|noches)?[,!.]?)\s*/i,''); }
+  var tieneSaludo=/^(estimado|hola|buen[oa]s)/i.test(cuerpo);
+  var tieneFirma=/atentamente/i.test(cuerpo);
+  if(esMail){
+    var saludo=(yaHablamos||tieneSaludo)?'':((nom?('Estimado/a '+nom+','):'Estimado/a,')+'\n\n');
+    var firma=tieneFirma?'':('\n\nAtentamente,\nEquipo de Soporte de '+emp);
+    return saludo+cuerpo+firma;
+  }
+  return ((yaHablamos||tieneSaludo)?'':(nom?('Hola '+nom+', '):'Hola, '))+cuerpo;
+}
+async function emPedirSugerencia(slot, _retrySesion){
   slot=slot||emFocus; const isMail=(slot==='mail');
   const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;});
   const gen=$(isMail?'emMailGen':'emChatGen'); if(!t)return;
@@ -2987,7 +3045,12 @@ async function emPedirSugerencia(slot){
   var _lastCli=''; for(var _k=(t.mensajes||[]).length-1;_k>=0;_k--){ if(t.mensajes[_k].from==='cliente'){ _lastCli=t.mensajes[_k].text||''; break; } }
   var _faq=(typeof matchFaq==='function')?matchFaq(_lastCli, (typeof emThreadPais==='function'?emThreadPais(t):'')):null;
   if(_faq && typeof faqConfident==='function' && !faqConfident(_faq,_lastCli)) _faq=null; // no dejar que una FAQ suelta secuestre un correo largo
-  if(_faq){ var _pais=emThreadPais(t); t.iaRaw='Para ti (interno): Respuesta tomada de una correccion guardada (FAQ), sin IA.\nRespuesta sugerida al cliente: '+_faq.respuesta; t.draft=extraerSugerida(t.iaRaw); t.draftEdited=false; var _lk=emEnlaces(_lastCli,_pais); if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n'+_lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); } emSave(); emPush(t); emRenderSlot(slot); return; }
+  if(_faq){ var _pais=emThreadPais(t); t.iaRaw='Para ti (interno): Respuesta tomada de una correccion guardada (FAQ), sin IA.\nRespuesta sugerida al cliente: '+_faq.respuesta;
+    // FORMATO DE CALIDAD: la FAQ cruda se entrega como mensaje terminado (saludo/firma segun canal y continuidad).
+    var _cuerpoFaq=extraerSugerida(t.iaRaw); var _lk=emEnlaces(_lastCli,_pais);
+    if(_lk.length){ _cuerpoFaq += '\n\nPara que lo revises tu mismo:\n'+_lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); }
+    t.draft=emFormatoCliente(t,_cuerpoFaq); t.draftEdited=false;
+    emSave(); emPush(t); emRenderSlot(slot); return; }
   // RECLAMO DE APUESTA: si hay imagen de ticket adjunta, o el cliente describe una liquidacion con
   // evento/mercado concreto ("gane/perdi ... Argentina vs Cabo Verde resultado exacto"), analiza el
   // ticket con el verificador (misma calidad del chat) en vez de la sugerencia normal. Un reclamo
@@ -3005,19 +3068,28 @@ async function emPedirSugerencia(slot){
     // Directiva: el inbox redacta el mensaje FINAL para el CLIENTE (no una ayuda para el agente).
     const nombreCli=emNombreCorreo(t);
     const emp=(CONFIG.cliente||'Sportium');
+    // CONTINUIDAD + DEMORA: si ya venias hablando con el cliente no se vuelve a saludar; si lleva rato esperando, se reconoce la espera.
+    const yaHablamos=(t.mensajes||[]).some(function(m){return m.from==='agente';});
+    var _espMs=null; try{ for(var _q=(t.mensajes||[]).length-1;_q>=0;_q--){ var _mq=t.mensajes[_q]; if(_mq.from==='cliente'){ var _tq=(typeof _mq.t==='string')?Date.parse(_mq.t):_mq.t; if(_tq)_espMs=Date.now()-_tq; break; } } }catch(_){}
+    const dirDemora=(_espMs && _espMs>(canal==='email'?45*60000:8*60000)) ? ' El cliente lleva esperando aproximadamente '+fmtMs(_espMs)+': incluye UNA disculpa breve por la demora (sin excusas largas) antes de resolver.' : '';
     const dir=[
       'Devuelve SIEMPRE estas TRES secciones EXACTAS, cada una iniciando su propia linea con el encabezado tal cual:',
       '"Para ti (interno):" diagnostico, causa y pasos para el AGENTE (aqui van los datos internos: IPs, comandos, multicuenta, montos de referencia).',
-      '"Verificar en el CRM:" 2 a 4 datos a confirmar.',
+      '"Verificar en el CRM:" 2 a 4 verificaciones CONCRETAS para el agente, cada una en su propia linea con formato "- [Campo del CRM] -> que confirmar y que valor esperas". Son exactamente los datos que sustentan la respuesta al cliente: si alguno no coincide en el CRM, la respuesta NO se debe enviar tal cual.',
       '"Respuesta sugerida al cliente:" el mensaje FINAL listo para ENVIAR al cliente, de "usted", SIN ningun dato interno ni instrucciones para el agente.',
       'COHERENCIA OBLIGATORIA: la "Respuesta sugerida al cliente" debe decir al cliente la MISMA conclusion de tu "Para ti (interno)" (traducida a lenguaje sencillo, sin datos internos). Responde EXACTAMENTE lo que el cliente pregunto en su mensaje; NO cambies de tema, NO contradigas tu diagnostico, NO des una respuesta generica. Si el interno concluye que falta un requisito, que se escala, o cual es la causa, la respuesta al cliente debe reflejar ESO mismo.',
       (canal==='email'
-        ? ('Esa respuesta al cliente es un CORREO. '+(nombreCli
+        ? (yaHablamos
+          ? ('Esa respuesta al cliente es un CORREO de SEGUIMIENTO de una conversacion ya iniciada: NO vuelvas a saludar con "Estimado/a" ni te presentes; entra directo al tema retomando el hilo, y cierra con "Atentamente," y en la linea siguiente "Equipo de Soporte de '+emp+'".')
+          : ('Esa respuesta al cliente es un CORREO. '+(nombreCli
             ? ('Empieza con "Estimado/a '+nombreCli+'," en su propia linea. ')
             : ('Empieza con el saludo en su propia linea usando el NOMBRE del cliente SOLO si aparece en su correo (en el saludo o la firma); si no aparece, usa solo "Estimado/a," sin nombre y NUNCA escribas "Estimado/a cliente". '))
-          +'Luego el cuerpo, y cierra con "Atentamente," y en la linea siguiente "Equipo de Soporte de '+emp+'".')
-        : 'Esa respuesta al cliente es un MENSAJE de chat: breve y conversacional, con saludo corto y SIN firma ni "Atentamente".'),
-      'PAIS: usa UNICAMENTE informacion, bonos, codigos y promociones de '+pais+'. NO mezcles ni uses datos de otros paises; si no tienes el dato de '+pais+', dilo y no lo inventes.'
+          +'Luego el cuerpo, y cierra con "Atentamente," y en la linea siguiente "Equipo de Soporte de '+emp+'".'))
+        : (yaHablamos
+          ? 'Esa respuesta al cliente es un MENSAJE de chat dentro de una conversacion ya iniciada: breve, SIN saludo (ya estan conversando) y sin firma; retoma directo el tema.'
+          : 'Esa respuesta al cliente es un MENSAJE de chat: breve y conversacional, con saludo corto y SIN firma ni "Atentamente".')),
+      'PAIS: usa UNICAMENTE informacion, bonos, codigos y promociones de '+pais+'. NO mezcles ni uses datos de otros paises; si no tienes el dato de '+pais+', dilo y no lo inventes.',
+      'FORMATO DE CALIDAD: la respuesta al cliente va en parrafos cortos (o pasos numerados si son instrucciones), cubre TODOS los puntos de su caso con la informacion completa que tengas (montos, plazos, requisitos, que sigue) y cierra confirmando el siguiente paso o quedando a la orden. Sin relleno ni promesas vagas.'
     ].join(' ');
     // PERSONAL DE SALA (retail): NO es cliente externo -> comunicacion interna con pasos/comandos, sin "Respuesta al cliente".
     const dirRetail=[
@@ -3048,24 +3120,33 @@ async function emPedirSugerencia(slot){
       if(_oResp) dirCoher+=' En ese otro canal YA se preparo esta respuesta: "'+_oResp.slice(0,800)+'". USA ESA MISMA respuesta de fondo (misma resolucion, mismos datos y pasos); NO des una solucion distinta, solo adapta el formato y el tono al canal actual ('+_tono+').';
       else if(_om) dirCoher+=' Da una respuesta COHERENTE con eso (mismo diagnostico y misma resolucion), sin contradecir; adapta el tono al canal actual ('+_tono+').';
     }
-    const mensajes=[{role:'system',content:dirFinal+dirMulti+dirCoher}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
+    const dirCont=(yaHablamos?' CONTINUIDAD: arriba estan tus respuestas anteriores de esta MISMA conversacion (rol assistant). No repitas informacion ya dada ni vuelvas a saludar; responde solo lo nuevo o lo pendiente.':'')+dirDemora;
+    const mensajes=[{role:'system',content:dirFinal+dirMulti+dirCoher+dirCont}].concat((t.mensajes||[]).map(function(m){ return {role:m.from==='cliente'?'user':'assistant', content:m.text}; }));
     // GUARDIA DE PRIVACIDAD (capa CRM local): este payload va a una IA EXTERNA. NO agregar nunca
     // datos de crmStore / CRM.getClient (saldo, KYC, cedula, retiros). La ficha real solo se usa
     // para plantillas locales (fases posteriores), jamas se envia aqui.
     const {data:{session}}=await sb.auth.getSession();
+    if(!session){ toast('Tu sesión expiró: vuelve a iniciar sesión para generar respuestas.'); emRenderSlot(slot); return; }
     const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
       body:JSON.stringify({mensajes:mensajes, canal:canal, audiencia:(vert==='retail'?'interno':'cliente'), formato:(canal==='email'?'correo':'mensaje'), instruccion:dirFinal, cliente:(vert==='retail'?null:(cliente||null)), pais:pais, turno:{pais:pais,vertical:vert}, escalar:(vert==='retail'&&!!t.escalar), tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
     if(!res.ok) throw new Error('Servidor '+res.status);
     let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ j={}; }
     const _iaTxt=(j.respuesta||'').trim();
+    // SESION VENCIDA: el backend contesta 200 con este texto; NO es una sugerencia (antes se guardaba en
+    // iaRaw y bloqueaba regeneraciones futuras). Se renueva la sesion y se reintenta UNA vez.
+    if(/sesi[oó]n no v[aá]lida/i.test(_iaTxt)){
+      if(!_retrySesion){ try{ await sb.auth.refreshSession(); }catch(_){ } return await emPedirSugerencia(slot, true); }
+      toast('Tu sesión no es válida y no se pudo renovar: cierra sesión y vuelve a entrar. No generé sugerencia.');
+      emRenderSlot(slot); return;
+    }
     // IA CAIDA: NO pisar el borrador con un texto de error (podria enviarse al cliente). Avisar y salir.
     if((j.ok===false)||j.chainFailed||!_iaTxt){ toast('La IA no está disponible ahora (proveedores saturados). No generé sugerencia; escribe la respuesta o reintenta.'); emSave(); emRenderSlot(slot); return; }
-    t.iaRaw=_iaTxt; emRaw=t.iaRaw; t.draft=(vert==='retail')?(extraerSugerida(t.iaRaw)||t.iaRaw):extraerSugerida(t.iaRaw); t.draftEdited=false;
+    t.iaRaw=_iaTxt; t.crmChk={}; emRaw=t.iaRaw; t.draft=(vert==='retail')?(extraerSugerida(t.iaRaw)||t.iaRaw):extraerSugerida(t.iaRaw); t.draftEdited=false;
     var _lk=(vert==='retail')?[]:emEnlaces((t.mensajes||[]).map(function(m){return m.text;}).join(' '), pais);   // sin enlaces de autoservicio para personal de sala
     if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n' + _lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); }
     emSave(); emPush(t);
     emRenderSlot(slot);
-  }catch(e){ toast('No se pudo generar la sugerencia'); }
+  }catch(e){ toast('No se pudo generar la sugerencia'+((e&&e.message)?(' — '+e.message):'')+'. Reintenta con el botón de re-sugerir.'); }
   finally{ if(gen)gen.textContent=''; const ab2=$('emAddBtn'); if(ab2)ab2.disabled=false; }
 }
 /* ===== Ticket de apuesta en el inbox: adjuntar imagen + analizar (imagen o texto) ===== */
@@ -3104,7 +3185,7 @@ async function emAnalizarTicket(slot){
     // = SOLO la parte del cliente. Si NO trae seccion cliente (error/solo interno), va al panel interno
     // y el borrador del correo queda VACIO (nunca metemos texto interno en la respuesta al cliente).
     const tieneCli = /respuesta\s+(?:sugerida\s+)?al\s+cliente/i.test(r);
-    t.iaRaw = tieneCli ? r : ('Para ti (interno): '+r);
+    t.iaRaw = tieneCli ? r : ('Para ti (interno): '+r); t.crmChk={};
     // borrador = SOLO la respuesta al cliente de ESTE analisis (coherente con lo interno). Si el
     // analisis fallo (sin seccion cliente), no dejamos un borrador viejo de la IA que no cuadre:
     // solo se conserva si TU lo editaste a mano.
@@ -3203,13 +3284,13 @@ async function emRevisarCalidad(t, txt){
   var vert=(typeof emThreadVert==='function')?emThreadVert(t):'online';
   try{
     const {data:{session}}=await sb.auth.getSession();
-    const res=await fetch(CALIDAD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({pregunta:pregunta, respuesta:txt, pais:emThreadPais(t), canal:(t.canal==='mensaje'?'mensaje':'email'), audiencia:(vert==='retail'?'interno':'cliente')})});
+    const res=await fetch(CALIDAD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({pregunta:pregunta, respuesta:txt, pais:emThreadPais(t), canal:(t.canal==='mensaje'?'mensaje':'email'), audiencia:(vert==='retail'?'interno':'cliente'), interno:((typeof emInterno==='function'&&t.iaRaw)?String(emInterno(t.iaRaw)||'').slice(0,1500):''), verificar:emChecklistItems(t)})});
     if(!res.ok) return null;
     const raw=(await res.text()||'').trim(); let d={}; try{ d=JSON.parse(raw); d=Array.isArray(d)?d[0]:d; }catch(e){ return null; }
     return (d&&d.ok)?{score:d.score, grave:!!d.grave, problemas:Array.isArray(d.problemas)?d.problemas:[], at:Date.now()}:null;
   }catch(e){ return null; }
 }
-function emCalidadHTML(t){ if(!t||!t.calidad)return ''; const c=t.calidad; const col=c.grave?'#e0564b':((c.score||0)>=4?'#2a9d5c':'var(--accent)'); return '<div style="margin-top:8px;padding:6px 8px;border-left:3px solid '+col+';background:rgba(127,127,127,.06);font-size:12px;border-radius:4px"><b>Revisor de calidad:</b> '+((c.score!=null)?('★ '+c.score+'/5'):'')+(c.grave?' · <b style="color:'+col+'">revisar antes de enviar</b>':' · sin problemas graves')+((c.problemas&&c.problemas.length)?('<br>'+c.problemas.map(function(p){return '· '+escapeHtml(p);}).join('<br>')):'')+'</div>'; }
+function emCalidadHTML(t){ if(!t||!t.calidad)return ''; const c=t.calidad; const col=c.grave?'#e0564b':((c.score||0)>=4?'#2a9d5c':'var(--accent)'); return '<div style="margin-top:8px;padding:6px 8px;border-left:3px solid '+col+';background:rgba(127,127,127,.06);font-size:12px;border-radius:4px"><b>Revisor de calidad:</b> '+((c.score!=null)?(c.score+'/5'):'')+(c.grave?' · <b style="color:'+col+'">revisar antes de enviar</b>':' · sin problemas graves')+((c.problemas&&c.problemas.length)?('<br>'+c.problemas.map(function(p){return '· '+escapeHtml(p);}).join('<br>')):'')+'</div>'; }
 async function emResponder(slot){
   slot=slot||emFocus; const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); const sug=$(isMail?'emMailSug':'emChatSug'); if(!t||!sug){ toast('Selecciona una conversacion'); return; }
   const txt=(sug.value||'').trim(); if(!txt){ toast('Escribe o genera una respuesta primero'); return; }
@@ -3223,8 +3304,20 @@ async function emResponder(slot){
       if(cal.grave){ const seguir=await appConfirm('El revisor de calidad detectó posibles problemas ANTES de enviar:\n\n· '+((cal.problemas||[]).join('\n· '))+'\n\n¿Enviar de todos modos?',{okText:'Enviar igual',cancelText:'Corregir',danger:true}); if(!seguir){ return; } }
     }
   }catch(e){}
+  // GUIA CRM: si el analisis pidio comprobar datos en el CRM y quedan casillas sin marcar, se confirma
+  // antes de enviar (la respuesta al cliente debe ir con datos COMPROBADOS, no supuestos).
+  var _pendCrm=emChecklistItems(t).filter(function(it,i){ return !(t.crmChk&&t.crmChk[i]); });
+  if(_pendCrm.length){ const _segCrm=await appConfirm('Aún no marcaste como comprobado en el CRM:\n\n· '+_pendCrm.join('\n· ')+'\n\n¿Ya verificaste que los datos de la respuesta son correctos?',{okText:'Sí, enviar',cancelText:'Revisar CRM'}); if(!_segCrm) return; }
   if(!t.tomado_por && me){ t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); }
-  t.mensajes.push({from:'agente',text:txt,t:Date.now()}); t.estado='respondido'; t.draft=''; t.aprendido=true; sug.value=''; emSave(); emPush(t);
+  // METRICA: tiempo de respuesta = desde el PRIMER mensaje del cliente sin contestar hasta este envio.
+  // Queda guardado en el mensaje del agente (trespMs), visible en la bandeja y en el audit_log (indicador del equipo).
+  var _trMs=null; try{ var _base=null;
+    for(var _ti=(t.mensajes||[]).length-1;_ti>=0;_ti--){ var _tm=t.mensajes[_ti]; if(_tm.from==='agente')break; if(_tm.from==='cliente'){ var _tv=(typeof _tm.t==='string')?Date.parse(_tm.t):_tm.t; if(_tv)_base=_tv; } }
+    if(!_base && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ _base=(typeof t.t==='string')?Date.parse(t.t):t.t; }
+    if(_base){ _trMs=Math.max(0,Date.now()-_base); }
+  }catch(_){}
+  t.mensajes.push({from:'agente',text:txt,t:Date.now(),trespMs:_trMs}); t.estado='respondido'; t.draft=''; t.aprendido=true; sug.value=''; emSave(); emPush(t);
+  if(_trMs!=null){ try{ logAudit('tiempo_respuesta',{ms:_trMs, canal:(t.canal==='mensaje'?'chat':'correo'), conv:''+t.id}); }catch(_){}; toast('Enviado · tiempo de respuesta: '+fmtMs(_trMs)); }
   // Conversacion de canal REAL (WhatsApp 'wa-<tel>' / Telegram 'tg-<chat>'): la respuesta tambien sale al dispositivo del cliente
   const _outCanal=(''+t.id).indexOf('wa-')===0?{url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'}:(''+t.id).indexOf('tg-')===0?{url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'}:null;
   if(_outCanal){ try{ const {data:{session}}=await sb.auth.getSession(); fetch(_outCanal.url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({id:t.id,texto:txt})}).then(function(r){return r.json();}).then(function(j){ if(!(j&&j.ok)) toast(_outCanal.nom+': no se envio al cliente ('+((j&&j.error)||'error')+')'); else toast('Enviado al '+_outCanal.nom+' del cliente'); }).catch(function(){ toast(_outCanal.nom+': no se pudo enviar'); }); }catch(e){} }

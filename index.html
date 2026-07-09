@@ -3045,6 +3045,30 @@ function emFormatoCliente(t, cuerpo){
   }
   return ((yaHablamos||tieneSaludo)?'':(nom?('Hola '+nom+', '):'Hola, '))+cuerpo;
 }
+/* FAQ + PROFUNDIDAD: la respuesta al cliente ya viene de una correccion APROBADA (0 tokens y no se
+   cambia), pero el agente tambien necesita el contexto. En segundo plano la IA arma el ANALISIS
+   INTERNO (por que esa es la respuesta, proceso detras, pasos a revisar) y las verificaciones de CRM
+   ALREDEDOR de esa respuesta. El borrador NO se toca; el revisor de calidad la evalua igual al enviar. */
+async function emEnriquecerFaq(t, slot, pregunta, respFaq){
+  try{
+    const marca=t.iaRaw;
+    const pais=emThreadPais(t);
+    const dirFaq='La respuesta al cliente YA ESTA DECIDIDA (es una correccion aprobada por el equipo); NO la cambies, NO la evalues y NO propongas otra. Tu trabajo es SOLO el contexto interno para el agente. Devuelve DOS secciones EXACTAS, cada una iniciando su propia linea con el encabezado tal cual: "Para ti (interno):" por que esa es la respuesta correcta, el proceso interno detras y los pasos que el agente debe revisar antes de enviarla. "Verificar en el CRM:" 2 a 4 verificaciones concretas, cada una en su propia linea con formato "- [Campo del CRM] -> que confirmar y que valor esperas". NO incluyas ninguna seccion de respuesta al cliente. PAIS: usa solo informacion de '+pais+'; si no tienes el dato, dilo. NUNCA incluyas contrasenas reales de POS/SSBT.';
+    const {data:{session}}=await sb.auth.getSession(); if(!session) return;
+    const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+      body:JSON.stringify({mensajes:[{role:'system',content:dirFaq},{role:'user',content:'CONSULTA DEL CLIENTE:\n'+(pregunta||'')+'\n\nRESPUESTA APROBADA QUE SE LE DARA:\n'+respFaq}], canal:(t.canal==='mensaje'?'mensaje':'email'), audiencia:'cliente', instruccion:dirFaq, pais:pais, turno:{pais:pais,vertical:(typeof emThreadVert==='function'?emThreadVert(t):'online')}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
+    if(!res.ok) return;
+    let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ return; }
+    const r=(j.respuesta||'').trim();
+    if(!r || j.ok===false || j.chainFailed || /sesi[oó]n no v[aá]lida/i.test(r)) return;
+    if(t.iaRaw!==marca) return;   // el agente re-genero o cambio de caso mientras tanto: no pisar
+    const interno=r.replace(/Respuesta sugerida al cliente:[\s\S]*$/i,'').trim();
+    if(!/para ti \(interno\):/i.test(interno)) return;
+    t.iaRaw=interno+'\nRespuesta sugerida al cliente: '+respFaq;
+    t.crmChk={};
+    emSave(); emPush(t); emRenderSlot(slot);
+  }catch(e){}
+}
 async function emPedirSugerencia(slot, _retrySesion){
   slot=slot||emFocus; const isMail=(slot==='mail');
   const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;});
@@ -3057,8 +3081,10 @@ async function emPedirSugerencia(slot, _retrySesion){
     // FORMATO DE CALIDAD: la FAQ cruda se entrega como mensaje terminado (saludo/firma segun canal y continuidad).
     var _cuerpoFaq=extraerSugerida(t.iaRaw); var _lk=emEnlaces(_lastCli,_pais);
     if(_lk.length){ _cuerpoFaq += '\n\nPara que lo revises tu mismo:\n'+_lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); }
-    t.draft=emFormatoCliente(t,_cuerpoFaq); t.draftEdited=false;
-    emSave(); emPush(t); emRenderSlot(slot); return; }
+    t.draft=emFormatoCliente(t,_cuerpoFaq); t.draftEdited=false; t.crmChk={};
+    emSave(); emPush(t); emRenderSlot(slot);
+    emEnriquecerFaq(t, slot, _lastCli, _faq.respuesta);   // interno + CRM en segundo plano (no bloquea)
+    return; }
   // RECLAMO DE APUESTA: si hay imagen de ticket adjunta, o el cliente describe una liquidacion con
   // evento/mercado concreto ("gane/perdi ... Argentina vs Cabo Verde resultado exacto"), analiza el
   // ticket con el verificador (misma calidad del chat) en vez de la sugerencia normal. Un reclamo

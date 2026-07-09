@@ -1357,6 +1357,21 @@ async function initAuth(){
 async function handleSession(session){
   if(!session){ me=null; myProfile={role:'agent'}; applyRoleUI(); gateShow(); return; }
   me=session.user;
+  // SEGURIDAD DE SESION: si entra un usuario DISTINTO al ultimo de este navegador (o esta pestana
+  // venia con una sesion vieja), se PURGA todo el cache local (bandeja, chats, borradores, CRM,
+  // vistas) ANTES de pintar nada y se recarga limpio. Evita que se alcance a ver informacion del
+  // usuario anterior. Se conservan solo preferencias de apariencia (no llevan datos).
+  try{
+    const _prevUid=localStorage.getItem('sptm-uid');
+    if(_prevUid && _prevUid!==me.id){
+      const _keep={'sptm-theme':1,'sptm-noglow':1,'sptm-cmd-hidden':1};
+      const _del=[]; for(let _i=0;_i<localStorage.length;_i++){ const _k=localStorage.key(_i); if(!_keep[_k]) _del.push(_k); }
+      _del.forEach(function(k){ localStorage.removeItem(k); });
+      localStorage.setItem('sptm-uid', me.id);
+      location.reload(); return;
+    }
+    localStorage.setItem('sptm-uid', me.id);
+  }catch(e){}
   try{ const {data}=await sb.from('profiles').select('*').eq('id',me.id).single(); myProfile=data||{role:'agent',email:me.email}; }
   catch(e){ myProfile={role:'agent',email:me.email}; }
   // cuenta bloqueada por el admin -> cerrar sesión

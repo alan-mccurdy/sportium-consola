@@ -189,7 +189,7 @@
   .brow.off .bv{color:var(--txt-3);font-weight:500}
   .brow .bi{color:var(--accent)} .brow.off .bi{color:var(--txt-3)}
   .pxi{width:16px;height:16px;display:block}
-  .cmd{font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,.13);border:1px solid rgba(127,127,127,.3);border-radius:4px;padding:1px 5px;font-size:.92em;color:var(--accent)}
+  .cmd{font-family:ui-monospace,Consolas,monospace;background:rgba(127,127,127,.14);border-radius:3px;padding:0 4px;font-size:.9em;color:var(--accent);word-break:break-all;box-decoration-break:clone;-webkit-box-decoration-break:clone;line-height:inherit}
   .em-crmchk{margin-top:8px;padding:6px 8px;border-left:3px solid #3b82f6;background:rgba(59,130,246,.07);font-size:12px;border-radius:4px}
   .em-crmchk label{display:flex;gap:6px;align-items:flex-start;margin-top:4px;cursor:pointer}
   .em-crmchk input{margin-top:1px;flex-shrink:0}
@@ -1989,10 +1989,18 @@ function renderContent(text){ let t=esc(text);
   return t.replace(/\n/g,'<br>'); }
 /* Copia SOLO el texto de una seccion (ej. la respuesta sugerida, sin lo interno) */
 function copiarSec(btn){ try{ const b=btn.closest('.blocksec').querySelector('.bs-b'); navigator.clipboard.writeText(b.innerText.trim()); toast('Respuesta copiada'); }catch(e){} }
+/* SCROLL DE LECTURA: si el ultimo mensaje es LARGO (no cabe comodo en pantalla), deja su INICIO arriba
+   para leerlo desde el principio sin scrollear hacia arriba; si es corto, baja al final como siempre. */
+function scrollLectura(c, sel){ try{
+  const ms=c.querySelectorAll(sel); const last=ms[ms.length-1];
+  if(!last){ c.scrollTop=c.scrollHeight; return; }
+  if(last.offsetHeight > c.clientHeight*0.6){ c.scrollTop += last.getBoundingClientRect().top - c.getBoundingClientRect().top - 6; }
+  else c.scrollTop=c.scrollHeight;
+}catch(e){ c.scrollTop=c.scrollHeight; } }
 function renderChat(){
   const c=$('chat'); c.querySelectorAll('.msg').forEach(e=>e.remove());
   activeS().mensajes.forEach((m,i)=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='assistant'?'ai':'me'); let h=renderContent(m.content); if(m.imgs&&m.imgs.length) h+=m.imgs.map(src=>imgTag(src)).join(''); if(m.role==='assistant'&&m.sin_respaldo) h+='<div class="msg-warn">Sin respaldo en la base — verifícalo antes de enviarlo al cliente.</div>'; if(m.role==='assistant'&&m.fuentes&&m.fuentes.length&&isAdmin()) h+='<div class="msg-src"><span class="msg-src-lbl">Fuente:</span> '+m.fuentes.slice(0,4).map(f=>'<span class="srcchip">'+esc(f)+'</span>').join('')+'</div>'; if(m.role==='assistant') h+='<span class="msgok" title="Buena respuesta (guardar como ejemplo para casos parecidos)" onclick="aprobarIA('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg></span>'; if(m.role==='assistant') h+='<span class="msgrep" title="Reportar respuesta incorrecta" onclick="reportarIA('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2H7.3a2 2 0 0 0-2 1.7L4 12a2 2 0 0 0 2 2.3h4l-1 5a2 2 0 0 0 3.6 1.2L17 14"/><path d="M17 2v12"/></svg></span>'; if(m.role==='assistant') h+='<span class="msgsave" title="Guardar en mis favoritas" onclick="guardarFav('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>'; if(m.role==='assistant'&&isAdmin()) h+='<span class="msgteach" title="Corregir / Enseñar a la IA" onclick="ensenar('+i+')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>'; h+='<span class="msgdel" title="Borrar mensaje" onclick="delMsg('+i+')">×</span>'; d.innerHTML=h; c.appendChild(d); });
-  c.appendChild($('typing')); c.scrollTop=c.scrollHeight;
+  c.appendChild($('typing')); scrollLectura(c,'.msg');
 }
 function delMsg(i){ const s=activeS(); if(!s||!s.mensajes[i])return; s.mensajes.splice(i,1); renderChat(); }
 async function limpiarChat(){ const s=activeS(); if(!s||!s.mensajes.length)return; if(!await appConfirm('¿Borrar toda la conversación de este chat?',{danger:true}))return; s.mensajes=[]; renderChat(); }
@@ -2947,7 +2955,7 @@ function emRenderSlot(slot){
     if($('emPara'))$('emPara').value=t.de||'';
     if($('emAsuntoOut'))$('emAsuntoOut').value=(t.asunto&&!/^re:/i.test(t.asunto))?('Re: '+t.asunto):(t.asunto||'');
   } else {
-    const th=$('emChatThread'); if(th) th.innerHTML=(t.mensajes||[]).filter(function(m){return m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+escapeHtml(m.text||'')+((m.img||m.image_url)?('<br><img src="'+(m.img||m.image_url)+'" style="max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();emVerImg(this.src)">'):'')+'</div>'; }).join('');
+    const th=$('emChatThread'); if(th){ th.innerHTML=(t.mensajes||[]).filter(function(m){return m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+escapeHtml(m.text||'')+((m.img||m.image_url)?('<br><img src="'+(m.img||m.image_url)+'" style="max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();emVerImg(this.src)">'):'')+'</div>'; }).join(''); scrollLectura(th,'.em-b'); }
   }
   // miniatura del ticket de apuesta adjuntado a esta conversacion (si hay)
   const _tkImg=$(isMail?'emMailTicketImg':'emChatTicketImg');
@@ -3074,7 +3082,7 @@ async function emPedirSugerencia(slot, _retrySesion){
     const dirDemora=(_espMs && _espMs>(canal==='email'?45*60000:8*60000)) ? ' El cliente lleva esperando aproximadamente '+fmtMs(_espMs)+': incluye UNA disculpa breve por la demora (sin excusas largas) antes de resolver.' : '';
     const dir=[
       'Devuelve SIEMPRE estas TRES secciones EXACTAS, cada una iniciando su propia linea con el encabezado tal cual:',
-      '"Para ti (interno):" diagnostico, causa y pasos para el AGENTE (aqui van los datos internos: IPs, comandos, multicuenta, montos de referencia).',
+      '"Para ti (interno):" diagnostico, causa y pasos para el AGENTE (aqui van los datos internos: IPs, comandos, multicuenta, montos de referencia; pero NUNCA contrasenas reales de POS/SSBT: referencia al gestor interno de claves).',
       '"Verificar en el CRM:" 2 a 4 verificaciones CONCRETAS para el agente, cada una en su propia linea con formato "- [Campo del CRM] -> que confirmar y que valor esperas". Son exactamente los datos que sustentan la respuesta al cliente: si alguno no coincide en el CRM, la respuesta NO se debe enviar tal cual.',
       '"Respuesta sugerida al cliente:" el mensaje FINAL listo para ENVIAR al cliente, de "usted", SIN ningun dato interno ni instrucciones para el agente.',
       'COHERENCIA OBLIGATORIA: la "Respuesta sugerida al cliente" debe decir al cliente la MISMA conclusion de tu "Para ti (interno)" (traducida a lenguaje sencillo, sin datos internos). Responde EXACTAMENTE lo que el cliente pregunto en su mensaje; NO cambies de tema, NO contradigas tu diagnostico, NO des una respuesta generica. Si el interno concluye que falta un requisito, que se escala, o cual es la causa, la respuesta al cliente debe reflejar ESO mismo.',
@@ -3094,7 +3102,7 @@ async function emPedirSugerencia(slot, _retrySesion){
     // PERSONAL DE SALA (retail): NO es cliente externo -> comunicacion interna con pasos/comandos, sin "Respuesta al cliente".
     const dirRetail=[
       'Quien escribe es PERSONAL DE SALA (casino fisico, retail) de '+pais+'. NOSOTROS somos su soporte tecnico (no es un cliente final). Devuelve DOS secciones EXACTAS, cada una iniciando su propia linea con el encabezado tal cual:',
-      '"Para ti (interno):" SOLO para el agente de soporte: diagnostico, posibles causas y los PASOS/comandos que ejecuta el AGENTE (IPs, usuarios root/n1, putty -ssh user@<ip>, vncviewer <ip>:5900, systemctl restart <servicio>, reboot, etc.) y que deberia ver. El personal de sala NO ve esto.',
+      '"Para ti (interno):" SOLO para el agente de soporte: diagnostico, posibles causas y los PASOS/comandos que ejecuta el AGENTE (IPs, usuarios root/n1, putty -ssh user@<ip>, vncviewer <ip>:5900, systemctl restart <servicio>, reboot, etc.) y que deberia ver. El personal de sala NO ve esto. SEGURIDAD: NUNCA escribas contrasenas reales de POS ni de SSBT (ni de ningun equipo); si un paso la requiere, escribe "<usar la contrasena del POS/SSBT del gestor interno>" sin mostrarla.',
       '"Respuesta sugerida al cliente:" el mensaje que se le ENVIA al personal de sala. PROHIBIDO incluir comandos, IPs, usuarios o datos tecnicos internos. Lenguaje sencillo de soporte: confirma que estas revisando/ya revisaste el equipo y dile el siguiente paso concreto de su lado (ej.: "Ya revise el equipo de forma remota; por favor intenta imprimir de nuevo en unos minutos y confirmame si funciono. Si sigue igual, avisame."). Tono cordial de companero.',
       'PAIS: usa UNICAMENTE informacion de '+pais+'; no mezcles datos de otros paises.'
     ].join(' ');
@@ -3371,7 +3379,7 @@ async function emFetchAuto(){
 function openCopiloto(){ if(!me){ gateShow(); return; } cpLoad(); cpRenderThread(); const h=$('cpTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('copilotoPanel').classList.add('on'); setView('copiloto'); const i=$('cpClientMsg'); if(i){ i.onkeydown=function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); cpAddClient(); } }; setTimeout(function(){ i.focus(); },50); } }
 function closeCopiloto(){ $('copilotoPanel').classList.remove('on'); setView('chat'); }
 function cpLoad(){ try{ CPCONV=JSON.parse(localStorage.getItem('cp-conv')||'[]')||[]; }catch(e){ CPCONV=[]; } }
-function cpRenderThread(){ const el=$('cpThread'); if(!el)return; el.innerHTML=CPCONV.map(function(m){ return '<div class="cp-b '+(m.from==='agente'?'ag':'cli')+'">'+escapeHtml(m.text)+'</div>'; }).join('')||'<small style="color:var(--txt-2)">Agrega el primer mensaje del cliente para empezar.</small>'; el.scrollTop=el.scrollHeight; }
+function cpRenderThread(){ const el=$('cpThread'); if(!el)return; el.innerHTML=CPCONV.map(function(m){ return '<div class="cp-b '+(m.from==='agente'?'ag':'cli')+'">'+escapeHtml(m.text)+'</div>'; }).join('')||'<small style="color:var(--txt-2)">Agrega el primer mensaje del cliente para empezar.</small>'; scrollLectura(el,'.cp-b'); }
 function cpSave(){ try{ localStorage.setItem('cp-conv', JSON.stringify(CPCONV)); }catch(e){} }
 function cpAddClient(){ const i=$('cpClientMsg'); if(!i)return; const t=(i.value||'').trim(); if(!t)return; CPCONV.push({from:'cliente',text:t,t:Date.now()}); i.value=''; cpSave(); cpRenderThread(); cpPedirSugerencia(); }
 function cpNueva(){ CPCONV=[]; try{ localStorage.setItem('cp-conv','[]'); }catch(e){} cpRenderThread(); const s=$('cpSug'); if(s) s.value=''; const g=$('cpGen'); if(g) g.textContent=''; }

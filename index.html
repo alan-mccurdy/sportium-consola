@@ -211,6 +211,25 @@
   .pxi{width:16px;height:16px;display:block}
   .cmd{font-weight:700;cursor:pointer;word-break:break-all}
   .cmd:hover{text-decoration:underline}
+  /* ---- Horarios y turnos ---- */
+  .htur{position:fixed;inset:0;z-index:95;background:var(--bg);opacity:0;pointer-events:none;transition:.2s;display:flex;flex-direction:column}
+  .htur.on{opacity:1;pointer-events:auto}
+  .htur-in{max-width:1100px;width:100%;margin:0 auto;padding:18px 16px;overflow:auto;flex:1}
+  .htur-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .htur-top b{font-size:16px}
+  .htur-lock{font-size:12px;font-weight:700;color:#B0541F;background:rgba(224,140,75,.14);padding:5px 10px;border-radius:8px}
+  .htur-cols{display:grid;grid-template-columns:1fr 1.25fr;gap:18px}
+  .htur h4{font-size:13px;margin:16px 0 6px;text-transform:uppercase;letter-spacing:.03em;color:var(--txt-2)}
+  .htur .hrow{display:flex;gap:7px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+  .htur .hrow .nm{min-width:140px;font-weight:600;overflow:hidden;text-overflow:ellipsis}
+  .htur .dchk label{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:6px;padding:3px 6px;cursor:pointer;margin-right:2px;user-select:none}
+  .htur .dchk input{display:none}
+  .htur .dchk input:checked+span{color:var(--accent);font-weight:800}
+  .htur input[type=time],.htur input[type=date],.htur select,.htur input[type=text]{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);color:var(--txt);font-family:inherit;font-size:12.5px}
+  .htur .est{font-size:12px;color:var(--txt-2)}
+  .htur .badge-st{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px}
+  .htur .badge-st.p{background:rgba(127,127,127,.14)} .htur .badge-st.a{background:rgba(42,157,92,.15);color:#2a9d5c} .htur .badge-st.r{background:rgba(224,86,75,.13);color:#e0564b}
+  @media(max-width:760px){.htur-cols{grid-template-columns:1fr}.htur .hrow .nm{min-width:100%}}
   .em-crmchk{margin-top:8px;padding:6px 8px;border-left:3px solid #3b82f6;background:rgba(59,130,246,.07);font-size:12px;border-radius:4px}
   .em-crmchk label{display:flex;gap:6px;align-items:flex-start;margin-top:4px;cursor:pointer}
   .em-crmchk input{margin-top:1px;flex-shrink:0}
@@ -806,6 +825,13 @@ body{background:transparent}
     <div class="hint" style="margin-top:7px">Instalar: descomprime el .zip → <b>edge://extensions</b> → activa "Modo de desarrollador" → "Cargar desempaquetada" → elige la carpeta. Luego abre Chatra, selecciona el mensaje del cliente y pulsa <b>Sugerir</b> (o clic derecho → "Sugerir respuesta (SINELI)").</div>
   </div>
 
+  <!-- Horarios y turnos (admin/supervisor) -->
+  <div class="sec supok">
+    <h4 data-pxi="clock">Horarios y turnos</h4>
+    <div class="hint">Define el horario de cada agente. Fuera de su horario, el agente solo ve su horario, sus pendientes y puede solicitar cambios de turno; el supervisor aprueba viendo el volumen del día y la cobertura.</div>
+    <div class="btnrow"><button class="btn" onclick="closePanel();openHorarios()">Abrir horarios y turnos</button></div>
+  </div>
+
   <!-- Contrato de licencia (solo admin real) -->
   <div class="sec realadminonly-sec" style="display:none" data-realadmin>
     <h4 data-pxi="flag">Contrato de licencia (venta)</h4>
@@ -1033,6 +1059,43 @@ body{background:transparent}
   .tc-convsel:focus{outline:none;border-color:var(--accent)}
 </style>
 <div class="overlay" id="teamOverlay" onclick="closeTeam()"></div>
+<!-- ===== HORARIOS Y TURNOS: gestion de horario por agente, candado fuera de turno y cambios de turno ===== -->
+<div class="htur" id="hturPanel" role="dialog" aria-modal="true">
+  <div class="htur-in">
+    <div class="htur-top">
+      <b>Horarios y turnos</b>
+      <span class="htur-lock" id="hturLock" style="display:none">Fuera de tu horario — accesos limitados a horario, pendientes y cambios de turno</span>
+      <span style="margin-left:auto"></span>
+      <button class="btn ghost" id="hturLogout" style="display:none" onclick="doLogout()">Cerrar sesión</button>
+      <button class="ic" id="hturClose" title="Cerrar" onclick="closeHorarios()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="htur-cols">
+      <div>
+        <h4>Mi horario (próximos 7 días)</h4>
+        <div id="hturMio"></div>
+        <h4>Mis pendientes</h4>
+        <div id="hturPend" class="est"></div>
+        <h4>Solicitar cambio de turno</h4>
+        <div class="hrow" style="border-bottom:none">
+          <select id="stCon"></select>
+          <input type="date" id="stFecha">
+          <input type="text" id="stMotivo" placeholder="Motivo (opcional)" style="flex:1;min-width:140px">
+          <button class="btn" onclick="solicitarTurno()">Enviar solicitud</button>
+        </div>
+        <div class="est" style="margin:2px 0 8px">Acuerda primero el cambio con tu compañero; el supervisor lo aprueba si el volumen del día lo permite.</div>
+        <div id="stMias"></div>
+      </div>
+      <div class="supok">
+        <h4>Horario del equipo (supervisor)</h4>
+        <div class="est" style="margin-bottom:6px">Días activos + hora de entrada y salida. Si la salida es menor que la entrada, el turno cruza medianoche. Un agente sin horario configurado no tiene restricción.</div>
+        <div id="hturEquipo"></div>
+        <h4>Solicitudes de cambio de turno</h4>
+        <div id="hturSolis"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="appmodal" id="appModal" role="dialog" aria-modal="true">
   <div class="am-card">
     <div class="am-title" id="amTitle"></div>
@@ -1259,6 +1322,8 @@ async function handleSession(session){
   // Restaurar la última vista AQUI (mismo tick que se revela la app): si se hace despues de las
   // cargas de red, el chat general se ve un rato antes de que aparezca el inbox (parpadeo).
   try{ const v=localStorage.getItem('sptm-view'); if(v==='inbox')openEmail(); else if(v==='retail')openRetail(); else if(v==='copiloto')openCopiloto(); }catch(e){}
+  // CANDADO DE HORARIO: agentes fuera de turno quedan en el panel de horarios (se re-evalua por minuto)
+  loadHorarios().then(function(){ ftCheck(); if(!_hturTimer) _hturTimer=setInterval(ftCheck,60000); });
   await loadContext();
   await loadKB();
   loadFaqs();
@@ -1477,11 +1542,26 @@ async function loadUsers(){
         '<div class="nm">'+esc(u.full_name||u.email)+(act?'':' <span style="color:#c0392b;font-size:11px">· bloqueado</span>')+'</div>'+
         '<small style="color:var(--txt-2)">'+esc(u.email)+' · '+(u.emailsHoy||0)+' correo(s) hoy</small></div>'+
         '<span class="badge '+(esAdmin?'ok':'warn')+'">'+u.role+'</span>'+
+        (esAdmin?'':'<button class="ubtn" title="Enviar a este agente el correo con su enlace de inicio de sesión (util para cuentas nuevas)" onclick="enviarAcceso(\''+esc(u.email)+'\')">Enviar acceso</button>')+
         (esAdmin?'':'<button class="ubtn" title="Asignar o cambiar la contraseña de acceso de este agente" onclick="setAgentPass(\''+u.id+'\',\''+esc(u.email)+'\')">Contraseña</button>')+
         (esAdmin?'':'<button class="ubtn'+(act?'':' on')+'" onclick="toggleAgent(\''+u.id+'\','+(!act)+')">'+(act?'Bloquear':'Desbloquear')+'</button>')+
       '</div>';
     }).join('')||'<small style="color:var(--txt-2)">Sin agentes todavía.</small>';
   }catch(e){ if(L) L.innerHTML='<small style="color:#c0392b">No se pudo cargar la lista.</small>'; }
+}
+/* El ADMIN envia el correo de inicio de sesion (magic link) a un agente desde el panel — util
+   justo despues de crear la cuenta. Usa el mismo webhook del gate de acceso (request-login).
+   OJO: el SMTP integrado de Supabase limita estos correos (~2-4 por hora); para altas masivas
+   conviene asignar contraseña. */
+async function enviarAcceso(email){
+  if(!isAdmin()||!email)return;
+  if(!await appConfirm('¿Enviar a '+email+' su correo con el enlace de inicio de sesión?'))return;
+  try{
+    const r=await fetch(LOGIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})});
+    const j=await r.json().catch(function(){return {};}); const d=Array.isArray(j)?j[0]:j;
+    if(d&&d.ok===false) throw new Error(d.error||'no se pudo enviar');
+    toast('Correo de acceso enviado a '+email);
+  }catch(e){ toast('No se pudo enviar: '+(e.message||e)); }
 }
 /* El ADMIN asigna una contraseña al agente (alternativa al enlace/código de correo).
    El agente entra luego con "Tengo contraseña" en la pantalla de acceso. */
@@ -2920,6 +3000,155 @@ async function emPendientesTurno(){
   const marcar=await appConfirm('¿Marcar tus '+mios.length+' pendientes como "En espera" para que el siguiente turno los ubique fácil en ese filtro?');
   if(marcar){ mios.forEach(function(t){ if((t.estado||'nuevo')!=='espera'){ t.estado='espera'; if(!(t.mensajes||[]).some(function(m){return m.from==='espera';})){ t.mensajes=(t.mensajes||[]); t.mensajes.push({from:'espera', text:'No se alcanzó a resolver en el turno anterior.', por:yoMail, at:new Date().toISOString()}); } emPush(t); } }); emSave(); emRenderList(); emRenderSlot('mail'); emRenderSlot('chat'); toast(mios.length+' pendientes marcados "En espera" para el siguiente turno.'); }
 }
+/* ===================== HORARIOS Y TURNOS =====================
+   - horarios_agentes: horario semanal por agente (supervisor lo define).
+   - turnos_excepciones: cambios puntuales por fecha (los genera la aprobacion de un cambio de turno).
+   - solicitudes_turno: agente pide rolar turno con un companero; el supervisor aprueba/rechaza viendo
+     el volumen estimado del dia y la cobertura antes/despues.
+   - CANDADO: un AGENTE (no admin/supervisor) fuera de su horario solo ve este panel (horario,
+     pendientes y solicitudes). Se re-evalua cada minuto; al entrar su turno se desbloquea solo. */
+let HORARIOS=[], TEXC=[], TSOLIS=[], HPERFILES=[], _hturLocked=false, _hturTimer=null;
+const DIAS_LBL=['L','M','X','J','V','S','D'];
+function hFecha(d){ const x=(d instanceof Date)?d:new Date(d+'T12:00:00'); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); }
+function hWd(d){ const x=(d instanceof Date)?d:new Date(d+'T12:00:00'); return (x.getDay()+6)%7+1; }   // 1=lunes..7=domingo
+async function loadHorarios(){ if(!sb||!me) return; try{
+  const desde=hFecha(new Date(Date.now()-864e5));
+  const r=await Promise.all([
+    sb.from('horarios_agentes').select('*'),
+    sb.from('turnos_excepciones').select('*').gte('fecha',desde),
+    sb.from('solicitudes_turno').select('*').order('creado_en',{ascending:false}).limit(60),
+    sb.from('profiles').select('id,email,full_name,role,active')
+  ]);
+  HORARIOS=r[0].data||[]; TEXC=r[1].data||[]; TSOLIS=r[2].data||[]; HPERFILES=(r[3].data||[]).filter(function(p){return p.active!==false;});
+}catch(e){} }
+/* Turno vigente de un usuario en una fecha: {inicio,fin} | null (descansa) | undefined (sin horario configurado) */
+function horarioDe(uid,fecha){
+  const f=hFecha(fecha);
+  const ex=TEXC.find(function(x){return x.user_id===uid&&x.fecha===f;});
+  if(ex) return (ex.inicio&&ex.fin)?{inicio:String(ex.inicio).slice(0,5),fin:String(ex.fin).slice(0,5),ex:true}:null;
+  const h=HORARIOS.find(function(x){return x.user_id===uid;});
+  if(!h) return undefined;
+  return (h.dias||[]).indexOf(hWd(f))>=0?{inicio:String(h.inicio).slice(0,5),fin:String(h.fin).slice(0,5)}:null;
+}
+function enTurnoAhora(uid){
+  if(horarioDe(uid,new Date())===undefined) return true;   // sin horario configurado: sin restriccion
+  const now=new Date();
+  for(const off of [0,-1]){   // el turno puede venir del dia anterior si cruza medianoche
+    const d=new Date(now.getTime()+off*864e5);
+    const t=horarioDe(uid,d); if(!t) continue;
+    const a=t.inicio.split(':'), b=t.fin.split(':');
+    const ini=new Date(d); ini.setHours(+a[0],+a[1],0,0);
+    let fin=new Date(d); fin.setHours(+b[0],+b[1],0,0);
+    if(fin<=ini) fin=new Date(fin.getTime()+864e5);
+    if(now>=ini&&now<fin) return true;
+  }
+  return false;
+}
+function ftCheck(){ if(!me||!myProfile) return;
+  if(isRealAdmin()||puedeSupervisar()){ if(_hturLocked){ _hturLocked=false; } return; }
+  const ok=enTurnoAhora(me.id);
+  if(!ok&&!_hturLocked){ _hturLocked=true; openHorarios(); $('hturLock').style.display=''; $('hturClose').style.display='none'; $('hturLogout').style.display=''; }
+  else if(ok&&_hturLocked){ _hturLocked=false; $('hturLock').style.display='none'; $('hturClose').style.display=''; $('hturLogout').style.display='none'; $('hturPanel').classList.remove('on'); toast('Tu turno comenzó: acceso completo.'); }
+}
+async function openHorarios(){ if(!me){ gateShow(); return; }
+  $('hturPanel').classList.add('on');
+  await loadHorarios();
+  try{ if(typeof emLoad==='function') emLoad(); }catch(e){}
+  hturRender();
+}
+function closeHorarios(){ if(_hturLocked) return; $('hturPanel').classList.remove('on'); }
+function hturRender(){
+  // mi horario 7 dias
+  const mio=$('hturMio'); if(mio){ let h='';
+    for(let i=0;i<7;i++){ const d=new Date(Date.now()+i*864e5); const t=horarioDe(me.id,d);
+      const lbl=DIAS_LBL[hWd(d)-1]+' '+hFecha(d).slice(5);
+      h+='<div class="hrow"><span class="nm">'+lbl+(i===0?' (hoy)':'')+'</span><span>'+(t===undefined?'Sin horario configurado':(t?(t.inicio+' – '+t.fin+(t.ex?' · cambio aprobado':'')):'Descansa'))+'</span></div>';
+    } mio.innerHTML=h; }
+  // mis pendientes (mismas reglas que el cierre de turno del inbox)
+  const pe=$('hturPend'); if(pe){ try{
+    const yo=me.id; const mios=(typeof EMBANDEJA!=='undefined'?EMBANDEJA:[]).filter(function(t){ return (t.estado||'nuevo')!=='respondido'&&t.tomado_por===yo; });
+    pe.innerHTML=mios.length?mios.map(function(t){ return '<div class="hrow"><span class="nm">'+((t.canal==='mensaje')?'CHAT':'CORREO')+'</span><span>'+escapeHtml((t.de||'cliente')+(t.asunto?(' — '+t.asunto):''))+'</span></div>'; }).join(''):'No tienes pendientes tomados sin resolver.';
+  }catch(e){ pe.textContent='—'; } }
+  // combo de companeros
+  const con=$('stCon'); if(con){ con.innerHTML=HPERFILES.filter(function(p){return p.id!==me.id;}).map(function(p){ return '<option value="'+p.id+'" data-mail="'+escapeHtml(p.email||'')+'">'+escapeHtml(p.full_name||p.email||'')+'</option>'; }).join('')||'<option value="">(sin compañeros)</option>'; }
+  // mis solicitudes
+  const sm=$('stMias'); if(sm){ const mias=TSOLIS.filter(function(s){return s.de_user===me.id||s.para_user===me.id;}).slice(0,8);
+    sm.innerHTML=mias.map(function(s){ const st=s.estado==='aprobada'?'a':(s.estado==='rechazada'?'r':'p');
+      return '<div class="hrow"><span class="nm">'+s.fecha+'</span><span>'+escapeHtml((s.de_user===me.id?('con '+(s.para_email||'')):((s.de_email||'')+' pidió cambiar contigo')))+'</span><span class="badge-st '+st+'" style="margin-left:auto">'+s.estado+'</span></div>'; }).join('')||'<div class="est">Sin solicitudes.</div>'; }
+  // supervisor: equipo + solicitudes
+  if(puedeSupervisar()){ hturRenderEquipo(); hturRenderSolis(); }
+}
+function hturRenderEquipo(){
+  const eq=$('hturEquipo'); if(!eq) return;
+  eq.innerHTML=HPERFILES.map(function(p){
+    const h=HORARIOS.find(function(x){return x.user_id===p.id;})||{dias:[1,2,3,4,5],inicio:'09:00',fin:'18:00'};
+    const chks=DIAS_LBL.map(function(l,i){ const d=i+1; return '<label><input type="checkbox" data-d="'+d+'" '+((h.dias||[]).indexOf(d)>=0?'checked':'')+'><span>'+l+'</span></label>'; }).join('');
+    return '<div class="hrow" data-uid="'+p.id+'"><span class="nm" title="'+escapeHtml(p.email||'')+'">'+escapeHtml(p.full_name||p.email||'')+(p.role!=='agent'?(' · '+p.role):'')+'</span>'
+      +'<span class="dchk">'+chks+'</span>'
+      +'<input type="time" class="hini" value="'+String(h.inicio).slice(0,5)+'"> – <input type="time" class="hfin" value="'+String(h.fin).slice(0,5)+'">'
+      +'<button class="btn ghost" onclick="guardarHorario(\''+p.id+'\')">Guardar</button></div>';
+  }).join('')||'<div class="est">Sin agentes.</div>';
+}
+async function guardarHorario(uid){
+  const row=document.querySelector('#hturEquipo .hrow[data-uid="'+uid+'"]'); if(!row) return;
+  const dias=[].slice.call(row.querySelectorAll('.dchk input')).filter(function(c){return c.checked;}).map(function(c){return +c.dataset.d;});
+  const inicio=row.querySelector('.hini').value||'09:00', fin=row.querySelector('.hfin').value||'18:00';
+  try{ const {error}=await sb.from('horarios_agentes').upsert({user_id:uid,dias:dias,inicio:inicio,fin:fin,updated_by:me.id,updated_at:new Date().toISOString()});
+    if(error) throw error; await loadHorarios(); hturRender(); toast('Horario guardado'); }
+  catch(e){ toast('No se pudo guardar: '+(e.message||e)); }
+}
+async function solicitarTurno(){
+  const con=$('stCon'), f=$('stFecha').value, m=($('stMotivo').value||'').trim();
+  const para=con&&con.value; if(!para||!f){ toast('Elige compañero y fecha'); return; }
+  const mail=(con.selectedOptions[0]&&con.selectedOptions[0].dataset.mail)||'';
+  try{ const {error}=await sb.from('solicitudes_turno').insert({de_user:me.id,de_email:(myProfile&&myProfile.email)||me.email,para_user:para,para_email:mail,fecha:f,motivo:m});
+    if(error) throw error; $('stMotivo').value=''; await loadHorarios(); hturRender(); toast('Solicitud enviada al supervisor'); }
+  catch(e){ toast('No se pudo enviar: '+(e.message||e)); }
+}
+/* Volumen estimado del dia (promedio de conversaciones de ese dia de la semana, ultimas 4 semanas) */
+async function volumenDia(fecha){ try{
+  const desde=new Date(Date.now()-28*864e5).toISOString();
+  const {data}=await sb.from('inbox_conversaciones').select('creado_en').gte('creado_en',desde).limit(2000);
+  const w=hWd(fecha); const n=(data||[]).filter(function(r){return r.creado_en&&hWd(new Date(r.creado_en))===w;}).length;
+  return Math.round(n/4);
+}catch(e){ return null; } }
+function cobertura(fecha,swap){ // cuantos agentes trabajan ese dia; swap={a,b} simula el cambio
+  return HPERFILES.filter(function(p){ if(p.role!=='agent'&&p.role!=='supervisor')return false;
+    let t=horarioDe(p.id,fecha);
+    if(swap){ if(p.id===swap.a) t=horarioDe(swap.b,fecha); if(p.id===swap.b) t=horarioDe(swap.a,fecha); }
+    return !!t||t===undefined; }).length;
+}
+async function hturRenderSolis(){
+  const box=$('hturSolis'); if(!box) return;
+  const pend=TSOLIS.filter(function(s){return s.estado==='pendiente';});
+  if(!pend.length){ box.innerHTML='<div class="est">Sin solicitudes pendientes.</div>'; return; }
+  let html='';
+  for(const s of pend){
+    const vol=await volumenDia(s.fecha);
+    const antes=cobertura(s.fecha,null), despues=cobertura(s.fecha,{a:s.de_user,b:s.para_user});
+    const riesgo=(despues<antes)?' · <b style="color:#e0564b">baja la cobertura</b>':'';
+    html+='<div class="hrow"><span class="nm">'+s.fecha+'</span>'
+      +'<span>'+escapeHtml((s.de_email||'?')+' cambia con '+(s.para_email||'?'))+(s.motivo?(' — '+escapeHtml(s.motivo)):'')+'</span>'
+      +'<span class="est" style="flex-basis:100%">Volumen prom. ese día: '+(vol==null?'?':('~'+vol+' conversaciones'))+' · cobertura: '+antes+' → '+despues+' agentes'+riesgo+'</span>'
+      +'<button class="btn" onclick="resolverSol('+s.id+',true)">Aprobar</button><button class="btn ghost" onclick="resolverSol('+s.id+',false)">Rechazar</button></div>';
+  }
+  box.innerHTML=html;
+}
+async function resolverSol(id,aprobar){
+  const s=TSOLIS.find(function(x){return x.id===id;}); if(!s) return;
+  try{
+    if(aprobar){
+      // intercambio real: cada uno toma el turno del otro ESA fecha (incluye descansos)
+      const tA=horarioDe(s.de_user,s.fecha)||null, tB=horarioDe(s.para_user,s.fecha)||null;
+      const mk=function(uid,t){ return {user_id:uid,fecha:s.fecha,inicio:t?t.inicio:null,fin:t?t.fin:null,motivo:'Cambio de turno aprobado ('+(s.de_email||'')+' ↔ '+(s.para_email||'')+')',creado_por:me.id}; };
+      const {error:e1}=await sb.from('turnos_excepciones').upsert([mk(s.de_user,tB),mk(s.para_user,tA)],{onConflict:'user_id,fecha'});
+      if(e1) throw e1;
+    }
+    const {error:e2}=await sb.from('solicitudes_turno').update({estado:aprobar?'aprobada':'rechazada',resuelto_por:(myProfile&&myProfile.email)||me.email,resuelto_en:new Date().toISOString()}).eq('id',id);
+    if(e2) throw e2;
+    await loadHorarios(); hturRender(); toast(aprobar?'Cambio de turno aprobado y aplicado':'Solicitud rechazada');
+  }catch(e){ toast('No se pudo resolver: '+(e.message||e)); }
+}
 function emRenderClaim(slot){
   // el aviso vive ahora ARRIBA (header del inbox). Ocultamos la barra por panel y reflejamos el panel activo.
   const bar=$((slot==='mail')?'emMailClaim':'emChatClaim'); if(bar)bar.style.display='none';
@@ -3650,6 +3879,9 @@ function ckActions(){
   add('Ver como agente (demo)','admin',()=>toggleDemo(),isRealAdmin());
   add('Tour de la consola (guía rápida)','ayuda',()=>tourOpen());
   add('Modo presentación — Resultados','admin',()=>resOpen(),isAdmin());
+  add('Horarios y cambios de turno','equipo',()=>openHorarios());
+  add('Contrato de licencia (venta)','admin',()=>window.open('contrato.html','_blank'),isRealAdmin());
+  add('Firmar PDF — estampar firma en un PDF','admin',()=>window.open('contrato.html','_blank'),isRealAdmin());
   add('Efectos del logo: '+((lsGet('sptm-noglow')==='1')?'activar':'desactivar')+' (modo ligero)','ajuste',()=>{ lsSet('sptm-noglow',(lsGet('sptm-noglow')==='1')?'0':'1'); location.reload(); });
   add('Cerrar sesión','cuenta',()=>doLogout());
   return A;

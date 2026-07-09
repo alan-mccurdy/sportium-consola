@@ -1127,6 +1127,7 @@ const REPORTE_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/inte
 const CLASSIFY_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/kb-classify";
 const LOGIN_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/request-login";
 const FETCHURL_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/fetch-url";
+const WHATSAPP_OUT_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/whatsapp-out"; // respuesta del agente -> WhatsApp del cliente (conversaciones id 'wa-...')
 
 /* ============================================================
    MARCA / CONFIG  —  lo UNICO que cambia por cliente.
@@ -3107,6 +3108,8 @@ async function emResponder(slot){
   }catch(e){}
   if(!t.tomado_por && me){ t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); }
   t.mensajes.push({from:'agente',text:txt,t:Date.now()}); t.estado='respondido'; t.draft=''; t.aprendido=true; sug.value=''; emSave(); emPush(t);
+  // Conversacion de WhatsApp real (id 'wa-<telefono>'): la respuesta tambien sale al telefono del cliente via Cloud API
+  if((''+t.id).indexOf('wa-')===0){ try{ const {data:{session}}=await sb.auth.getSession(); fetch(WHATSAPP_OUT_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({id:t.id,texto:txt})}).then(function(r){return r.json();}).then(function(j){ if(!(j&&j.ok)) toast('WhatsApp: no se envio al telefono ('+((j&&j.error)||'error')+')'); else toast('Enviado al WhatsApp del cliente'); }).catch(function(){ toast('WhatsApp: no se pudo enviar al telefono'); }); }catch(e){} }
   if(slot==='mail')emSelMail=null; else emSelChat=null; emSaveSel();   // al responder se quita del panel; queda en la bandeja por si lo buscas
   emRenderList(); emRenderSlot(slot); emRenderInterno();
   emAprender(t, txt);

@@ -1176,6 +1176,11 @@ async function initAuth(){
   sb.auth.onAuthStateChange((ev,s)=>{
     const uid=(s && s.user && s.user.id) || null;
     if(ev==='TOKEN_REFRESHED' || (uid && uid===_authedUid)) return;  // mismo usuario / refresco de token -> NO recargar
+    // La sesión vive en localStorage y es UNA por navegador: si alguien inicia sesión con OTRO
+    // usuario (otra pestaña / magic link de otra cuenta), la sesión cambia debajo de esta pestaña.
+    // Re-inicializar encima mezclaba estado del usuario anterior (inbox/chats/realtime) y la app
+    // quedaba "colgada". Recarga limpia: la pestaña arranca de cero como el usuario nuevo.
+    if(_authedUid && uid!==_authedUid){ location.reload(); return; }
     _authedUid=uid;
     handleSession(s);
   });

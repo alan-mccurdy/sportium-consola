@@ -1309,17 +1309,17 @@ body{background:transparent}
    ============================================================ */
 const SUPABASE_URL  = "https://rmcsmxjzvxoybrziplhw.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtY3NteGp6dnhveWJyemlwbGh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMDkxMjksImV4cCI6MjA5Njc4NTEyOX0.qqFMgco0dYevjkSZI6D_Gjb0GJrm_sL2uPIEwUHGcgs";
-const WEBHOOK       = "https://n8n-production-aff6.up.railway.app/webhook/sportium-chat";
+const WEBHOOK       = "https://laptop-38oeljea.tailc68292.ts.net/webhook/sportium-chat";
 const EMAIL_AUTO = { on:false, tabla:'correos_entrantes' }; // A (IMAP) dormido hasta activar; lee de Supabase via sb
-const ADMIN_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/sportium-admin";
-const INGEST_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/kb-ingest";
-const TRANSCRIBIR_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/transcribir";
-const REPORTE_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/intel-reporte";
-const CLASSIFY_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/kb-classify";
-const LOGIN_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/request-login";
-const FETCHURL_WEBHOOK= "https://n8n-production-aff6.up.railway.app/webhook/fetch-url";
-const WHATSAPP_OUT_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/whatsapp-out"; // respuesta del agente -> WhatsApp del cliente (conversaciones id 'wa-...')
-const TELEGRAM_OUT_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/telegram-out"; // respuesta del agente -> Telegram del cliente (conversaciones id 'tg-...')
+const ADMIN_WEBHOOK = "https://laptop-38oeljea.tailc68292.ts.net/webhook/sportium-admin";
+const INGEST_WEBHOOK= "https://laptop-38oeljea.tailc68292.ts.net/webhook/kb-ingest";
+const TRANSCRIBIR_WEBHOOK= "https://laptop-38oeljea.tailc68292.ts.net/webhook/transcribir";
+const REPORTE_WEBHOOK = "https://laptop-38oeljea.tailc68292.ts.net/webhook/intel-reporte";
+const CLASSIFY_WEBHOOK= "https://laptop-38oeljea.tailc68292.ts.net/webhook/kb-classify";
+const LOGIN_WEBHOOK = "https://laptop-38oeljea.tailc68292.ts.net/webhook/request-login";
+const FETCHURL_WEBHOOK= "https://laptop-38oeljea.tailc68292.ts.net/webhook/fetch-url";
+const WHATSAPP_OUT_WEBHOOK = "https://laptop-38oeljea.tailc68292.ts.net/webhook/whatsapp-out"; // respuesta del agente -> WhatsApp del cliente (conversaciones id 'wa-...')
+const TELEGRAM_OUT_WEBHOOK = "https://laptop-38oeljea.tailc68292.ts.net/webhook/telegram-out"; // respuesta del agente -> Telegram del cliente (conversaciones id 'tg-...')
 
 /* ============================================================
    MARCA / CONFIG  —  lo UNICO que cambia por cliente.
@@ -2932,7 +2932,7 @@ function _stopLive(){
 function openTrans(){ if(!isAdmin())return; $('transOverlay').classList.add('on'); $('transPanel').classList.add('on'); const st=$('transStatus'); if(st)st.textContent=''; }
 function closeTrans(){ if(_live.on){ _live.want=false; _stopLive(); } if(_recOn){ _recWant=false; try{_rec.stop();}catch(e){} } $('transOverlay').classList.remove('on'); $('transPanel').classList.remove('on'); }
 /* ===== Cargar transcripcion de CAPACITACION: segmenta por pais + limpia + indexa (auto) ===== */
-const CAP_WEBHOOK = "https://n8n-production-aff6.up.railway.app/webhook/kb-transcript";
+const CAP_WEBHOOK = "https://laptop-38oeljea.tailc68292.ts.net/webhook/kb-transcript";
 function capLeerArchivo(e){ const f=e.target.files&&e.target.files[0]; if(!f)return; const rd=new FileReader(); rd.onload=function(){ const ta=$('capText'); if(ta) ta.value=(rd.result||'').toString(); const st=$('capStatus'); if(st)st.textContent='Archivo cargado ('+Math.round(((rd.result||'').length)/1000)+' KB). Revisa y dale "Procesar y cargar por pais".'; }; rd.readAsText(f); e.target.value=''; }
 let _capBusy=false;
 async function cargarCapacitacion(){

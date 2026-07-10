@@ -397,6 +397,7 @@
   .em-mailbody{font-size:13.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word;color:var(--txt)}
   .em-b{max-width:90%;padding:8px 12px;border-radius:13px;font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
   .em-b.ag{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  #casoHilo .em-b.cli{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:4px}
   .em-sug{width:100%;flex:1;min-height:200px;border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-family:inherit;font-size:13.5px;line-height:1.5;color:var(--txt);background:var(--surface);resize:vertical}
   .em-sug:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .em-rrow{display:flex;gap:8px;flex-wrap:wrap}
@@ -748,7 +749,7 @@ body{background:transparent}
         <button class="ic adminonly" id="crmBtn" title="Datos del CRM (local)" onclick="openCrm()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
         <button class="ic adminonly" id="intelBtn" title="Panel de Inteligencia" onclick="openIntel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg></button>
         <button class="ic adminonly" id="adminBtn" title="Panel de administración" onclick="openPanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-        <button class="ic supok" id="supBtn" title="Supervisión — métricas de agentes" onclick="openSup()" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="5"/><rect x="12" y="8" width="3" height="9"/><rect x="17" y="14" width="3" height="3"/></svg></button>
+        <button class="ic supok" id="supBtn" title="Supervisión — métricas de agentes y escalamientos" onclick="openSup()" style="display:none;position:relative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="5"/><rect x="12" y="8" width="3" height="9"/><rect x="17" y="14" width="3" height="3"/></svg><span id="escBadge" title="Escalamientos pendientes de supervisor" style="display:none;position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#E2001A;color:#fff;font-size:10px;font-weight:800;line-height:16px;box-sizing:border-box;text-align:center"></span></button>
         <button class="ic" id="clearBtn" title="Limpiar esta conversación" onclick="limpiarChat()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg></button>
         <button class="ic" id="logoutBtn" title="Cerrar sesión" onclick="doLogout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></button>
       </div>
@@ -965,7 +966,29 @@ body{background:transparent}
     <button class="btn ghost mini" onclick="loadSup()" style="margin-left:auto">Actualizar</button>
     <span class="rm" onclick="closeSup()" style="cursor:pointer;margin-left:8px">×</span></div>
   <div class="sec"><div id="supResumen" style="margin-bottom:8px"></div><div id="supList"><small style="color:var(--txt-2)">Cargando…</small></div></div>
+  <div class="sec"><div class="fld">Escalamientos — clientes que pidieron supervisor</div><div id="supEsc"><small style="color:var(--txt-2)">Cargando…</small></div></div>
+  <div class="sec"><div class="fld">Por qué escalan los clientes (últimos 30 días)</div><div id="supEscMotivos"><small style="color:var(--txt-2)">Cargando…</small></div></div>
   <div class="sec"><small style="color:var(--txt-2)">Métricas de hoy. El supervisor puede bloquear/desbloquear agentes; crear/invitar es solo del administrador.</small></div>
+</aside>
+
+<!-- ===== CASO ESCALADO (supervisor: pestaña dedicada via ?caso=<id>) ===== -->
+<div class="overlay" id="casoOverlay" onclick="closeCaso()"></div>
+<aside class="panel wide" id="casoPanel">
+  <div class="phead"><b data-pxi="chart">Caso escalado</b>
+    <button class="btn ghost mini" onclick="casoCargar()" style="margin-left:auto">Actualizar</button>
+    <span class="rm" onclick="closeCaso()" style="cursor:pointer;margin-left:8px">×</span></div>
+  <div class="sec"><div id="casoHead"><small style="color:var(--txt-2)">Cargando…</small></div></div>
+  <div class="sec"><div class="fld">Hilo de la conversación</div><div id="casoHilo" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto"></div></div>
+  <div class="sec" id="casoCliSec" style="display:none"><div class="fld">Ficha del cliente</div><div id="casoCli"></div></div>
+  <div class="sec"><div class="fld">Respuesta al cliente</div>
+    <textarea class="em-sug" id="casoSug" style="min-height:120px" placeholder="Escribe la respuesta o genera una sugerencia con IA…"></textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
+      <button class="btn ghost" id="casoSugBtn" onclick="casoSugerir()">Sugerir respuesta (IA)</button>
+      <button class="btn" id="casoEnviarBtn" onclick="casoEnviar()">Enviar</button>
+      <button class="btn ghost" id="casoAtBtn" onclick="casoAtendido()">Marcar atendido</button>
+      <span id="casoGen" style="font-size:12px;color:var(--txt-2)"></span>
+    </div>
+  </div>
 </aside>
 
 <div class="overlay" id="crmOverlay" onclick="closeCrm()"></div>
@@ -1386,7 +1409,16 @@ async function handleSession(session){
   $('who').innerHTML=(me.email||'')+(isAdmin()?' · <b>admin</b>':'');
   // Restaurar la última vista AQUI (mismo tick que se revela la app): si se hace despues de las
   // cargas de red, el chat general se ve un rato antes de que aparezca el inbox (parpadeo).
-  try{ const v=localStorage.getItem('sptm-view'); if(v==='inbox')openEmail(); else if(v==='retail')openRetail(); else if(v==='copiloto')openCopiloto(); }catch(e){}
+  // PESTAÑA DE CASO ESCALADO (?caso=<id>): vista dedicada del supervisor en su propia pestaña.
+  // Tiene prioridad sobre la vista guardada; si el rol no supervisa, se ignora y sigue normal.
+  const _casoQ=(function(){ try{ return new URLSearchParams(location.search).get('caso'); }catch(e){ return null; } })();
+  if(_casoQ && puedeSupervisar()){ openCaso(_casoQ); }
+  else {
+    // ?caso= sin rol supervisor: limpiar la URL y devolverle a la pestaña el candado normal
+    // (si no, quedaria pasiva para siempre y sin banner)
+    if(_casoQ){ try{ history.replaceState(null,'',location.pathname); }catch(e){} _casoMode=false; try{ _emClaim(); }catch(e){} }
+    try{ const v=localStorage.getItem('sptm-view'); if(v==='inbox')openEmail(); else if(v==='retail')openRetail(); else if(v==='copiloto')openCopiloto(); }catch(e){}
+  }
   // CANDADO DE HORARIO: agentes fuera de turno quedan en el panel de horarios (se re-evalua por minuto)
   loadHorarios().then(function(){ ftCheck(); if(!_hturTimer) _hturTimer=setInterval(ftCheck,60000);
     // invitacion suave al check-in de inicio de dia (opcional, una vez por sesion)
@@ -1401,6 +1433,9 @@ async function handleSession(session){
   loadGlos();
   initTeam();
   cargarTeamN();
+  escBadgeRefresh();
+  // el toast en vivo depende del inbox abierto; este pulso mantiene el badge al dia sin inbox
+  if(puedeSupervisar()&&!window._escBadgeTimer) window._escBadgeTimer=setInterval(escBadgeRefresh,60000);
   logAudit('login',{});
 }
 function setView(v){ try{ localStorage.setItem('sptm-view', v||'chat'); }catch(e){} }
@@ -1662,6 +1697,7 @@ function openSup(){ if(!puedeSupervisar())return; $('supOverlay').classList.add(
 function closeSup(){ $('supOverlay').classList.remove('on'); $('supPanel').classList.remove('on'); }
 async function loadSup(){
   if(!sb||!puedeSupervisar())return;
+  loadSupEsc();
   const L=$('supList'); if(L) L.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
   try{
     const {data:{session}}=await sb.auth.getSession();
@@ -1683,6 +1719,141 @@ async function loadSup(){
       '</div>';
     }).join('');
   }catch(e){ if(L) L.innerHTML='<small style="color:#c0392b">No se pudo cargar.</small>'; }
+}
+
+/* ---- ESCALAMIENTO a supervisor: badge, listado en supervision y analitica de motivos ---- */
+const ESC_MOTIVOS={faq_sin_match:'La IA no encontró respuesta en la base de conocimiento',ia_caida:'El servicio de IA no respondió',cliente_molesto:'El cliente pidió atención humana',otro:'Otro motivo'};
+function escMotivoTxt(m){ return ESC_MOTIVOS[m]||m||'Sin motivo registrado'; }
+async function escBadgeRefresh(){ if(!sb||!puedeSupervisar()){ const b0=$('escBadge'); if(b0)b0.style.display='none'; return; } try{ const {count,error}=await sb.from('inbox_conversaciones').select('id',{count:'exact',head:true}).eq('tenant',CONFIG.tenant).eq('escalado_estado','pendiente'); if(error)throw error; const b=$('escBadge'); if(b){ b.textContent=count||0; b.style.display=count?'':'none'; } }catch(e){} }
+let _escRows=[];
+function escAbrir(i){ const r=_escRows[i]; if(r) window.open(location.pathname+'?caso='+encodeURIComponent(r.id),'_blank'); }
+async function loadSupEsc(){
+  if(!sb||!puedeSupervisar())return;
+  const L=$('supEsc'), M=$('supEscMotivos');
+  try{
+    const {data,error}=await sb.from('inbox_conversaciones').select('id,de,canal,pais,estado,escalado_motivo,escalado_estado,escalado_at,escalado_por').eq('tenant',CONFIG.tenant).eq('escalado',true).order('escalado_at',{ascending:false}).limit(60);
+    if(error)throw error;
+    // pendientes primero, luego atendidos (ambos por fecha desc que ya trae la query)
+    _escRows=(data||[]).filter(function(r){return r.escalado_estado==='pendiente';}).concat((data||[]).filter(function(r){return r.escalado_estado!=='pendiente';}));
+    if(L) L.innerHTML=_escRows.length?_escRows.map(function(r,i){
+      const pend=r.escalado_estado==='pendiente';
+      return '<div class="uitem"><div style="flex:1;min-width:0">'+
+        '<div class="nm">'+esc(r.de||r.id)+' <span style="font-size:11px;color:'+(pend?'#f59e0b':'var(--ok)')+'">· '+(pend?'pendiente':('atendido'+(r.escalado_por?(' por '+esc(r.escalado_por)):'')))+'</span></div>'+
+        '<small style="color:var(--txt-2)">'+esc(r.canal==='mensaje'?'chat':(r.canal||''))+(r.pais?(' · '+esc(r.pais)):'')+' · '+esc(escMotivoTxt(r.escalado_motivo))+(r.escalado_at?(' · '+new Date(r.escalado_at).toLocaleString()):'')+'</small></div>'+
+        '<button class="ubtn" onclick="escAbrir('+i+')">Atender en pestaña nueva</button></div>';
+    }).join(''):'<small style="color:var(--txt-2)">Sin escalamientos por ahora.</small>';
+  }catch(e){ if(L) L.innerHTML='<small style="color:#c0392b">No se pudo cargar (¿falta correr supabase-escalamiento.sql?).</small>'; }
+  // Analitica: POR QUE escalan los clientes (conteo por motivo_ia, ultimos 30 dias, agrupado en JS)
+  try{
+    const desde=new Date(Date.now()-30*24*3600000).toISOString();
+    const {data:escs,error:e2}=await sb.from('escalamientos').select('motivo_ia,atendido_at').eq('tenant',CONFIG.tenant).gte('created_at',desde);
+    if(e2)throw e2;
+    if(M){ const por={}; let pend=0; (escs||[]).forEach(function(x){ por[x.motivo_ia]=(por[x.motivo_ia]||0)+1; if(!x.atendido_at)pend++; }); const tot=(escs||[]).length;
+      M.innerHTML=tot?('<div style="font-size:12px;margin-bottom:6px"><b style="font-size:16px;color:var(--accent)">'+tot+'</b> escalamientos · <b style="font-size:16px;color:#f59e0b">'+pend+'</b> pendientes</div>'+
+        Object.keys(por).sort(function(a,b){return por[b]-por[a];}).map(function(k){ return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:3px 0;border-bottom:1px solid var(--line)"><span>'+esc(escMotivoTxt(k))+'</span><b>'+por[k]+'</b></div>'; }).join('')):'<small style="color:var(--txt-2)">Sin escalamientos en los últimos 30 días.</small>';
+    }
+  }catch(e){ if(M) M.innerHTML='<small style="color:var(--txt-2)">Sin datos de motivos todavía.</small>'; }
+  escBadgeRefresh();
+}
+
+/* ---- Panel de CASO escalado (se abre en pestaña propia via ?caso=<id>) ---- */
+let _casoRow=null, _casoChan=null, _casoId=null;
+function closeCaso(){ $('casoOverlay').classList.remove('on'); $('casoPanel').classList.remove('on'); if(_casoChan){ try{ sb.removeChannel(_casoChan); }catch(e){} _casoChan=null; } _casoId=null; _casoRow=null;
+  // al cerrar el caso la pestaña vuelve a ser consola normal: URL limpia y candado reclamable
+  if(_casoMode){ _casoMode=false; try{ history.replaceState(null,'',location.pathname); }catch(e){} try{ _emClaim(); }catch(e){} } }
+async function openCaso(id){
+  if(!sb||!puedeSupervisar()||!id)return;
+  _casoId=id;
+  $('casoOverlay').classList.add('on'); $('casoPanel').classList.add('on');
+  await casoCargar();
+  // Suscripcion propia y ligera (esta pestaña no depende del inbox): mensajes nuevos del cliente en vivo.
+  if(!_casoChan){ _casoChan=sb.channel('caso-'+id)
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'inbox_conversaciones',filter:'id=eq.'+id},function(p){ if(p.new&&_casoId===id){ _casoRow=p.new; casoRender(); } })
+    .subscribe(function(status){ if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){ try{ sb.removeChannel(_casoChan); }catch(e){} _casoChan=null; setTimeout(function(){ if(_casoId===id && $('casoPanel').classList.contains('on')){ openCaso(id); } },2500); } }); }
+}
+async function casoCargar(){ if(!sb||!_casoId)return; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('id',_casoId).single(); if(error)throw error; _casoRow=data; casoRender(); }catch(e){ const h=$('casoHead'); if(h)h.innerHTML='<small style="color:#c0392b">No se pudo cargar el caso ('+esc((e&&e.message)||'error')+').</small>'; } }
+function casoRender(){
+  const r=_casoRow; if(!r)return;
+  const pend=r.escalado_estado==='pendiente';
+  const h=$('casoHead'); if(h) h.innerHTML=
+    '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:13px">'+
+      '<b style="font-size:15px">'+esc(r.de||r.id)+'</b>'+
+      '<span style="color:var(--txt-2);font-size:12px">'+esc(r.canal==='mensaje'?'chat':(r.canal||''))+(r.pais?(' · '+esc(r.pais)):'')+' · estado: '+esc(r.estado||'nuevo')+'</span>'+
+      '<span style="font-size:12px;font-weight:700;color:'+(pend?'#f59e0b':'var(--ok)')+'">'+(pend?'Escalamiento pendiente':(r.escalado_estado==='atendido'?('Atendido'+(r.escalado_por?(' por '+esc(r.escalado_por)):'')):'Sin escalamiento activo'))+'</span>'+
+    '</div>'+
+    (r.escalado_motivo?('<div style="margin-top:6px;font-size:12.5px"><b>Motivo del escalamiento:</b> '+esc(escMotivoTxt(r.escalado_motivo))+'</div>'):'')+
+    (r.tomado_email?('<div style="margin-top:3px;font-size:12px;color:var(--txt-2)">Conversación tomada por: '+esc(r.tomado_email)+'</div>'):'');
+  const th=$('casoHilo'); if(th){ th.innerHTML=(Array.isArray(r.mensajes)?r.mensajes:[]).filter(function(m){return m&&m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+escapeHtml(m.text||'')+'</div>'; }).join('')||'<small style="color:var(--txt-2)">Sin mensajes.</small>'; th.scrollTop=th.scrollHeight; }
+  const cs=$('casoCliSec'), cc=$('casoCli');
+  if(cs&&cc){ const c=r.cliente; if(c&&typeof c==='object'&&Object.keys(c).length){ cs.style.display=''; cc.innerHTML=Object.keys(c).filter(function(k){ return c[k]!=null&&c[k]!==''&&typeof c[k]!=='object'; }).map(function(k){ return '<div style="display:flex;gap:10px;font-size:12.5px;padding:2px 0"><span style="color:var(--txt-2);min-width:110px">'+esc(k)+'</span><span>'+esc(String(c[k]))+'</span></div>'; }).join(''); } else cs.style.display='none'; }
+  const at=$('casoAtBtn'); if(at) at.disabled=!pend;
+}
+async function casoSugerir(){
+  const r=_casoRow; if(!r){ toast('El caso no está cargado todavía'); return; }
+  const gen=$('casoGen'), bt=$('casoSugBtn'); if(gen)gen.textContent='generando…'; if(bt)bt.disabled=true;
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ toast('Tu sesión expiró: vuelve a iniciar sesión.'); return; }
+    const canal=(r.canal==='mensaje'?'mensaje':'email');
+    const pais=r.pais||turnoPais();
+    const dir='Un cliente pidió hablar con un supervisor porque la atención automática no resolvió su consulta ('+escMotivoTxt(r.escalado_motivo)+'). Redacta la respuesta FINAL del SUPERVISOR humano para el cliente: breve, conversacional, de "usted", que reconozca la espera, responda su consulta con la información disponible y confirme el siguiente paso. Devuelve la sección "Respuesta sugerida al cliente:" con ese mensaje. PAIS: usa únicamente información de '+pais+'; si no tienes el dato, dilo y no lo inventes.';
+    const mensajes=[{role:'system',content:dir}].concat((Array.isArray(r.mensajes)?r.mensajes:[]).filter(function(m){ return m&&m.from!=='espera'; }).map(function(m){ return {role:(m.from==='cliente'?'user':'assistant'),content:m.text||''}; }));
+    const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+      body:JSON.stringify({mensajes:mensajes,canal:canal,audiencia:'cliente',formato:(canal==='email'?'correo':'mensaje'),instruccion:dir,cliente:(r.cliente||null),pais:pais,turno:{pais:pais,vertical:'online'},tenant:CONFIG.tenant,empresa:{nombre:CONFIG.cliente},contexto:ctxCache,glosario:GLOS})});
+    if(!res.ok) throw new Error('Servidor '+res.status);
+    let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ j={}; }
+    const txt=(j.respuesta||'').trim();
+    if((j.ok===false)||j.chainFailed||!txt||/sesi[oó]n no v[aá]lida/i.test(txt)){ toast('La IA no está disponible ahora. Escribe la respuesta manualmente o reintenta.'); return; }
+    const sug=$('casoSug'); if(sug) sug.value=extraerSugerida(txt)||txt;
+    // deja registrada la sugerencia en el escalamiento abierto (analitica de calidad)
+    try{ await sb.from('escalamientos').update({respuesta_ia:(extraerSugerida(txt)||txt).slice(0,4000)}).eq('conv_id',r.id).is('atendido_at',null); }catch(e){}
+  }catch(e){ toast('No se pudo generar la sugerencia'+((e&&e.message)?(' — '+e.message):'')+'.'); }
+  finally{ if(gen)gen.textContent=''; if(bt)bt.disabled=false; }
+}
+async function casoEnviar(){
+  const r=_casoRow; if(!r){ toast('El caso no está cargado todavía'); return; }
+  const sug=$('casoSug'); const txt=(sug&&sug.value||'').trim(); if(!txt){ toast('Escribe o genera una respuesta primero'); return; }
+  const _out=(''+r.id).indexOf('wa-')===0?{url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'}:((''+r.id).indexOf('tg-')===0?{url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'}:null);
+  const bt=$('casoEnviarBtn'); if(bt)bt.disabled=true;
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ toast('Tu sesión expiró: vuelve a iniciar sesión.'); return; }
+    if(_out){ const rs=await fetch(_out.url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({id:r.id,texto:txt})}); const j=await rs.json().catch(function(){return {};}); if(!(j&&j.ok)){ toast(_out.nom+': no se envió al cliente ('+((j&&j.error)||'error')+')'); return; } }
+    // re-fetch + guard optimista: la consola principal u otro mensaje del cliente pudo tocar el hilo
+    // despues de cargar este caso; se agrega sobre lo FRESCO y solo si updated_at no cambio (1 reintento)
+    let _ok=false;
+    for(let _i=0;_i<2 && !_ok;_i++){
+      const {data:fr,error:fe}=await sb.from('inbox_conversaciones').select('mensajes,updated_at,tomado_por').eq('id',r.id).single();
+      if(fe)throw fe;
+      const mensajes=(Array.isArray(fr.mensajes)?fr.mensajes:[]).concat([{from:'agente',text:txt,t:Date.now(),por:(myProfile&&myProfile.full_name)||me.email}]);
+      const upd={mensajes:mensajes,estado:'respondido',updated_at:new Date().toISOString()};
+      if(!fr.tomado_por&&me){ upd.tomado_por=me.id; upd.tomado_email=(myProfile&&myProfile.full_name)||me.email; upd.tomado_at=new Date().toISOString(); }
+      let q=sb.from('inbox_conversaciones').update(upd).eq('id',r.id);
+      if(fr.updated_at) q=q.eq('updated_at',fr.updated_at);
+      const {data:ur,error}=await q.select('id');
+      if(error)throw error;
+      if(ur&&ur.length){ Object.assign(r,upd); _ok=true; }
+    }
+    if(!_ok){ toast(_out?('Se envió al '+_out.nom+' del cliente, pero el hilo cambió al registrarlo: actualizando el caso'):'El hilo cambió mientras registrabas: actualizando el caso'); casoCargar(); return; }
+    if(sug)sug.value=''; casoRender();
+    toast(_out?('Enviado al '+_out.nom+' del cliente'):'Respuesta registrada en el hilo');
+    logAudit('escalamiento_respuesta',{conv:''+r.id});
+  }catch(e){ toast('No se pudo enviar: '+((e&&e.message)||e)); }
+  finally{ if(bt)bt.disabled=false; }
+}
+async function casoAtendido(){
+  const r=_casoRow; if(!r||!me)return;
+  if(r.escalado_estado!=='pendiente'){ toast('Este caso no tiene un escalamiento pendiente'); return; }
+  try{
+    const email=(myProfile&&myProfile.full_name)||me.email;
+    const {error}=await sb.from('inbox_conversaciones').update({escalado_estado:'atendido',escalado_por:email,updated_at:new Date().toISOString()}).eq('id',r.id);
+    if(error)throw error;
+    try{ await sb.from('escalamientos').update({supervisor_email:email,atendido_at:new Date().toISOString()}).eq('conv_id',r.id).is('atendido_at',null); }catch(e){}
+    r.escalado_estado='atendido'; r.escalado_por=email; casoRender();
+    escBadgeRefresh(); if($('supPanel')&&$('supPanel').classList.contains('on')) loadSupEsc();
+    logAudit('escalamiento_atendido',{conv:''+r.id,motivo:r.escalado_motivo||''});
+    toast('Escalamiento marcado como atendido');
+  }catch(e){ toast('No se pudo marcar: '+((e&&e.message)||e)); }
 }
 
 /* ---- banderas ---- */
@@ -2960,7 +3131,7 @@ function emSave(){ try{ localStorage.setItem('email-bandeja', JSON.stringify(EMB
 let _emDraftT=null; function emSaveDraftDebounced(){ clearTimeout(_emDraftT); _emDraftT=setTimeout(function(){ emSave(); }, 500); }
 /* ===== COLA COMPARTIDA (Supabase + tiempo real). Degradacion suave: si no existe la tabla, sigue en localStorage ===== */
 let emCloudReady=false, emChan=null; const emPushT={};
-function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
+function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, escalado:!!r.escalado, escalado_motivo:r.escalado_motivo||'', escalado_estado:r.escalado_estado||null, escalado_at:r.escalado_at||null, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
 function emThreadToRow(t){ return { id:t.id, tenant:CONFIG.tenant, canal:t.canal, de:t.de||'cliente', asunto:t.asunto||'', pais:emThreadPais(t), estado:t.estado||'nuevo', mensajes:t.mensajes||[], cliente:t.cliente||null, draft:t.draft||'', ia_raw:t.iaRaw||'', tomado_por:t.tomado_por||null, tomado_email:t.tomado_email||'', tomado_at:t.tomado_at||null, updated_by:me?me.id:null, updated_at:new Date().toISOString() }; }
 async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(!l) return; const isOpen=(n.id===emSelChat||n.id===emSelMail); if(_emActive && !_emAdopt){ /* solo la pestaña ACTIVA conserva su trabajo; las pasivas ADOPTAN la nube (espejo) */ if(isOpen || l.draftEdited){ if(l.draft!=null) n.draft=l.draft; if(l.draftEdited) n.draftEdited=true; if(l.iaRaw) n.iaRaw=l.iaRaw; } else if(l.draft && !n.draft){ n.draft=l.draft; if(l.iaRaw) n.iaRaw=l.iaRaw; } } if(l.vertical) n.vertical=l.vertical; }); const _inc={}; incoming.forEach(function(n){ _inc[n.id]=1; }); EMBANDEJA.forEach(function(l){ if(!_inc[l.id]) incoming.push(l); }); EMBANDEJA=incoming; emSave(); } return true; }catch(e){ emCloudReady=false; return false; } }
 async function emPush(t){ if(!emCloudReady||!sb||!t)return; if(typeof _emActive!=='undefined' && !_emActive) return; /* pestaña pasiva: no sube (no pisa a la activa) */ try{ await sb.from('inbox_conversaciones').upsert(emThreadToRow(t)); }catch(e){} }
@@ -2981,13 +3152,16 @@ emBindVisibility();
    La pestaña que MIRAS es la ACTIVA (la unica que sube cambios a la nube). Las demas quedan de solo
    lectura reflejando a la activa (adoptan todo) y muestran un aviso para trabajar en una sola. ===== */
 const _emTabId = 'tab-'+Math.random().toString(36).slice(2);
+// Pestaña de CASO escalado (?caso=): NO compite por el candado (no usa el inbox ni sube borradores);
+// queda pasiva y sin banner para no robarle el control a la consola principal.
+let _casoMode=(function(){ try{ return !!new URLSearchParams(location.search).get('caso'); }catch(e){ return false; } })();
 let _emActive = true, _emAdopt = false, _emBC = null;
 function _emReadActive(){ try{ return (JSON.parse(localStorage.getItem('sineli-active')||'{}')||{}).id; }catch(e){ return null; } }
-function _emShowDup(){ let b=$('emDupBanner'); if(!b){ b=document.createElement('div'); b.id='emDupBanner'; b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:99999;background:#e0564b;color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.35);max-width:92%;text-align:center'; document.body.appendChild(b); } b.innerHTML='SINELI está abierto en otra pestaña. Para no perder respuestas, trabaja en UNA sola. <button onclick="_emTakeOver()" style="margin-left:8px;background:#fff;color:#e0564b;border:0;border-radius:6px;padding:5px 12px;cursor:pointer;font-weight:700">Trabajar aquí</button>'; b.style.display='block'; }
+function _emShowDup(){ if(_casoMode)return; let b=$('emDupBanner'); if(!b){ b=document.createElement('div'); b.id='emDupBanner'; b.style.cssText='position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:99999;background:#e0564b;color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.35);max-width:92%;text-align:center'; document.body.appendChild(b); } b.innerHTML='SINELI está abierto en otra pestaña. Para no perder respuestas, trabaja en UNA sola. <button onclick="_emTakeOver()" style="margin-left:8px;background:#fff;color:#e0564b;border:0;border-radius:6px;padding:5px 12px;cursor:pointer;font-weight:700">Trabajar aquí</button>'; b.style.display='block'; }
 function _emHideDup(){ const b=$('emDupBanner'); if(b)b.style.display='none'; }
 function _emTakeOver(){ _emClaim(); }
 function _emSync(){ const a=_emReadActive(); const yo=(a===_emTabId || a==null); if(yo && !_emActive){ _emActive=true; _emHideDup(); } else if(!yo && _emActive){ _emActive=false; _emShowDup(); } }
-function _emClaim(){ const wasPassive=!_emActive; try{ localStorage.setItem('sineli-active', JSON.stringify({id:_emTabId,ts:Date.now()})); }catch(e){} _emActive=true; _emHideDup(); if(_emBC)try{ _emBC.postMessage({t:'claim'}); }catch(e){} if(wasPassive && $('emailPanel') && $('emailPanel').classList.contains('on')){ _emAdopt=true; emCloudLoad().then(function(){ _emAdopt=false; emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); }); } }
+function _emClaim(){ if(_casoMode){ _emActive=false; return; } const wasPassive=!_emActive; try{ localStorage.setItem('sineli-active', JSON.stringify({id:_emTabId,ts:Date.now()})); }catch(e){} _emActive=true; _emHideDup(); if(_emBC)try{ _emBC.postMessage({t:'claim'}); }catch(e){} if(wasPassive && $('emailPanel') && $('emailPanel').classList.contains('on')){ _emAdopt=true; emCloudLoad().then(function(){ _emAdopt=false; emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); }); } }
 (function(){ try{ _emBC=new BroadcastChannel('sineli-tabs'); _emBC.onmessage=function(){ _emSync(); }; }catch(e){}
   window.addEventListener('storage', function(e){ if(e.key==='sineli-active') _emSync(); });
   window.addEventListener('focus', _emClaim);
@@ -2999,6 +3173,11 @@ function emOnRealtime(p){
   const r=p.new; if(!r)return; const inc=emRowToThread(r);
   const idx=EMBANDEJA.findIndex(function(x){return x.id===r.id;});
   const open=(r.id===emSelChat||r.id===emSelMail);
+  // ESCALAMIENTO: si la fila PASA a pendiente, avisar al supervisor y refrescar el badge
+  try{ const prev=idx>=0?EMBANDEJA[idx]:null;
+    if(inc.escalado&&inc.escalado_estado==='pendiente'&&!(prev&&prev.escalado_estado==='pendiente')&&puedeSupervisar()){ toast('Cliente pidió supervisor: '+(inc.de||inc.id)); escBadgeRefresh(); if($('supPanel')&&$('supPanel').classList.contains('on')) loadSupEsc(); }
+    else if(prev&&prev.escalado_estado!==inc.escalado_estado&&puedeSupervisar()){ escBadgeRefresh(); }
+  }catch(e){}
   if(idx<0){ EMBANDEJA.unshift(inc); }
   else { const l=EMBANDEJA[idx]; if(_emActive && (open || l.draftEdited || (l.draft && !inc.draft))){ inc.draft=l.draft; if(l.draftEdited) inc.draftEdited=true; if(l.iaRaw) inc.iaRaw=l.iaRaw; } if(l.vertical) inc.vertical=l.vertical; /* solo la pestaña activa conserva; las pasivas reflejan la nube */ EMBANDEJA[idx]=inc; }
   emRenderList();
@@ -4029,6 +4208,7 @@ function ckActions(){
   add('Panel de Inteligencia','admin',()=>openIntel(),isAdmin());
   add('Panel de administración','admin',()=>openPanel(),isAdmin());
   add('Supervisión — métricas de agentes','equipo',()=>openSup(),puedeSupervisar());
+  add('Escalamientos — clientes que pidieron supervisor','equipo',()=>openSup(),puedeSupervisar());
   add('Ver como agente (demo)','admin',()=>toggleDemo(),isRealAdmin());
   add('Tour de la consola (guía rápida)','ayuda',()=>tourOpen());
   add('Modo presentación — Resultados','admin',()=>resOpen(),isAdmin());

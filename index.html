@@ -397,11 +397,13 @@
   .em-autobar input[type=checkbox]{accent-color:var(--accent);cursor:pointer}
   .em-autobar input[type=checkbox]:disabled{cursor:not-allowed}
   .em-autobar .ubtn{font-weight:700}
-  .em-autopend{display:flex;flex-direction:column;gap:6px;padding:8px 14px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.08)}
-  .em-autopend .apitem{display:flex;align-items:center;gap:10px;font-size:12px}
-  .em-autopend .apitem .aptxt{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
-  .em-autopend .apitem .apcd{font-weight:700;color:var(--accent);min-width:34px;text-align:right}
-  .em-autopend .apitem .aplbl{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt);font-weight:600}
+  /* Tarjeta FLOTANTE y centrada: no empuja el layout hacia abajo al aparecer (position fixed) */
+  .em-autopend{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;align-items:center;gap:6px;padding:9px 16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28);max-width:min(680px,92vw)}
+  .em-autopend>b{text-align:center}
+  .em-autopend .apitem{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;flex-wrap:wrap}
+  .em-autopend .apitem .aptxt{max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
+  .em-autopend .apitem .apcd{font-weight:700;color:var(--accent);min-width:34px;text-align:center}
+  .em-autopend .apitem .aplbl{max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt);font-weight:600}
   .em-item.esp{box-shadow:inset 3px 0 0 #f59e0b}
   .em-pane{display:grid;grid-template-columns:1fr 1fr;min-height:0}
   .em-col{display:flex;flex-direction:column;min-height:0;min-width:0;overflow-y:auto;padding:14px 16px;gap:10px}
@@ -3183,6 +3185,7 @@ async function emAutoPausaChange(){ const ps=$('emAutoPausa'); if(!ps)return; if
    necesita a un humano, y lo abre. Al cerrarlo entra el siguiente. Es por-agente y local (no
    necesita tabla nueva); la atomicidad del claim evita que dos agentes tomen el mismo. ===== */
 let _emDisp=false, _emAsT=null; const EM_ASIGNAR_CAP=1;   // cap de chats activos por agente (1 = de uno en uno)
+const EM_ASIGNAR_GRACIA_MS=45000;   // si el bot esta activo, dale este tiempo para responder ANTES de asignar el chat a un humano (pausa 30s + proceso)
 function emDispReflect(){ const b=$('emDispBtn'); if(!b)return; b.textContent=_emDisp?'Recibiendo chats: ACTIVO':'Recibiendo chats: EN PAUSA'; b.style.color=_emDisp?'var(--ok)':'var(--txt-2)'; b.style.fontWeight='700'; }
 function emDispToggle(){ _emDisp=!_emDisp; try{ localStorage.setItem('inbox-recibiendo', _emDisp?'1':'0'); }catch(e){} emDispReflect(); if(_emDisp){ toast('Recibiendo chats: los nuevos sin dueño se te asignarán de uno en uno'); emAutoAsignarTick(); } else { toast('En pausa: no se te asignarán chats nuevos'); } }
 function emAutoAsignarStart(){ if(_emAsT)return; _emAsT=setInterval(emAutoAsignarTick, 8000); }
@@ -3197,7 +3200,13 @@ function emNecesitaHumano(t){
   if(typeof EM_APEND!=='undefined' && EM_APEND.some(function(p){return p.conv_id===t.id;})) return false; // el bot tiene respuesta en cola
   // el ultimo mensaje (que no sea marca de espera) debe ser del cliente = esta esperando respuesta
   let last=null; for(let i=(t.mensajes||[]).length-1;i>=0;i--){ const m=t.mensajes[i]; if(m&&m.from!=='espera'){ last=m; break; } }
-  return !!(last && last.from==='cliente');
+  if(!(last && last.from==='cliente')) return false;
+  // GRACIA: si el bot esta activo para este canal, dale tiempo de contestar ANTES de asignarlo a un
+  // humano. Sin esto, la autoasignacion tomaba el chat mientras el bot tenia su respuesta en la cola
+  // de revision y el auto-sender la cancelaba como "agente intervino" (el bot dejaba de responder).
+  const botActivo=(EM_AUTOFAQ!==false) && (t.canal==='mensaje'?(EM_AUTOCHAT!==false):(EM_AUTOCORREO!==false));
+  if(botActivo){ const _lt=(typeof last.t==='string')?Date.parse(last.t):last.t; if(_lt && (Date.now()-_lt)<EM_ASIGNAR_GRACIA_MS) return false; }
+  return true;
 }
 async function emAutoAsignarTick(){
   if(!_emDisp || !sb || !me || !emCloudReady) return;
@@ -3206,6 +3215,9 @@ async function emAutoAsignarTick(){
   // candidato: el que lleva mas tiempo esperando (FIFO por primer mensaje)
   const cand=EMBANDEJA.filter(emNecesitaHumano).sort(function(a,b){ return (a.t||0)-(b.t||0); })[0];
   if(!cand) return;
+  // Chequeo EN VIVO de la cola del bot (cierra la carrera con el cache EM_APEND, que se refresca cada
+  // 5s): si el bot YA tiene una respuesta pendiente para este chat, NO lo tomamos — deja que conteste.
+  try{ const {data:_pend,error:_pe}=await sb.from('auto_pendientes').select('id').eq('tenant',CONFIG.tenant).eq('conv_id',cand.id).eq('estado','pendiente').limit(1); if(_pe) return; if(_pend&&_pend.length) return; }catch(e){ return; }
   const ok=await emClaimRow(cand);                                      // atomico: si otro lo tomo justo, ok=false
   if(!ok) return;
   if((cand.estado||'nuevo')==='nuevo') cand.estado='leido';

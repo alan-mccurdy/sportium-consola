@@ -489,6 +489,8 @@
   .em-empty{padding:24px 16px;color:var(--txt-2);font-size:13px;text-align:center}
   @media(max-width:760px){ .em-wrap{grid-template-columns:1fr} .em-list{max-height:38vh;border-right:none;border-bottom:1px solid var(--line)} .em-pane{grid-template-columns:1fr} .em-col.em-left{border-right:none;border-bottom:1px solid var(--line)} }
   .btn.ghost{background:transparent;color:var(--txt-2);border:1px solid var(--line);box-shadow:none}
+  /* Botones de la fila de ticket (Adjuntar/Analizar): compactos, del tamano de los del chat general */
+  .em-ticketrow .btn{padding:4px 10px;font-size:11px;min-height:0;font-weight:600;border-radius:8px}
   .btn.ghost:hover{border-color:var(--accent);color:var(--txt)}
   .btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
   .overlay.on{opacity:1;pointer-events:auto}
@@ -1348,7 +1350,7 @@ const CONFIG = {
   acento:     "#E2001A",     // color de acento del cliente (hex)
   soloChatAgentes: false,    // false = los agentes tambien ven datos de cliente/saldos, salas y busqueda
   // Base PUBLICA para los enlaces que ve el cliente final (ej. CSAT). Al tener el dominio neutro
-  // (sin nombre personal / github / sportium) se pone aqui, ej: "https://sineli-consola.up.railway.app/"
+  // (dominio neutro, SIN marca personal ni del cliente), ej: "https://alan-mccurdy.github.io/sportium-consola/"
   publicBase: ""
 };
 
@@ -3150,7 +3152,18 @@ async function emAutoFaqBtnClick(){ if(!(typeof isAdmin==='function'&&isAdmin())
 /* ===== PAUSA DE REVISION (30 s): respuestas del bot en cola auto_pendientes; el agente puede cancelarlas o adelantarlas ===== */
 let EM_APEND=[], _emApT=null, _emApTick=null;
 async function emAutoPendLoad(){ if(!sb||!me||emModo!=='auto'){ emAutoPendRender(); return; } try{ const {data,error}=await sb.from('auto_pendientes').select('id,conv_id,texto,envia_at,estado').eq('tenant',CONFIG.tenant).eq('estado','pendiente').order('envia_at',{ascending:true}).limit(20); if(error)throw error; EM_APEND=data||[]; }catch(e){ EM_APEND=[]; } emAutoPendRender(); }
-function emAutoPendRender(){ const el=$('emAutoPend'); if(!el)return; if(emModo!=='auto'||!EM_APEND.length){ el.style.display='none'; el.innerHTML=''; return; } el.style.display=''; el.innerHTML='<b style="font-size:12px">Respuestas del bot en espera de revisión ('+EM_APEND.length+')</b>'+EM_APEND.map(function(p){ const s=Math.max(0,Math.ceil((Date.parse(p.envia_at)-Date.now())/1000)); return '<div class="apitem"><span class="apcd">'+s+'s</span><span class="aptxt" title="'+escapeHtml(p.texto)+'">'+escapeHtml((p.conv_id||'').replace(/^tg-/,'chat '))+': '+escapeHtml((p.texto||'').slice(0,120))+'</span><button class="ubtn" onclick="emAutoPendCancelar(\''+p.id+'\')">Cancelar</button><button class="ubtn" onclick="emAutoPendYa(\''+p.id+'\')">Enviar ya</button></div>'; }).join(''); }
+function emAutoPendRender(){ const el=$('emAutoPend'); if(!el)return; if(emModo!=='auto'||!EM_APEND.length){ el.style.display='none'; el.innerHTML=''; return; } el.style.display=''; el.innerHTML='<b style="font-size:12px">Respuestas del bot en espera de revisión ('+EM_APEND.length+')</b>'+EM_APEND.map(function(p){ const s=Math.max(0,Math.ceil((Date.parse(p.envia_at)-Date.now())/1000)); return '<div class="apitem"><span class="apcd">'+s+'s</span><span class="aptxt" title="'+escapeHtml(p.texto)+'">'+escapeHtml((p.conv_id||'').replace(/^tg-/,'chat '))+': '+escapeHtml((p.texto||'').slice(0,120))+'</span><button class="ubtn" title="Abre la conversación con la respuesta de la IA cargada para que la corrijas y la mandes tú" onclick="emAutoPendEditar(\''+p.id+'\')">Corregir</button><button class="ubtn" onclick="emAutoPendCancelar(\''+p.id+'\')">Cancelar</button><button class="ubtn" onclick="emAutoPendYa(\''+p.id+'\')">Enviar ya</button></div>'; }).join(''); }
+// CORREGIR LA IA: el agente no confía en la respuesta automática -> se cancela el envío del bot y se
+// abre la conversación con ESE texto cargado en el borrador para que lo corrija y responda él mismo.
+// Complementa (no reemplaza): la sugerencia de la IA queda como punto de partida editable.
+async function emAutoPendEditar(pid){ const p=EM_APEND.find(function(x){return x.id===pid;}); if(!p){ toast('Esa respuesta ya no está en cola'); emAutoPendLoad(); return; }
+  if(sb){ try{ await sb.from('auto_pendientes').update({estado:'cancelado',por:(me&&me.email)||'agente',updated_at:new Date().toISOString()}).eq('id',pid).eq('estado','pendiente'); }catch(e){} }
+  const t=EMBANDEJA.find(function(x){return x.id===p.conv_id;});
+  if(!t){ toast('Abriendo... si no aparece, actualiza la bandeja'); emAutoPendLoad(); return; }
+  t.draft=p.texto||''; t.draftEdited=true; emSave(); emPush(t);
+  emSetModo('manual'); emSelect(t.id);
+  var slot=(t.canal==='mensaje')?'chat':'mail'; var sug=$(slot==='mail'?'emMailSug':'emChatSug'); if(sug)sug.value=t.draft;
+  toast('Respuesta de la IA cargada: corrígela y responde. El envío automático se canceló.'); emAutoPendLoad(); }
 async function emAutoPendCancelar(pid){ if(!sb)return; try{ const {error}=await sb.from('auto_pendientes').update({estado:'cancelado',por:(me&&me.email)||'agente',updated_at:new Date().toISOString()}).eq('id',pid).eq('estado','pendiente'); if(error)throw error; toast('Respuesta automática cancelada: el caso queda para un agente'); }catch(e){ toast('No se pudo cancelar: '+((e&&e.message)||'error')); } emAutoPendLoad(); }
 async function emAutoPendYa(pid){ if(!sb)return; try{ const {error}=await sb.from('auto_pendientes').update({envia_at:new Date(Date.now()-1000).toISOString(),updated_at:new Date().toISOString()}).eq('id',pid).eq('estado','pendiente'); if(error)throw error; toast('Se enviará en unos segundos'); }catch(e){ toast('No se pudo adelantar: '+((e&&e.message)||'error')); } emAutoPendLoad(); }
 function emAutoPendStart(){ emAutoPendStop(); emAutoPendLoad(); _emApT=setInterval(emAutoPendLoad,5000); _emApTick=setInterval(emAutoPendRender,1000); }

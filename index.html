@@ -3625,7 +3625,7 @@ function emRenderThread(slot){
     const consol=(t._consol && t._consol.pendientes>1) ? ('<div style="font-size:11px;color:var(--accent);margin-bottom:4px">Este cliente tiene '+t._consol.pendientes+' correos pendientes en la bandeja'+(t._consol.repetidos?(' · '+t._consol.repetidos+' repetido(s) spam'):'')+'. Los respondidos quedan en el filtro Respondido.</div>') : '';
     if($('emMailHead'))$('emMailHead').innerHTML=consol+'<b>De:</b> '+escapeHtml(t.de||'cliente')+'<br><b>Asunto:</b> '+escapeHtml(t.asunto||'(sin asunto)');
     if($('emMailBody'))$('emMailBody').textContent=clis.map(function(m,i){return (clis.length>1?('['+(i+1)+'] '):'')+(m.text||'');}).join('\n\n———\n\n');
-    if($('emPara'))$('emPara').value=t.de||';
+    if($('emPara'))$('emPara').value=t.de||'';
     if($('emAsuntoOut'))$('emAsuntoOut').value=(t.asunto&&!/^re:/i.test(t.asunto))?('Re: '+t.asunto):(t.asunto||'');
   } else {
     const th=$('emChatThread'); if(th){ th.innerHTML=(t.mensajes||[]).filter(function(m){return m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+(m.auto?'<span class="em-badge ia" style="margin-right:4px">IA</span>':'')+escapeHtml(m.text||'')+((m.img||m.image_url)?('<br><img src="'+(m.img||m.image_url)+'" style="max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();emVerImg(this.src)">'):'')+'</div>'; }).join(''); scrollLectura(th,'.em-b'); }

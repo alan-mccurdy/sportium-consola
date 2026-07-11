@@ -3625,14 +3625,12 @@ function emRenderClaimTop(){
   const _botMudo=(t.estado!=='respondido') && (t.tomado_por || _lastHum>(Date.now()-12*3600000));
   const _devBot=(t.canal==='mensaje' && !otro && t.bot_on!==true && t.escalado_estado!=='pendiente' && _botMudo) ? ' · <a href="#" title="El bot vuelve a atender esta conversación" onclick="event.preventDefault();emDevolverAlBot(\''+slot+'\')">Devolver al bot</a>' : '';
   const _botOnTag=(t.canal==='mensaje'&&t.bot_on===true)?' · <span style="color:var(--ok)">el bot atiende esta conversación</span>':'';
-  // En modo AUTOMATICO el "Tomar" de arriba se omite (el agente usa el boton Tomar de abajo, junto a
-  // la respuesta); arriba solo queda el estado y, si aplica, "Devolver al bot" / "Liberar".
-  const _auto=(emModo==='auto');
-  const _tomarYo=_auto?'':' <a href="#" onclick="event.preventDefault();emTomar(\''+slot+'\')">Tomar yo</a>';
-  const _tomarIgual=(_auto)?'':((typeof isAdmin==='function'&&isAdmin())?' <a href="#" onclick="event.preventDefault();emTomar(\''+slot+'\')">Tomar de todos modos</a>':'');
-  if(!txt){ top.className='em-claimtop'; top.innerHTML='<b>'+canal+':</b> nadie la ha tomado.'+_tomarYo+_devBot+_botOnTag; return; }
+  // El "Tomar" de ARRIBA se omite siempre: arriba solo el mensaje de estado (quién la tiene / nadie)
+  // y, si aplica, "Devolver al bot" / "Liberar". Para tomar/soltar se usa el botón de ABAJO (junto a
+  // la respuesta), que ya alterna Tomar/Liberar. Así el aviso de asignación se ve sin botón de Tomar.
+  if(!txt){ top.className='em-claimtop'; top.innerHTML='<b>'+canal+':</b> nadie la ha tomado.'+_devBot+_botOnTag; return; }
   top.className='em-claimtop'+(otro?' otro':' mia');
-  top.innerHTML = (otro?('<b>'+canal+':</b> la atiende <b>'+escapeHtml(t.tomado_email)+'</b> — evita responder doble.'+_tomarIgual)
+  top.innerHTML = (otro?('<b>'+canal+':</b> la atiende <b>'+escapeHtml(t.tomado_email)+'</b> — evita responder doble.')
     : ('<b>'+canal+':</b> la tomaste tú. <a href="#" onclick="event.preventDefault();emLiberar(\''+slot+'\')">Liberar</a>'+_devBot+_botOnTag));
 }
 // DEVOLVER AL BOT: el agente termina su intervencion y deja que el bot siga la conversacion.

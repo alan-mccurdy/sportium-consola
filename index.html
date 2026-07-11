@@ -364,6 +364,9 @@
   .em-pegar{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
   .em-pegar input,.em-pegar textarea,.em-pegar select{border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-family:inherit;font-size:12.5px;color:var(--txt);background:var(--bg);resize:none}
   .em-pais-sel{border:1px solid var(--line);border-radius:7px;padding:2px 7px;font:inherit;font-size:11px;color:var(--txt-2);background:var(--bg);cursor:pointer}
+  .em-ident{display:inline-flex;gap:5px;align-items:center}
+  .em-ident .idpill{border:1px solid var(--line);border-radius:7px;padding:2px 7px;font-size:11px;color:var(--txt-2);background:var(--bg)}
+  .em-ident .idpill.on{border-color:var(--accent);color:var(--accent);font-weight:700}
   .em-respacts{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
   .em-claim{margin:6px 12px 0;padding:6px 10px;border-radius:9px;font-size:12px;background:var(--accent-soft);border:1px solid var(--glass-brd)}
   .em-claim.otro{background:#fdecec;border-color:#f3c9c9;color:#9a1414}
@@ -1291,7 +1294,7 @@ body{background:transparent}
     </div>
     <div class="em-cockpit">
       <div class="em-slot focus" id="emSlotChat" onclick="emFocusSet('chat')">
-        <div class="em-slot-h"><span class="em-badge canal">Mensaje</span><span id="emChatWho">sin chat seleccionado</span><select class="em-pais-sel" id="emChatPais" style="display:none" title="País de esta conversación" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadPais('chat',this.value)"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select><select class="em-pais-sel" id="emChatVert" style="display:none" title="¿Es un cliente o personal de sala (retail)?" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadVert('chat',this.value)"><option value="online">Cliente</option><option value="retail">Sala</option></select><span id="emChatLink"></span><span id="emChatCli" style="margin-left:auto"></span></div>
+        <div class="em-slot-h"><span class="em-badge canal">Mensaje</span><span id="emChatWho">sin chat seleccionado</span><select class="em-pais-sel" id="emChatPais" style="display:none" title="País de esta conversación" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadPais('chat',this.value)"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select><select class="em-pais-sel" id="emChatVert" style="display:none" title="¿Es un cliente o personal de sala (retail)?" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadVert('chat',this.value)"><option value="online">Cliente</option><option value="retail">Sala</option></select><span class="em-ident" id="emChatIdent" style="display:none"></span><span id="emChatLink"></span><span id="emChatCli" style="margin-left:auto"></span></div>
         <div class="em-claim" id="emChatClaim" style="display:none"></div>
         <div class="em-quad em-lr">
           <div class="em-leftcol">
@@ -1302,7 +1305,7 @@ body{background:transparent}
         </div>
       </div>
       <div class="em-slot" id="emSlotMail" onclick="emFocusSet('mail')">
-        <div class="em-slot-h"><span class="em-badge canal">Correo</span><span id="emMailWho">sin correo seleccionado</span><select class="em-pais-sel" id="emMailPais" style="display:none" title="País de esta conversación" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadPais('mail',this.value)"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select><select class="em-pais-sel" id="emMailVert" style="display:none" title="¿Es un cliente o personal de sala (retail)?" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadVert('mail',this.value)"><option value="online">Cliente</option><option value="retail">Sala</option></select><span id="emMailLink"></span><span id="emMailCli" style="margin-left:auto"></span></div>
+        <div class="em-slot-h"><span class="em-badge canal">Correo</span><span id="emMailWho">sin correo seleccionado</span><select class="em-pais-sel" id="emMailPais" style="display:none" title="País de esta conversación" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadPais('mail',this.value)"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select><select class="em-pais-sel" id="emMailVert" style="display:none" title="¿Es un cliente o personal de sala (retail)?" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadVert('mail',this.value)"><option value="online">Cliente</option><option value="retail">Sala</option></select><span class="em-ident" id="emMailIdent" style="display:none"></span><span id="emMailLink"></span><span id="emMailCli" style="margin-left:auto"></span></div>
         <div class="em-claim" id="emMailClaim" style="display:none"></div>
         <div class="em-quad em-mailonly">
           <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emMailTicketImg"></span><label class="btn ghost" style="cursor:pointer;margin:0">Adjuntar ticket<input type="file" accept="image/*" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();emAdjuntarTicket('mail',event)"></label><button class="btn ghost" title="Analiza el ticket de apuesta (imagen o lo que describa el cliente) y explica por qué ganó o perdió" onclick="event.stopPropagation();emAnalizarTicket('mail')">Analizar ticket</button></div></div>
@@ -3078,10 +3081,29 @@ function emReflectBandeja(){ var fs=document.querySelectorAll('#emBandejas .em-b
 function emSetBandeja(b){ emBandeja=b; try{ localStorage.setItem('inbox-bandeja-sel',b); }catch(e){} emReflectBandeja(); emRenderList(); }
 function emActiveThread(){ const id=(emFocus==='mail')?emSelMail:emSelChat; return EMBANDEJA.find(function(x){return x.id===id;}); }
 function emThreadPais(t){ return (t&&t.pais) || (t&&t.cliente&&t.cliente.pais) || turnoPais(); }
-function emSetThreadPais(slot,val){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.pais=val; emSave(); emPush(t); emRenderSlot(slot); toast('País de la conversación: '+((typeof PAISN!=='undefined'&&PAISN[val])||val)); }
+function emSetThreadPais(slot,val){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.pais=val; t.paisAuto=true; emSave(); emPush(t); emRenderSlot(slot); toast('País de la conversación: '+((typeof PAISN!=='undefined'&&PAISN[val])||val)); }
+/* PAIS/VERTICAL: en modo MANUAL el agente los elige (selectores). En modo AUTOMATICO son un
+   IDENTIFICADOR de solo lectura: la IA los detecta durante el sondeo y los fija en la conversacion;
+   la consola solo los muestra (no se seleccionan a mano). */
+function emReflectIdent(slot,t){
+  const isMail=(slot==='mail');
+  const psel=$(isMail?'emMailPais':'emChatPais'); const vsel=$(isMail?'emMailVert':'emChatVert'); const bdg=$(isMail?'emMailIdent':'emChatIdent');
+  if(!t){ if(psel)psel.style.display='none'; if(vsel)vsel.style.display='none'; if(bdg){ bdg.style.display='none'; bdg.innerHTML=''; } return; }
+  if(emModo==='auto'){
+    if(psel)psel.style.display='none'; if(vsel)vsel.style.display='none';
+    if(bdg){ const p=emThreadPais(t); const v=emThreadVert(t);
+      const pTxt=t.paisAuto?((typeof PAISN!=='undefined'&&PAISN[p])||p):'país: sin detectar';
+      const vTxt=t.vertAuto?(v==='retail'?'Sala':'Cliente'):'';
+      bdg.style.display=''; bdg.innerHTML='<span class="idpill'+(t.paisAuto?' on':'')+'" title="'+(t.paisAuto?'País detectado por la IA':'La IA aún no identifica el país')+'">'+escapeHtml(pTxt)+'</span>'+(vTxt?('<span class="idpill on" title="Tipo detectado por la IA">'+escapeHtml(vTxt)+'</span>'):''); }
+  } else {
+    if(bdg){ bdg.style.display='none'; bdg.innerHTML=''; }
+    if(psel){ psel.style.display=''; psel.value=emThreadPais(t); }
+    if(vsel){ vsel.style.display=''; vsel.value=emThreadVert(t); }
+  }
+}
 function emThreadVert(t){ return (t&&t.vertical) || (t&&t.cliente&&t.cliente.vertical) || 'online'; }   // online = cliente externo; retail = personal de sala (el buzon de correo puede fijarlo via cliente.vertical)
 function emToggleList(){ const sh=$('emShell'); if(!sh)return; const col=!sh.classList.contains('listcol'); sh.classList.toggle('listcol',col); try{ localStorage.setItem('inbox-listcol', col?'1':'0'); }catch(e){} }
-function emSetThreadVert(slot,val){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.vertical=val; emSave(); emRenderSlot(slot); toast(val==='retail'?'Marcado como PERSONAL DE SALA (retail): la IA dará pasos internos, sin respuesta de cliente.':'Marcado como CLIENTE.'); }
+function emSetThreadVert(slot,val){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.vertical=val; t.vertAuto=true; emSave(); emPush(t); emRenderSlot(slot); toast(val==='retail'?'Marcado como PERSONAL DE SALA (retail): la IA dará pasos internos, sin respuesta de cliente.':'Marcado como CLIENTE.'); }
 function emSaveSel(){ try{ localStorage.setItem('inbox-sel', JSON.stringify({chat:emSelChat,mail:emSelMail,focus:emFocus})); }catch(e){} }
 function emFocusSet(slot){ emFocus=slot; const sc=$('emSlotChat'), sm=$('emSlotMail'); if(sc)sc.classList.toggle('focus',slot==='chat'); if(sm)sm.classList.toggle('focus',slot==='mail'); emSaveSel(); emRenderClaimTop(); }
 function emReflectCanal(){ const e=$('emCanalEmail'), m=$('emCanalMsg'), as=$('emAsunto'); if(e)e.classList.toggle('sel',emAddCanal==='email'); if(m)m.classList.toggle('sel',emAddCanal==='mensaje'); if(as)as.style.display=emAddCanal==='email'?'':'none'; const de=$('emDe'); if(de)de.placeholder=emAddCanal==='email'?'De: cliente@correo.com':'De: nombre del cliente'; const cu=$('emCuerpo'); if(cu)cu.placeholder=emAddCanal==='email'?'Cuerpo del correo del cliente...':'Mensaje del cliente...'; }
@@ -3230,9 +3252,9 @@ function emSave(){ try{ localStorage.setItem('email-bandeja', JSON.stringify(EMB
 let _emDraftT=null; function emSaveDraftDebounced(){ clearTimeout(_emDraftT); _emDraftT=setTimeout(function(){ emSave(); }, 500); }
 /* ===== COLA COMPARTIDA (Supabase + tiempo real). Degradacion suave: si no existe la tabla, sigue en localStorage ===== */
 let emCloudReady=false, emChan=null; const emPushT={}; let _emLastSeenUpd=0;   // updated_at mas nuevo visto (nube)
-function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', ticketImg:r.ticket_img||'', bot_on:(r.bot_on===true), tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, escalado:!!r.escalado, escalado_motivo:r.escalado_motivo||'', escalado_estado:r.escalado_estado||null, escalado_at:r.escalado_at||null, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
-function emThreadToRow(t){ return { id:t.id, tenant:CONFIG.tenant, canal:t.canal, de:t.de||'cliente', asunto:t.asunto||'', pais:emThreadPais(t), estado:t.estado||'nuevo', mensajes:(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}) /* las vistas previas pendientes NO se suben: aun no se enviaron */, cliente:t.cliente||null, draft:t.draft||'', ia_raw:t.iaRaw||'', ticket_img:t.ticketImg||'', tomado_por:t.tomado_por||null, tomado_email:t.tomado_email||'', tomado_at:t.tomado_at||null, updated_by:me?me.id:null, updated_at:new Date().toISOString() }; }
-async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; await emAutoCfgLoad(); /* refresca EM_VACIADO/EM_AUTOFAQ antes de fusionar */ if(Array.isArray(data)&&data.length){ const _mx=Date.parse(data[0].updated_at)||0; if(_mx>_emLastSeenUpd)_emLastSeenUpd=_mx; } if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(!l) return; const isOpen=(n.id===emSelChat||n.id===emSelMail); if(_emActive && !_emAdopt){ /* solo la pestaña ACTIVA conserva su trabajo; las pasivas ADOPTAN la nube (espejo) */ if(isOpen || l.draftEdited){ if(l.draft!=null) n.draft=l.draft; if(l.draftEdited) n.draftEdited=true; if(l.iaRaw && !n.iaRaw) n.iaRaw=l.iaRaw; } else if(l.draft && !n.draft){ n.draft=l.draft; if(l.iaRaw && !n.iaRaw) n.iaRaw=l.iaRaw; } } if(l.vertical) n.vertical=l.vertical; }); const _inc={}; incoming.forEach(function(n){ _inc[n.id]=1; }); EMBANDEJA.forEach(function(l){ if(_inc[l.id]) return; if(EM_VACIADO && (l.t||0)<=EM_VACIADO) return; /* vaciado por el admin: NO resucita desde esta copia local */ incoming.push(l); }); EMBANDEJA=incoming; emSave(); } return true; }catch(e){ emCloudReady=false; return false; } }
+function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), paisAuto:!!r.pais, vertical:r.vertical||'', vertAuto:!!r.vertical, estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', ticketImg:r.ticket_img||'', bot_on:(r.bot_on===true), tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, escalado:!!r.escalado, escalado_motivo:r.escalado_motivo||'', escalado_estado:r.escalado_estado||null, escalado_at:r.escalado_at||null, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
+function emThreadToRow(t){ return { id:t.id, tenant:CONFIG.tenant, canal:t.canal, de:t.de||'cliente', asunto:t.asunto||'', pais:emThreadPais(t), vertical:t.vertical||null, estado:t.estado||'nuevo', mensajes:(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}) /* las vistas previas pendientes NO se suben: aun no se enviaron */, cliente:t.cliente||null, draft:t.draft||'', ia_raw:t.iaRaw||'', ticket_img:t.ticketImg||'', tomado_por:t.tomado_por||null, tomado_email:t.tomado_email||'', tomado_at:t.tomado_at||null, updated_by:me?me.id:null, updated_at:new Date().toISOString() }; }
+async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; await emAutoCfgLoad(); /* refresca EM_VACIADO/EM_AUTOFAQ antes de fusionar */ if(Array.isArray(data)&&data.length){ const _mx=Date.parse(data[0].updated_at)||0; if(_mx>_emLastSeenUpd)_emLastSeenUpd=_mx; } if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(!l) return; const isOpen=(n.id===emSelChat||n.id===emSelMail); if(_emActive && !_emAdopt){ /* solo la pestaña ACTIVA conserva su trabajo; las pasivas ADOPTAN la nube (espejo) */ if(isOpen || l.draftEdited){ if(l.draft!=null) n.draft=l.draft; if(l.draftEdited) n.draftEdited=true; if(l.iaRaw && !n.iaRaw) n.iaRaw=l.iaRaw; } else if(l.draft && !n.draft){ n.draft=l.draft; if(l.iaRaw && !n.iaRaw) n.iaRaw=l.iaRaw; } } if(l.vertical && !n.vertical) n.vertical=l.vertical; /* la vertical fresca de la nube (detectada por el bot) gana */ }); const _inc={}; incoming.forEach(function(n){ _inc[n.id]=1; }); EMBANDEJA.forEach(function(l){ if(_inc[l.id]) return; if(EM_VACIADO && (l.t||0)<=EM_VACIADO) return; /* vaciado por el admin: NO resucita desde esta copia local */ incoming.push(l); }); EMBANDEJA=incoming; emSave(); } return true; }catch(e){ emCloudReady=false; return false; } }
 async function emPush(t){ if(!emCloudReady||!sb||!t)return; if(typeof _emActive!=='undefined' && !_emActive) return; /* pestaña pasiva: no sube (no pisa a la activa) */ if(EM_VACIADO && (t.t||0)<=EM_VACIADO) return; /* hilo anterior al vaciado del admin: no se re-sube (no resucita) */ try{ await sb.from('inbox_conversaciones').upsert(emThreadToRow(t)); }catch(e){} }
 function emPushDebounced(t){ if(!emCloudReady||!t)return; if(typeof _emActive!=='undefined' && !_emActive) return; clearTimeout(emPushT[t.id]); emPushT[t.id]=setTimeout(function(){ emPush(t); }, 700); }
 async function emCloudDelete(id){ if(!emCloudReady||!sb||!id)return; try{ await sb.from('inbox_conversaciones').delete().eq('id',id); }catch(e){} }
@@ -3671,10 +3693,7 @@ function emRenderSlot(slot){
   const t=EMBANDEJA.find(function(x){return x.id===id;});
   const who=$(isMail?'emMailWho':'emChatWho');
   const sug=$(isMail?'emMailSug':'emChatSug');
-  const psel=$(isMail?'emMailPais':'emChatPais');
-  if(psel){ if(t){ psel.style.display=''; psel.value=emThreadPais(t); } else { psel.style.display='none'; } }
-  const vsel=$(isMail?'emMailVert':'emChatVert');
-  if(vsel){ if(t){ vsel.style.display=''; vsel.value=emThreadVert(t); } else { vsel.style.display='none'; } }
+  emReflectIdent(slot,t);   // país/vertical: selector (manual) o identificador de solo lectura (auto)
   // botones de escalamiento de sala: solo cuando la conversacion es retail (personal de sala)
   const _esRetail=!!(t && emThreadVert(t)==='retail'); const eok=$(isMail?'emMailEscOk':'emChatEscOk'), eno=$(isMail?'emMailEscNo':'emChatEscNo');
   if(eok)eok.style.display=_esRetail?'':'none'; if(eno)eno.style.display=_esRetail?'':'none';
@@ -3715,10 +3734,7 @@ function emRenderThread(slot){
   if(who)who.textContent=(t.de||'cliente')+((t.estado==='espera')?(' · EN ESPERA'+(emEsperaNota(t)?(': '+emEsperaNota(t)):'')):((t.estado&&t.estado!=='nuevo')?(' · '+t.estado):''))+((t._consol&&t._consol.total>1)?(' · '+t._consol.total+' correos'):'')+(emClaimTxt(t)?(' · '+emClaimTxt(t)):'');
   const cliEl=$(isMail?'emMailCli':'emChatCli');
   if(cliEl){ cliEl.innerHTML=emClienteInfoHTML(t, slot); }
-  const psel=$(isMail?'emMailPais':'emChatPais');
-  if(psel&&psel.style.display!=='none'){ psel.value=emThreadPais(t); }
-  const vsel=$(isMail?'emMailVert':'emChatVert');
-  if(vsel&&vsel.style.display!=='none'){ vsel.value=emThreadVert(t); }
+  emReflectIdent(slot,t);   // país/vertical: selector (manual) o identificador de solo lectura (auto)
   if(isMail){
     const clis=(t.mensajes||[]).filter(function(m){return m.from!=='agente' && m.from!=='espera';});
     const consol=(t._consol && t._consol.pendientes>1) ? ('<div style="font-size:11px;color:var(--accent);margin-bottom:4px">Este cliente tiene '+t._consol.pendientes+' correos pendientes en la bandeja'+(t._consol.repetidos?(' · '+t._consol.repetidos+' repetido(s) spam'):'')+'. Los respondidos quedan en el filtro Respondido.</div>') : '';

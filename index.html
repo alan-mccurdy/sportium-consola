@@ -1234,6 +1234,7 @@ body{background:transparent}
     <span class="em-gen" id="emTurnoHint"></span>
     <span class="em-claimtop" id="emClaimTop" style="display:none"></span>
     <span style="margin-left:auto"></span>
+    <button class="ubtn" id="emDispBtn" onclick="emDispToggle()" title="Cuando está ACTIVO, los chats nuevos sin dueño se te asignan solos (de uno en uno): cierras el que tienes y entra el siguiente. Ponlo en PAUSA cuando no puedas atender.">Recibiendo chats</button>
     <button class="ubtn adminonly" id="emVaciar" onclick="emVaciar()">Vaciar bandeja</button>
     <button class="ic" onclick="closeEmail()" title="Cerrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
@@ -1295,7 +1296,7 @@ body{background:transparent}
         <div class="em-quad em-lr">
           <div class="em-leftcol">
             <div class="em-q em-conv"><div class="em-coltitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emChatTicketImg"></span><label class="btn ghost" style="cursor:pointer;margin:0">Adjuntar ticket<input type="file" accept="image/*" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();emAdjuntarTicket('chat',event)"></label><button class="btn ghost" title="Analiza el ticket de apuesta (imagen o lo que describa el cliente) y explica por qué ganó o perdió" onclick="event.stopPropagation();emAnalizarTicket('chat')">Analizar ticket</button></div></div>
-            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" id="emChatTomarBtn" onclick="event.stopPropagation();emTomarToggle('chat')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn ghost" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('chat')">En espera</button><button class="btn" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
+            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" id="emChatTomarBtn" onclick="event.stopPropagation();emTomarToggle('chat')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn ghost" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('chat')">En espera</button><button class="btn ghost" title="Envía la encuesta de satisfacción (CSAT) al cliente, cierra la conversación y abre el siguiente chat en espera" onclick="event.stopPropagation();emCerrarConCsat('chat')">Cerrar y enviar CSAT</button><button class="btn" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
           </div>
           <div class="em-q em-ana" id="emChatAna"><div class="em-coltitle">Interno (chat y correo)</div><div class="em-analisis" id="emChatAnalisis"></div></div>
         </div>
@@ -1305,7 +1306,7 @@ body{background:transparent}
         <div class="em-claim" id="emMailClaim" style="display:none"></div>
         <div class="em-quad em-mailonly">
           <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emMailTicketImg"></span><label class="btn ghost" style="cursor:pointer;margin:0">Adjuntar ticket<input type="file" accept="image/*" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();emAdjuntarTicket('mail',event)"></label><button class="btn ghost" title="Analiza el ticket de apuesta (imagen o lo que describa el cliente) y explica por qué ganó o perdió" onclick="event.stopPropagation();emAnalizarTicket('mail')">Analizar ticket</button></div></div>
-          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" id="emMailTomarBtn" onclick="event.stopPropagation();emTomarToggle('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" title="Resumir la conversacion del chat del cliente y armar el cuerpo del correo" onclick="event.stopPropagation();emResumirChatACorreo()">Resumir chat → correo</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" title="Copia el enlace para que el cliente califique la atención y lo agrega al final del correo" onclick="event.stopPropagation();emCsatLink()">Link CSAT</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn ghost" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('mail')">En espera</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
+          <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" id="emMailTomarBtn" onclick="event.stopPropagation();emTomarToggle('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" title="Resumir la conversacion del chat del cliente y armar el cuerpo del correo" onclick="event.stopPropagation();emResumirChatACorreo()">Resumir chat → correo</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" title="Copia el enlace para que el cliente califique la atención y lo agrega al final del correo" onclick="event.stopPropagation();emCsatLink()">Link CSAT</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn ghost" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('mail')">En espera</button><button class="btn ghost" title="Agrega la encuesta de satisfacción (CSAT) al final del correo, cierra la conversación y abre el siguiente en espera" onclick="event.stopPropagation();emCerrarConCsat('mail')">Cerrar y enviar CSAT</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
         </div>
       </div>
     </div>
@@ -3141,8 +3142,8 @@ function emConsolidarCliente(t){
   pendientes.forEach(function(x){ (x.mensajes||[]).forEach(function(m){ if(m.from==='agente')return; var nm=_normMsg(m.text); if(!nm)return; if(vistos[nm]){ repetidos++; return; } vistos[nm]=1; unicos++; }); });
   t._consol={ total:grupo.length, respondidos:respondidos.length, pendientes:pendientes.length, nuevos:nuevos, unicos:unicos, repetidos:repetidos };
 }
-function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'activos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); mAcordeonInit(); var _epg=$('emPegar'); if(_epg)_epg.style.display=(isAdmin()&&emModo==='manual')?'':'none'; /* "Agregar conversacion" solo admin Y solo en modo manual */ var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); try{ if(localStorage.getItem('inbox-listcol')==='1'&&$('emShell'))$('emShell').classList.add('listcol'); }catch(e){}     if(emModo==='auto'){ emAutoCfgLoad(); emAutoPendStart(); if(EMAIL_AUTO.on) emFetchAuto(); if(!emSelChat&&!emSelMail&&EM_APEND&&EM_APEND.length){ var firstP=EM_APEND[0]; if(firstP&&firstP.conv_id&&EMBANDEJA.some(function(x){return x.id===firstP.conv_id;})){ emSelect(firstP.conv_id); } } } emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); emSyncStart(); }
-function closeEmail(){ emAutoPendStop(); emSyncStop(); $('emailPanel').classList.remove('on'); setView('chat'); }
+function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'activos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); mAcordeonInit(); var _epg=$('emPegar'); if(_epg)_epg.style.display=(isAdmin()&&emModo==='manual')?'':'none'; /* "Agregar conversacion" solo admin Y solo en modo manual */ var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); try{ if(localStorage.getItem('inbox-listcol')==='1'&&$('emShell'))$('emShell').classList.add('listcol'); }catch(e){}     if(emModo==='auto'){ emAutoCfgLoad(); emAutoPendStart(); if(EMAIL_AUTO.on) emFetchAuto(); if(!emSelChat&&!emSelMail&&EM_APEND&&EM_APEND.length){ var firstP=EM_APEND[0]; if(firstP&&firstP.conv_id&&EMBANDEJA.some(function(x){return x.id===firstP.conv_id;})){ emSelect(firstP.conv_id); } } } emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); emSyncStart(); try{ _emDisp=(localStorage.getItem('inbox-recibiendo')==='1'); }catch(e){} emDispReflect(); emAutoAsignarStart(); }
+function closeEmail(){ emAutoPendStop(); emSyncStop(); emAutoAsignarStop(); $('emailPanel').classList.remove('on'); setView('chat'); }
 function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = (emModo==='manual' && typeof isAdmin==='function' && isAdmin()) ? '' : 'none'; /* Agregar conversacion: solo admin y solo en manual */ if(typeof emAutoBarReflect==='function') emAutoBarReflect(); }
 function emSetModo(modo){ emModo=modo; try{ localStorage.setItem('email-modo', modo); }catch(e){} emReflectModo(); if(modo==='auto'){ emAutoCfgLoad(); emAutoPendStart(); if(EMAIL_AUTO.on) emFetchAuto(); /* sub-fuente legacy (correos reenviados) solo si esta activada */ } else { emAutoPendStop(); } emRenderList(); }
 /* ===== MODO AUTOMATICO: vista de actividad de la IA + interruptor remoto del bot (inbox_config) ===== */
@@ -3154,6 +3155,42 @@ async function emAutoPausaChange(){ const ps=$('emAutoPausa'); if(!ps)return; if
   const nuevo=Math.min(300,Math.max(5,Number(ps.value)||30));
   try{ const {error}=await sb.from('inbox_config').upsert({tenant:CONFIG.tenant,auto_pausa_s:nuevo,updated_at:new Date().toISOString()}); if(error)throw error; EM_PAUSA=nuevo; toast('Pausa de revisión: '+nuevo+' s (aplica a las próximas respuestas del bot)'); }
   catch(e){ toast('No se pudo guardar la pausa: '+((e&&e.message)||'error')); ps.value=String(EM_PAUSA); } }
+/* ===== DISPONIBILIDAD DEL AGENTE + AUTOASIGNACION (uno a la vez) =====
+   El agente prende "Recibiendo chats". Mientras este ON y NO tenga ningun chat activo asignado,
+   la consola reclama SOLA (atomica, via claim_conversacion) el chat mas viejo sin dueño que
+   necesita a un humano, y lo abre. Al cerrarlo entra el siguiente. Es por-agente y local (no
+   necesita tabla nueva); la atomicidad del claim evita que dos agentes tomen el mismo. ===== */
+let _emDisp=false, _emAsT=null; const EM_ASIGNAR_CAP=1;   // cap de chats activos por agente (1 = de uno en uno)
+function emDispReflect(){ const b=$('emDispBtn'); if(!b)return; b.textContent=_emDisp?'Recibiendo chats: ACTIVO':'Recibiendo chats: EN PAUSA'; b.style.color=_emDisp?'var(--ok)':'var(--txt-2)'; b.style.fontWeight='700'; }
+function emDispToggle(){ _emDisp=!_emDisp; try{ localStorage.setItem('inbox-recibiendo', _emDisp?'1':'0'); }catch(e){} emDispReflect(); if(_emDisp){ toast('Recibiendo chats: los nuevos sin dueño se te asignarán de uno en uno'); emAutoAsignarTick(); } else { toast('En pausa: no se te asignarán chats nuevos'); } }
+function emAutoAsignarStart(){ if(_emAsT)return; _emAsT=setInterval(emAutoAsignarTick, 8000); }
+function emAutoAsignarStop(){ if(_emAsT){ clearInterval(_emAsT); _emAsT=null; } }
+function emMisActivos(){ return EMBANDEJA.filter(function(t){ return t && me && t.tomado_por===me.id && (t.estado||'nuevo')!=='respondido' && (t.estado||'')!=='espera'; }).length; }
+function emNecesitaHumano(t){
+  if(!t || t.tomado_por) return false;                                   // ya tiene dueño
+  if((''+(t.id||'')).indexOf('demo')===0) return false;                  // ejemplos demo: no
+  const est=t.estado||'nuevo'; if(est==='respondido'||est==='espera') return false;
+  if(t.escalado_estado==='pendiente') return false;                      // caso del supervisor
+  if(t.bot_on===true) return false;                                      // el bot atiende esta
+  if(typeof EM_APEND!=='undefined' && EM_APEND.some(function(p){return p.conv_id===t.id;})) return false; // el bot tiene respuesta en cola
+  // el ultimo mensaje (que no sea marca de espera) debe ser del cliente = esta esperando respuesta
+  let last=null; for(let i=(t.mensajes||[]).length-1;i>=0;i--){ const m=t.mensajes[i]; if(m&&m.from!=='espera'){ last=m; break; } }
+  return !!(last && last.from==='cliente');
+}
+async function emAutoAsignarTick(){
+  if(!_emDisp || !sb || !me || !emCloudReady) return;
+  if(!($('emailPanel')&&$('emailPanel').classList.contains('on'))) return;
+  if(emMisActivos()>=EM_ASIGNAR_CAP) return;                             // ya tengo un chat activo: primero ciérralo
+  // candidato: el que lleva mas tiempo esperando (FIFO por primer mensaje)
+  const cand=EMBANDEJA.filter(emNecesitaHumano).sort(function(a,b){ return (a.t||0)-(b.t||0); })[0];
+  if(!cand) return;
+  const ok=await emClaimRow(cand);                                      // atomico: si otro lo tomo justo, ok=false
+  if(!ok) return;
+  if((cand.estado||'nuevo')==='nuevo') cand.estado='leido';
+  emBotPausaConv(cand); emSave(); emPush(cand);                         // asignado a un humano: el bot se retira de este
+  emSelect(cand.id);                                                    // abrelo para que lo conteste
+  toast('Nuevo chat asignado: '+(cand.de||cand.id));
+}
 async function emAutoFaqBtnClick(){ if(!(typeof isAdmin==='function'&&isAdmin())){ toast('Solo el administrador puede pausar o activar el bot'); return; } if(!sb){ toast('Sin conexion con la nube — no se pudo cambiar'); return; } const nuevo=!(EM_AUTOFAQ!==false);
   try{ const {error}=await sb.from('inbox_config').upsert({tenant:CONFIG.tenant,auto_faq:nuevo,updated_at:new Date().toISOString()}); if(error)throw error; EM_AUTOFAQ=nuevo; emAutoBarReflect(); toast(nuevo?'El bot responderá solo con FAQ aprobadas':'Respuestas automáticas PAUSADAS: todo queda para agentes'); }
   catch(e){ toast('No se pudo guardar el cambio: '+((e&&e.message)||'error')); } }
@@ -4496,6 +4533,42 @@ function emCsatLink(){
     t.draft=sug.value; t.draftEdited=true; emSave(); emPushDebounced(t);
     toast('Link CSAT copiado y agregado al final del correo');
   } else toast('Link CSAT copiado');
+}
+function emCsatUrlDe(t){ const base=(CONFIG.publicBase||location.origin+location.pathname.replace(/[^\/]*$/,'')).replace(/\/?$/,'/'); return base+'csat.html?t='+encodeURIComponent(CONFIG.tenant)+'&c='+encodeURIComponent(t.id); }
+/* CERRAR Y ENVIAR CSAT: manda la encuesta al cliente (chat: al canal real; correo: al pie del
+   borrador), marca la conversacion cerrada y abre el siguiente chat en espera. */
+async function emCerrarConCsat(slot){
+  slot=slot||emFocus; const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat;
+  const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t){ toast('Selecciona una conversación'); return; }
+  if(!emPuedeResponder(t)){ toast('La está atendiendo '+(t.tomado_email||'otro agente')+'. Pulsa "Tomar" primero.'); return; }
+  const url=emCsatUrlDe(t); const msgCsat='¿Cómo fue la atención? Califícanos aquí: '+url;
+  if(isMail){
+    // correo: se agrega al pie del borrador; el agente lo envia por Outlook. Solo marca cerrado.
+    const sug=$('emMailSug');
+    if(sug){ if((sug.value||'').indexOf('csat.html')<0){ sug.value=(sug.value?sug.value+'\n\n':'')+msgCsat; } t.draft=sug.value; t.draftEdited=true; }
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url).catch(function(){});
+    toast('CSAT agregado al final del correo. Envíalo por Outlook; la conversación queda cerrada.');
+  } else {
+    // chat: se envia la encuesta al canal REAL del cliente (Telegram/WhatsApp)
+    const out=(''+t.id).indexOf('wa-')===0?{url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'}:(''+t.id).indexOf('tg-')===0?{url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'}:null;
+    if(out){
+      try{ const {data:{session}}=await sb.auth.getSession(); const r=await fetch(out.url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({id:t.id,texto:msgCsat})}); const j=await r.json().catch(function(){return null;}); if(!(j&&j.ok)){ toast(out.nom+': no se pudo enviar el CSAT ('+((j&&j.error)||'error')+'). No se cerró.'); return; } }
+      catch(e){ toast('No se pudo enviar el CSAT: '+((e&&e.message)||'error')+'. No se cerró.'); return; }
+    } else { if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url).catch(function(){}); }
+    t.mensajes=(t.mensajes||[]).concat([{from:'agente',text:msgCsat,t:Date.now(),auto:true,csat:true,por:'Encuesta CSAT'}]);
+    toast('CSAT enviado al cliente. Conversación cerrada.');
+  }
+  t.estado='respondido'; t.csatEnviado=true; if(!isMail)t.draft=''; emSave(); emPush(t);
+  try{ logAudit('csat_enviado',{canal:(t.canal==='mensaje'?'chat':'correo'), conv:''+t.id}); }catch(_){}
+  if(isMail)emSelMail=null; else emSelChat=null; emSaveSel(); emRenderList(); emRenderSlot(slot); if(typeof emRenderInterno==='function')emRenderInterno();
+  emAvanzarSiguiente();
+}
+/* Abre el siguiente chat a atender: primero uno ya asignado a mi sin cerrar; si no hay y estoy
+   "Recibiendo chats", deja que la autoasignacion reclame el siguiente sin dueño. */
+function emAvanzarSiguiente(){
+  const mio=EMBANDEJA.filter(function(t){ return t && me && t.tomado_por===me.id && (t.estado||'nuevo')!=='respondido' && (t.estado||'')!=='espera'; }).sort(function(a,b){return (a.t||0)-(b.t||0);})[0];
+  if(mio){ emSelect(mio.id); return; }
+  if(_emDisp) emAutoAsignarTick();
 }
 
 /* ============================================================

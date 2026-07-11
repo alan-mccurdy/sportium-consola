@@ -1225,7 +1225,9 @@ body{background:transparent}
       <button id="emModoAuto" onclick="emSetModo('auto')">Automatico</button>
     </div>
     <div class="em-autobar" id="emAutoBar" style="display:none">
-      <button class="ubtn" id="emAutoFaqBtn" onclick="emAutoFaqBtnClick()" title="Enciende o pausa las respuestas automaticas del bot de Telegram (solo FAQ aprobadas)">Bot automático</button>
+      <button class="ubtn" id="emAutoFaqBtn" onclick="emAutoFaqBtnClick()" title="Interruptor GENERAL: enciende o pausa TODAS las respuestas automaticas del bot">Bot automático</button>
+      <button class="ubtn" id="emAutoChatBtn" onclick="emAutoCanalBtnClick('chat')" title="Enciende o pausa el bot SOLO en el canal de chat (Telegram/WhatsApp); el correo no se toca">Bot chat</button>
+      <button class="ubtn" id="emAutoCorreoBtn" onclick="emAutoCanalBtnClick('correo')" title="Enciende o pausa el bot SOLO en el canal de correo (aplica cuando el bot de correo este activo)">Bot correo</button>
       <span class="em-gen" id="emAutoHint">Actividad automática: hilos donde la IA respondió sola. Cada respuesta espera 30 s antes de enviarse: puedes cancelarla o adelantarla abajo.</span>
     </div>
     <span class="em-gen" id="emTurnoHint"></span>
@@ -3143,11 +3145,19 @@ function closeEmail(){ emAutoPendStop(); $('emailPanel').classList.remove('on');
 function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = emModo==='manual' ? '' : 'none'; if(typeof emAutoBarReflect==='function') emAutoBarReflect(); }
 function emSetModo(modo){ emModo=modo; try{ localStorage.setItem('email-modo', modo); }catch(e){} emReflectModo(); if(modo==='auto'){ emAutoCfgLoad(); emAutoPendStart(); if(EMAIL_AUTO.on) emFetchAuto(); /* sub-fuente legacy (correos reenviados) solo si esta activada */ } else { emAutoPendStop(); } emRenderList(); }
 /* ===== MODO AUTOMATICO: vista de actividad de la IA + interruptor remoto del bot (inbox_config) ===== */
-let EM_AUTOFAQ=null, EM_VACIADO=0;   // cache: auto_faq del tenant y marca de vaciado (ms)
-function emAutoBarReflect(){ const bar=$('emAutoBar'); if(!bar)return; bar.style.display=(emModo==='auto')?'':'none'; const btn=$('emAutoFaqBtn'); if(btn){ const on=(EM_AUTOFAQ!==false); btn.textContent=on?'Bot automático: ACTIVO — Pausar':'Bot automático: PAUSADO — Activar'; btn.style.color=on?'var(--ok)':'var(--accent)'; } if(emModo!=='auto'){ const el=$('emAutoPend'); if(el){ el.style.display='none'; } } }
-async function emAutoCfgLoad(){ emAutoBarReflect(); if(!sb||!me)return; try{ const {data,error}=await sb.from('inbox_config').select('auto_faq,vaciado_at').eq('tenant',CONFIG.tenant).maybeSingle(); if(error)throw error; if(data){ EM_AUTOFAQ=(data.auto_faq!==false); EM_VACIADO=data.vaciado_at?Date.parse(data.vaciado_at):0; } emAutoBarReflect(); }catch(e){} }
+let EM_AUTOFAQ=null, EM_AUTOCHAT=null, EM_AUTOCORREO=null, EM_VACIADO=0;   // cache: interruptores del bot (master + por canal) y marca de vaciado (ms)
+function emAutoBarReflect(){ const bar=$('emAutoBar'); if(!bar)return; bar.style.display=(emModo==='auto')?'':'none'; const btn=$('emAutoFaqBtn'); if(btn){ const on=(EM_AUTOFAQ!==false); btn.textContent=on?'Bot automático: ACTIVO — Pausar':'Bot automático: PAUSADO — Activar'; btn.style.color=on?'var(--ok)':'var(--accent)'; } const bc=$('emAutoChatBtn'); if(bc){ const on=(EM_AUTOCHAT!==false); bc.textContent=on?'Bot chat: ON':'Bot chat: OFF'; bc.style.color=on?'var(--ok)':'var(--accent)'; } const bm=$('emAutoCorreoBtn'); if(bm){ const on=(EM_AUTOCORREO!==false); bm.textContent=on?'Bot correo: ON':'Bot correo: OFF'; bm.style.color=on?'var(--ok)':'var(--accent)'; } if(emModo!=='auto'){ const el=$('emAutoPend'); if(el){ el.style.display='none'; } } }
+async function emAutoCfgLoad(){ emAutoBarReflect(); if(!sb||!me)return; try{ const {data,error}=await sb.from('inbox_config').select('auto_faq,auto_chat,auto_correo,vaciado_at').eq('tenant',CONFIG.tenant).maybeSingle(); if(error)throw error; if(data){ EM_AUTOFAQ=(data.auto_faq!==false); EM_AUTOCHAT=(data.auto_chat!==false); EM_AUTOCORREO=(data.auto_correo!==false); EM_VACIADO=data.vaciado_at?Date.parse(data.vaciado_at):0; } emAutoBarReflect(); }catch(e){} }
 async function emAutoFaqBtnClick(){ if(!(typeof isAdmin==='function'&&isAdmin())){ toast('Solo el administrador puede pausar o activar el bot'); return; } if(!sb){ toast('Sin conexion con la nube — no se pudo cambiar'); return; } const nuevo=!(EM_AUTOFAQ!==false);
   try{ const {error}=await sb.from('inbox_config').upsert({tenant:CONFIG.tenant,auto_faq:nuevo,updated_at:new Date().toISOString()}); if(error)throw error; EM_AUTOFAQ=nuevo; emAutoBarReflect(); toast(nuevo?'El bot responderá solo con FAQ aprobadas':'Respuestas automáticas PAUSADAS: todo queda para agentes'); }
+  catch(e){ toast('No se pudo guardar el cambio: '+((e&&e.message)||'error')); } }
+// Interruptor POR CANAL: pausa el bot solo en chat o solo en correo (el general de arriba manda sobre ambos).
+// Uso tipico: el bot esta respondiendo mal los chats -> "Bot chat: OFF", los agentes atienden, y al
+// estabilizar se vuelve a ON sin tocar el correo. Complementa al interruptor general, no lo reemplaza.
+async function emAutoCanalBtnClick(canal){ if(!(typeof isAdmin==='function'&&isAdmin())){ toast('Solo el administrador puede pausar o activar el bot'); return; } if(!sb){ toast('Sin conexion con la nube — no se pudo cambiar'); return; }
+  const esChat=(canal==='chat'); const nuevo=!((esChat?EM_AUTOCHAT:EM_AUTOCORREO)!==false);
+  const body={tenant:CONFIG.tenant,updated_at:new Date().toISOString()}; if(esChat)body.auto_chat=nuevo; else body.auto_correo=nuevo;
+  try{ const {error}=await sb.from('inbox_config').upsert(body); if(error)throw error; if(esChat)EM_AUTOCHAT=nuevo; else EM_AUTOCORREO=nuevo; emAutoBarReflect(); toast('Bot de '+(esChat?'chat':'correo')+(nuevo?' ACTIVADO':' PAUSADO: esas conversaciones quedan para agentes')); }
   catch(e){ toast('No se pudo guardar el cambio: '+((e&&e.message)||'error')); } }
 /* ===== PAUSA DE REVISION (30 s): respuestas del bot en cola auto_pendientes; el agente puede cancelarlas o adelantarlas ===== */
 let EM_APEND=[], _emApT=null, _emApTick=null;
@@ -3163,7 +3173,7 @@ async function emAutoPendEditar(pid){ const p=EM_APEND.find(function(x){return x
   if(!t){ toast('Abriendo... si no aparece, actualiza la bandeja'); emAutoPendLoad(); return; }
   t.draft=p.texto||''; t.draftEdited=true;
   t.mensajes=(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}); /* solo la vista previa; los mensajes que el bot YA envió se conservan */
-  t.iaRaw=''; t._apInjected=false; emSave(); emPush(t);
+  t.iaRaw=''; t._apInjected=false; emBotPausaConv(t); emSave(); emPush(t);
   emSetModo('manual'); emSelect(t.id);
   var slot=(t.canal==='mensaje')?'chat':'mail'; var sug=$(slot==='mail'?'emMailSug':'emChatSug'); if(sug)sug.value=t.draft;
   toast('Respuesta de la IA cargada: corrígela y responde. El envío automático se canceló.'); emAutoPendLoad(); }
@@ -3177,7 +3187,7 @@ function emSave(){ try{ localStorage.setItem('email-bandeja', JSON.stringify(EMB
 let _emDraftT=null; function emSaveDraftDebounced(){ clearTimeout(_emDraftT); _emDraftT=setTimeout(function(){ emSave(); }, 500); }
 /* ===== COLA COMPARTIDA (Supabase + tiempo real). Degradacion suave: si no existe la tabla, sigue en localStorage ===== */
 let emCloudReady=false, emChan=null; const emPushT={};
-function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', ticketImg:r.ticket_img||'', tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, escalado:!!r.escalado, escalado_motivo:r.escalado_motivo||'', escalado_estado:r.escalado_estado||null, escalado_at:r.escalado_at||null, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
+function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', ticketImg:r.ticket_img||'', bot_on:(r.bot_on===true), tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, escalado:!!r.escalado, escalado_motivo:r.escalado_motivo||'', escalado_estado:r.escalado_estado||null, escalado_at:r.escalado_at||null, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
 function emThreadToRow(t){ return { id:t.id, tenant:CONFIG.tenant, canal:t.canal, de:t.de||'cliente', asunto:t.asunto||'', pais:emThreadPais(t), estado:t.estado||'nuevo', mensajes:(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}) /* las vistas previas pendientes NO se suben: aun no se enviaron */, cliente:t.cliente||null, draft:t.draft||'', ia_raw:t.iaRaw||'', ticket_img:t.ticketImg||'', tomado_por:t.tomado_por||null, tomado_email:t.tomado_email||'', tomado_at:t.tomado_at||null, updated_by:me?me.id:null, updated_at:new Date().toISOString() }; }
 async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; await emAutoCfgLoad(); /* refresca EM_VACIADO/EM_AUTOFAQ antes de fusionar */ if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(!l) return; const isOpen=(n.id===emSelChat||n.id===emSelMail); if(_emActive && !_emAdopt){ /* solo la pestaña ACTIVA conserva su trabajo; las pasivas ADOPTAN la nube (espejo) */ if(isOpen || l.draftEdited){ if(l.draft!=null) n.draft=l.draft; if(l.draftEdited) n.draftEdited=true; if(l.iaRaw) n.iaRaw=l.iaRaw; } else if(l.draft && !n.draft){ n.draft=l.draft; if(l.iaRaw) n.iaRaw=l.iaRaw; } } if(l.vertical) n.vertical=l.vertical; }); const _inc={}; incoming.forEach(function(n){ _inc[n.id]=1; }); EMBANDEJA.forEach(function(l){ if(_inc[l.id]) return; if(EM_VACIADO && (l.t||0)<=EM_VACIADO) return; /* vaciado por el admin: NO resucita desde esta copia local */ incoming.push(l); }); EMBANDEJA=incoming; emSave(); } return true; }catch(e){ emCloudReady=false; return false; } }
 async function emPush(t){ if(!emCloudReady||!sb||!t)return; if(typeof _emActive!=='undefined' && !_emActive) return; /* pestaña pasiva: no sube (no pisa a la activa) */ if(EM_VACIADO && (t.t||0)<=EM_VACIADO) return; /* hilo anterior al vaciado del admin: no se re-sube (no resucita) */ try{ await sb.from('inbox_conversaciones').upsert(emThreadToRow(t)); }catch(e){} }
@@ -3251,7 +3261,7 @@ async function emTomar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSel
   if(emTomadaPorOtro(t) && !(typeof isAdmin==='function'&&isAdmin())){ toast('Ya la está atendiendo '+(t.tomado_email||'otro agente')); return; }
   const _ok=await emClaimRow(t);
   if(!_ok){ toast('Justo la tomó otro agente'); await emCloudLoad(); emRenderList(); emRenderSlot(slot); return; }
-  if((t.estado||'nuevo')==='nuevo')t.estado='leido'; emSave(); emPush(t); emRenderList(); emRenderSlot(slot); toast('La tomaste: '+t.tomado_email);
+  if((t.estado||'nuevo')==='nuevo')t.estado='leido'; emBotPausaConv(t); emSave(); emPush(t); emRenderList(); emRenderSlot(slot); toast('La tomaste: '+t.tomado_email);
   // Al asignarte la conversacion en modo manual, genera la respuesta sugerida si aun no hay una USABLE
   // (y no la has escrito tu). En MODO AUTO la IA ya tiene una respuesta encolada en auto_pendientes;
   // no se re-sugiere para no pisar la respuesta encolada. Un fallo de sesion guardado por error en
@@ -3545,11 +3555,29 @@ function emRenderClaimTop(){
   if(!t){ top.style.display='none'; top.innerHTML=''; return; }
   const canal=isMail?'Correo':'Mensaje'; const txt=emClaimTxt(t); const otro=emTomadaPorOtro(t);
   top.style.display='';
-  if(!txt){ top.className='em-claimtop'; top.innerHTML='<b>'+canal+':</b> nadie la ha tomado. <a href="#" onclick="event.preventDefault();emTomar(\''+slot+'\')">Tomar yo</a>'; return; }
+  // "Devolver al bot": solo en chats donde el bot quedo pausado para ESA conversacion (tomada o con
+  // respuesta humana en las ultimas 12h — el mismo guard del bot). Reactiva el flujo bot<->cliente
+  // hasta que el cliente escale, el bot no sepa responder, o un agente vuelva a intervenir.
+  const _lastHum=(t.mensajes||[]).reduce(function(mx,m){return (m&&m.from==='agente'&&!m.auto&&m.t>mx)?m.t:mx;},0);
+  const _botMudo=(t.estado!=='respondido') && (t.tomado_por || _lastHum>(Date.now()-12*3600000));
+  const _devBot=(t.canal==='mensaje' && !otro && t.bot_on!==true && t.escalado_estado!=='pendiente' && _botMudo) ? ' · <a href="#" title="El bot vuelve a atender esta conversación" onclick="event.preventDefault();emDevolverAlBot(\''+slot+'\')">Devolver al bot</a>' : '';
+  const _botOnTag=(t.canal==='mensaje'&&t.bot_on===true)?' · <span style="color:var(--ok)">el bot atiende esta conversación</span>':'';
+  if(!txt){ top.className='em-claimtop'; top.innerHTML='<b>'+canal+':</b> nadie la ha tomado. <a href="#" onclick="event.preventDefault();emTomar(\''+slot+'\')">Tomar yo</a>'+_devBot+_botOnTag; return; }
   top.className='em-claimtop'+(otro?' otro':' mia');
   top.innerHTML = (otro?('<b>'+canal+':</b> la atiende <b>'+escapeHtml(t.tomado_email)+'</b> — evita responder doble.'+((typeof isAdmin==='function'&&isAdmin())?' <a href="#" onclick="event.preventDefault();emTomar(\''+slot+'\')">Tomar de todos modos</a>':''))
-    : ('<b>'+canal+':</b> la tomaste tú. <a href="#" onclick="event.preventDefault();emLiberar(\''+slot+'\')">Liberar</a>'));
+    : ('<b>'+canal+':</b> la tomaste tú. <a href="#" onclick="event.preventDefault();emLiberar(\''+slot+'\')">Liberar</a>'+_devBot+_botOnTag));
 }
+// DEVOLVER AL BOT: el agente termina su intervencion y deja que el bot siga la conversacion.
+// Pone bot_on=true (anula el guard de tomada/12h en telegram-in) y libera la asignacion. El bot
+// atiende hasta que el cliente escale, no haya respuesta, o un agente tome/responda de nuevo.
+async function emDevolverAlBot(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; if(!sb){ toast('Sin conexion con la nube — no se pudo cambiar'); return; }
+  try{ const {error}=await sb.from('inbox_conversaciones').update({bot_on:true,tomado_por:null,tomado_email:'',tomado_at:null,updated_at:new Date().toISOString()}).eq('id',t.id); if(error)throw error;
+    t.bot_on=true; t.tomado_por=null; t.tomado_email=''; t.tomado_at=null; emSave(); emRenderList(); emRenderClaimTop();
+    toast('El bot vuelve a atender este chat. Se pausa solo si el cliente escala o si un agente lo toma o responde.'); }
+  catch(e){ toast('No se pudo devolver al bot: '+((e&&e.message)||'error')); } }
+// Pausa del bot POR CONVERSACION al intervenir un humano: si el bot estaba reactivado (bot_on=true),
+// tomar o responder manualmente lo apaga para que no choque con el agente.
+function emBotPausaConv(t){ if(!t||t.canal!=='mensaje'||t.bot_on!==true)return; t.bot_on=false; try{ if(sb) sb.from('inbox_conversaciones').update({bot_on:false,updated_at:new Date().toISOString()}).eq('id',t.id).then(function(){}); }catch(e){} }
 function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var est=(t.estado||'nuevo'); var fok=(emFiltro==='todos')?true:(emFiltro==='activos')?(est!=='respondido'):(emFiltro==='sintomar')?!t.tomado_por:(est===emFiltro); var aok=(emModo!=='auto')||((t.mensajes||[]).some(function(m){return m&&m.auto===true;})||(typeof EM_APEND!=='undefined'&&EM_APEND.some(function(p){return p.conv_id===t.id;}))); /* modo auto: hilos con respuesta pendiente o ya respondidos por la IA */ if(emModo==='auto'&&emFiltro==='activos')fok=true; /* la vista Automatico muestra tambien lo respondido por el bot */ return ch===emBandeja && fok && aok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); var body=(t.mensajes&&t.mensajes[0]?t.mensajes[0].text:'')||''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='espera'?'espera':(est==='leido'?'leido':'nuevo'))); var bl=(est==='espera'?'en espera':est); var _ua=null; for(var _i=(t.mensajes||[]).length-1;_i>=0;_i--){ var _mm=t.mensajes[_i]; if(_mm&&_mm.from==='agente'){ _ua=_mm; break; } } var _ia=(_ua&&_ua.auto===true)?'<span class="em-badge ia" title="La última respuesta la envió el bot (auto-FAQ)">IA</span>':''; return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+(est==='espera'?' esp':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags">'+_ia+'<span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+(function(){var _ms=emTiempoResp(t);return _ms!=null?('<div class="em-claimline">respondida en '+fmtMs(_ms)+'</div>'):'';})()+'</div>'; }).join('')||('<div class="em-empty">'+(emModo==='auto'?'Sin actividad automática de la IA en este filtro.':'Sin conversaciones en este filtro.')+'</div>'); }
 // Ficha FIJA de datos del cliente en el inbox (contador de mensajes/correos + KYC + saldo + más detalles).
 function emClienteInfoHTML(t, slot){
@@ -4052,7 +4080,7 @@ async function emResponder(slot){
     if(!_base && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ _base=(typeof t.t==='string')?Date.parse(t.t):t.t; }
     if(_base){ _trMs=Math.max(0,Date.now()-_base); }
   }catch(_){}
-  t.mensajes.push({from:'agente',text:txt,t:Date.now(),trespMs:_trMs}); t.estado='respondido'; t.draft=''; t.aprendido=true; sug.value=''; emSave(); emPush(t);
+  t.mensajes.push({from:'agente',text:txt,t:Date.now(),trespMs:_trMs}); t.estado='respondido'; t.draft=''; t.aprendido=true; sug.value=''; emBotPausaConv(t); emSave(); emPush(t);
   if(_trMs!=null){ try{ logAudit('tiempo_respuesta',{ms:_trMs, canal:(t.canal==='mensaje'?'chat':'correo'), conv:''+t.id}); }catch(_){}; toast('Enviado · tiempo de respuesta: '+fmtMs(_trMs)); }
   // Conversacion de canal REAL (WhatsApp 'wa-<tel>' / Telegram 'tg-<chat>'): la respuesta tambien sale al dispositivo del cliente
   const _outCanal=(''+t.id).indexOf('wa-')===0?{url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'}:(''+t.id).indexOf('tg-')===0?{url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'}:null;

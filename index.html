@@ -3152,10 +3152,11 @@ async function emAutoFaqBtnClick(){ if(!(typeof isAdmin==='function'&&isAdmin())
 /* ===== PAUSA DE REVISION (30 s): respuestas del bot en cola auto_pendientes; el agente puede cancelarlas o adelantarlas ===== */
 let EM_APEND=[], _emApT=null, _emApTick=null;
 async function emAutoPendLoad(){ if(!sb||!me||emModo!=='auto'){ emAutoPendRender(); return; } try{ const {data,error}=await sb.from('auto_pendientes').select('id,conv_id,texto,envia_at,estado').eq('tenant',CONFIG.tenant).eq('estado','pendiente').order('envia_at',{ascending:true}).limit(20); if(error)throw error; EM_APEND=data||[]; }catch(e){ EM_APEND=[]; } emAutoPendRender(); EM_APEND.forEach(function(p){ if(p.conv_id){ const t=EMBANDEJA.find(function(x){return x.id===p.conv_id;}); if(t) emAutoPendInject(t); } }); emRenderList(); }
-function emAutoPendRender(){ const el=$('emAutoPend'); if(!el)return; if(emModo!=='auto'||!EM_APEND.length){ el.style.display='none'; el.innerHTML=''; return; } el.style.display=''; el.innerHTML='<b style="font-size:12px">Respuestas del bot en espera de revisión ('+EM_APEND.length+')</b>'+EM_APEND.map(function(p){ const s=Math.max(0,Math.ceil((Date.parse(p.envia_at)-Date.now())/1000)); return '<div class="apitem"><span class="apcd">'+s+'s</span><span class="aptxt" title="'+escapeHtml(p.texto)+'">'+escapeHtml((p.conv_id||'').replace(/^tg-/,'chat '))+': '+escapeHtml((p.texto||'').slice(0,120))+'</span><button class="ubtn" title="Abre la conversación con la respuesta de la IA cargada para que la corrijas y la mandes tú" onclick="emAutoPendEditar(\''+p.id+'\')">Corregir</button><button class="ubtn" onclick="emAutoPendCancelar(\''+p.id+'\')">Cancelar</button><button class="ubtn" onclick="emAutoPendYa(\''+p.id+'\')">Enviar ya</button></div>'; }).join(''); }
+function emAutoPendRender(){ const el=$('emAutoPend'); if(!el)return; if(emModo!=='auto'||!EM_APEND.length){ el.style.display='none'; el.innerHTML=''; return; } el.style.display=''; el.innerHTML='<b style="font-size:12px">Respuestas del bot en espera de revisión ('+EM_APEND.length+')</b>'+EM_APEND.map(function(p){ const s=Math.max(0,Math.ceil((Date.parse(p.envia_at)-Date.now())/1000)); return '<div class="apitem"><span class="apcd">'+s+'s</span><span class="aptxt" title="'+escapeHtml(p.texto)+'">'+escapeHtml((p.conv_id||'').replace(/^tg-/,'chat '))+': '+escapeHtml((p.texto||'').slice(0,120))+'</span></div>'; }).join(''); }
 // CORREGIR LA IA: el agente no confía en la respuesta automática -> se cancela el envío del bot y se
 // abre la conversación con ESE texto cargado en el borrador para que lo corrija y responda él mismo.
 // Complementa (no reemplaza): la sugerencia de la IA queda como punto de partida editable.
+function emEditarAutoPend(){ const id=emSelChat||emSelMail; if(!id){ toast('Selecciona la conversacion primero'); return; } const p=EM_APEND.find(function(x){return x.conv_id===id;}); if(!p){ toast('Esta conversacion no tiene respuesta automatica pendiente'); return; } emAutoPendEditar(p.id); }
 async function emAutoPendEditar(pid){ const p=EM_APEND.find(function(x){return x.id===pid;}); if(!p){ toast('Esa respuesta ya no está en cola'); emAutoPendLoad(); return; }
   if(sb){ try{ await sb.from('auto_pendientes').update({estado:'cancelado',por:(me&&me.email)||'agente',updated_at:new Date().toISOString()}).eq('id',pid).eq('estado','pendiente'); }catch(e){} }
   const t=EMBANDEJA.find(function(x){return x.id===p.conv_id;});
@@ -3251,12 +3252,16 @@ async function emTomar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSel
   const _ok=await emClaimRow(t);
   if(!_ok){ toast('Justo la tomó otro agente'); await emCloudLoad(); emRenderList(); emRenderSlot(slot); return; }
   if((t.estado||'nuevo')==='nuevo')t.estado='leido'; emSave(); emPush(t); emRenderList(); emRenderSlot(slot); toast('La tomaste: '+t.tomado_email);
-  // Al asignarte la conversacion, genera la respuesta sugerida si aun no hay una USABLE (y no la has escrito tu).
-  // Un fallo de sesion guardado por error en iaRaw NO cuenta como sugerencia: se limpia y se regenera.
-  if(t.iaRaw && /sesi[oó]n no v[aá]lida/i.test(t.iaRaw)){ t.iaRaw=''; if(!t.draftEdited) t.draft=''; }
-  const _yaResp=(t.mensajes||[]).some(function(m){return m.from==='agente' && !m.auto;});
-  const _usable=(t.draftEdited && t.draft) || (t.draft||'').trim() || (t.iaRaw && extraerSugerida(t.iaRaw));
-  if(!_usable && !_yaResp){ emPedirSugerencia(slot); }
+  // Al asignarte la conversacion en modo manual, genera la respuesta sugerida si aun no hay una USABLE
+  // (y no la has escrito tu). En MODO AUTO la IA ya tiene una respuesta encolada en auto_pendientes;
+  // no se re-sugiere para no pisar la respuesta encolada. Un fallo de sesion guardado por error en
+  // iaRaw NO cuenta como sugerencia: se limpia y se regenera.
+  if(emModo!=='auto'){
+    if(t.iaRaw && /sesi[oó]n no v[aá]lida/i.test(t.iaRaw)){ t.iaRaw=''; if(!t.draftEdited) t.draft=''; }
+    const _yaResp=(t.mensajes||[]).some(function(m){return m.from==='agente' && !m.auto;});
+    const _usable=(t.draftEdited && t.draft) || (t.draft||'').trim() || (t.iaRaw && extraerSugerida(t.iaRaw));
+    if(!_usable && !_yaResp){ emPedirSugerencia(slot); }
+  }
   emTomarMismoCliente(t); }
 // Complemento: al tomar una conversacion, si el MISMO cliente tiene otra en el OTRO canal,
 // tomala tambien y genera su respuesta (es la misma persona). No roba conversaciones ya tomadas por otro.
@@ -3594,7 +3599,7 @@ function emRenderSlot(slot){
     if($('emPara'))$('emPara').value=t.de||'';
     if($('emAsuntoOut'))$('emAsuntoOut').value=(t.asunto&&!/^re:/i.test(t.asunto))?('Re: '+t.asunto):(t.asunto||'');
   } else {
-    const th=$('emChatThread'); if(th){ th.innerHTML=(t.mensajes||[]).filter(function(m){return m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+(m.auto?'<span class="em-badge ia" style="margin-right:4px">IA</span>':'')+escapeHtml(m.text||'')+((m.img||m.image_url)?('<br><img src="'+(m.img||m.image_url)+'" style="max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();emVerImg(this.src)">'):'')+'</div>'; }).join(''); scrollLectura(th,'.em-b'); }
+    const th=$('emChatThread'); if(th){ th.innerHTML=(t.mensajes||[]).filter(function(m){return m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+(m.auto?'<span class="em-badge ia" style="margin-right:4px;cursor:pointer" onclick="event.stopPropagation();emEditarAutoPend()" title="Haz clic para corregir esta respuesta automatica">IA</span>':'')+escapeHtml(m.text||'')+((m.img||m.image_url)?('<br><img src="'+(m.img||m.image_url)+'" style="max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();emVerImg(this.src)">'):'')+'</div>'; }).join(''); scrollLectura(th,'.em-b'); }
   }
   // miniatura del ticket de apuesta adjuntado a esta conversacion (si hay)
   const _tkImg=$(isMail?'emMailTicketImg':'emChatTicketImg');
@@ -3628,7 +3633,7 @@ function emRenderThread(slot){
     if($('emPara'))$('emPara').value=t.de||'';
     if($('emAsuntoOut'))$('emAsuntoOut').value=(t.asunto&&!/^re:/i.test(t.asunto))?('Re: '+t.asunto):(t.asunto||'');
   } else {
-    const th=$('emChatThread'); if(th){ th.innerHTML=(t.mensajes||[]).filter(function(m){return m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+(m.auto?'<span class="em-badge ia" style="margin-right:4px">IA</span>':'')+escapeHtml(m.text||'')+((m.img||m.image_url)?('<br><img src="'+(m.img||m.image_url)+'" style="max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();emVerImg(this.src)">'):'')+'</div>'; }).join(''); scrollLectura(th,'.em-b'); }
+    const th=$('emChatThread'); if(th){ th.innerHTML=(t.mensajes||[]).filter(function(m){return m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+(m.auto?'<span class="em-badge ia" style="margin-right:4px;cursor:pointer" onclick="event.stopPropagation();emEditarAutoPend()" title="Haz clic para corregir esta respuesta automatica">IA</span>':'')+escapeHtml(m.text||'')+((m.img||m.image_url)?('<br><img src="'+(m.img||m.image_url)+'" style="max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();emVerImg(this.src)">'):'')+'</div>'; }).join(''); scrollLectura(th,'.em-b'); }
   }
   const _tkImg=$(isMail?'emMailTicketImg':'emChatTicketImg');
   if(_tkImg) _tkImg.innerHTML = t.ticketImg ? ('<img src="'+t.ticketImg+'" style="max-width:60px;max-height:60px;border-radius:6px;vertical-align:middle;cursor:pointer" title="Ver ticket" onclick="event.stopPropagation();emVerImg(this.src)">') : '';
@@ -3690,7 +3695,7 @@ function emAutoPendInject(t){
   if(p.faq) t._apFaq=true;
   emSave();
 }
-function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const wasNuevo=((t.estado||'nuevo')==='nuevo'); emAutoPais(t); if(t.canal!=='mensaje') emConsolidarCliente(t); if(wasNuevo){ t.estado='leido'; emSave(); emPush(t); } const slot=(t.canal==='mensaje')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emAutoPendInject(t); emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } }
+function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const wasNuevo=((t.estado||'nuevo')==='nuevo'); emAutoPais(t); if(t.canal!=='mensaje') emConsolidarCliente(t); if(wasNuevo){ t.estado='leido'; emSave(); emPush(t); } const slot=(t.canal==='mensaje')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emAutoPendInject(t); emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } if(t.ticketImg && typeof emAnalizarTicket==='function') emAnalizarTicket(slot); }
 function emAddManual(){
   const de=($('emDe')&&$('emDe').value||'').trim();
   const asunto=($('emAsunto')&&$('emAsunto').value||'').trim();
@@ -3908,12 +3913,20 @@ async function emAnalizarTicket(slot){
     // y el borrador del correo queda VACIO (nunca metemos texto interno en la respuesta al cliente).
     const tieneCli = /respuesta\s+(?:sugerida\s+)?al\s+cliente/i.test(r);
     t.iaRaw = tieneCli ? r : ('Para ti (interno): '+r); t.crmChk={};
-    // borrador = SOLO la respuesta al cliente de ESTE analisis (coherente con lo interno). Si el
-    // analisis fallo (sin seccion cliente), no dejamos un borrador viejo de la IA que no cuadre:
-    // solo se conserva si TU lo editaste a mano.
-    t.draft = tieneCli ? (t.draftEdited ? (t.draft||'') : (extraerSugerida(t.iaRaw)||'')) : (t.draftEdited ? (t.draft||'') : '');
-    if(tieneCli && !t.draftEdited) t.draftEdited=false;
-    emSave(); emPush(t); emRenderSlot(slot);
+    // Si el thread tiene una respuesta automatica pendiente (auto_pendientes), no se pisa el borrador
+    // — la respuesta encolada es la que se va a enviar. El analisis va al interno para el agente.
+    const tieneAutoPend = Array.isArray(EM_APEND) && EM_APEND.some(function(ap){return ap.conv_id===t.id;});
+    if(tieneAutoPend && tieneCli){
+      // analisis solo para el panel interno, conserva el borrador/respuesta de la IA encolada
+      emSave(); emRenderSlot(slot);
+    } else {
+      // borrador = SOLO la respuesta al cliente de ESTE analisis (coherente con lo interno). Si el
+      // analisis fallo (sin seccion cliente), no dejamos un borrador viejo de la IA que no cuadre:
+      // solo se conserva si TU lo editaste a mano.
+      t.draft = tieneCli ? (t.draftEdited ? (t.draft||'') : (extraerSugerida(t.iaRaw)||'')) : (t.draftEdited ? (t.draft||'') : '');
+      if(tieneCli && !t.draftEdited) t.draftEdited=false;
+      emSave(); emPush(t); emRenderSlot(slot);
+    }
     toast('Ticket analizado');
   }catch(e){ toast('No se pudo analizar el ticket'); }
   finally{ if(gen)gen.textContent=''; }

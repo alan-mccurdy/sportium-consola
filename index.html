@@ -3189,7 +3189,7 @@ function subInbox(){ if(!sb||emChan||!emCloudReady)return; emChan=sb.channel('in
   }); }
 // Al volver a la pestaña (tras suspender/segundo plano) re-sincroniza el inbox y re-suscribe.
 let _emVisBound=false;
-function emBindVisibility(){ if(_emVisBound)return; _emVisBound=true; document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible' && $('emailPanel') && $('emailPanel').classList.contains('on')){ emCloudLoad().then(function(ok){ if(ok){ if(!emChan) subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); } }); } }); }
+function emBindVisibility(){ if(_emVisBound)return; _emVisBound=true; document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible' && $('emailPanel') && $('emailPanel').classList.contains('on')){ emCloudLoad().then(function(ok){ if(ok){ if(!emChan) subInbox(); emRenderList(); emRenderThread('chat'); emRenderThread('mail'); } }); } }); }
 emBindVisibility();
 /* ===== CANDADO DE PESTAÑA UNICA: evita que 2 pestañas de la consola se pisen el borrador/interno.
    La pestaña que MIRAS es la ACTIVA (la unica que sube cambios a la nube). Las demas quedan de solo
@@ -3211,20 +3211,21 @@ function _emClaim(){ if(_casoMode){ _emActive=false; return; } const wasPassive=
   document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible') _emClaim(); });
   if(document.visibilityState==='visible') _emClaim(); else _emSync();   // al abrir: si la ves, tomas el control
 })();
+let _emRenderListTimer=null;
 function emOnRealtime(p){
   if(p.eventType==='DELETE'){ const id=p.old&&p.old.id; if(id){ EMBANDEJA=EMBANDEJA.filter(function(x){return x.id!==id;}); if(emSelChat===id){ emSelChat=null; emRenderSlot('chat'); } if(emSelMail===id){ emSelMail=null; emRenderSlot('mail'); } emSave(); emSaveSel(); emRenderList(); } return; }
   const r=p.new; if(!r)return; const inc=emRowToThread(r);
   const idx=EMBANDEJA.findIndex(function(x){return x.id===r.id;});
   const open=(r.id===emSelChat||r.id===emSelMail);
-  // ESCALAMIENTO: si la fila PASA a pendiente, avisar al supervisor y refrescar el badge
   try{ const prev=idx>=0?EMBANDEJA[idx]:null;
-    if(inc.escalado&&inc.escalado_estado==='pendiente'&&!(prev&&prev.escalado_estado==='pendiente')&&puedeSupervisar()){ toast('Cliente pidió supervisor: '+(inc.de||inc.id)); escBadgeRefresh(); if($('supPanel')&&$('supPanel').classList.contains('on')) loadSupEsc(); }
+    if(inc.escalado&&inc.escalado_estado==='pendiente'&&!(prev&&prev.escalado_estado==='pendiente')&&puedeSupervisar()){ toast('Cliente pidio supervisor: '+(inc.de||inc.id)); escBadgeRefresh(); if($('supPanel')&&$('supPanel').classList.contains('on')) loadSupEsc(); }
     else if(prev&&prev.escalado_estado!==inc.escalado_estado&&puedeSupervisar()){ escBadgeRefresh(); }
   }catch(e){}
   if(idx<0){ EMBANDEJA.unshift(inc); }
-  else { const l=EMBANDEJA[idx]; if(_emActive && (open || l.draftEdited || (l.draft && !inc.draft))){ inc.draft=l.draft; if(l.draftEdited) inc.draftEdited=true; if(l.iaRaw) inc.iaRaw=l.iaRaw; } if(l.vertical) inc.vertical=l.vertical; /* solo la pestaña activa conserva; las pasivas reflejan la nube */ EMBANDEJA[idx]=inc; }
-  emRenderList();
-  if(r.id===emSelChat) emRenderClaim('chat'); if(r.id===emSelMail) emRenderClaim('mail');
+  else { const l=EMBANDEJA[idx]; if(_emActive && (open || l.draftEdited || (l.draft && !inc.draft))){ inc.draft=l.draft; if(l.draftEdited) inc.draftEdited=true; if(l.iaRaw) inc.iaRaw=l.iaRaw; } if(l.vertical) inc.vertical=l.vertical; EMBANDEJA[idx]=inc; }
+  clearTimeout(_emRenderListTimer); _emRenderListTimer=setTimeout(emRenderList, 80);
+  if(open){ const slot=r.canal==='mensaje'?'chat':'mail'; emRenderThread(slot); }
+  else { if(r.id===emSelChat) emRenderClaim('chat'); if(r.id===emSelMail) emRenderClaim('mail'); }
 }
 function emTomadaPorOtro(t){ return !!(t&&t.tomado_por&&me&&t.tomado_por!==me.id); }
 function emPuedeResponder(t){ return !emTomadaPorOtro(t) || (typeof isAdmin==='function'&&isAdmin()); }
@@ -3598,11 +3599,42 @@ function emRenderSlot(slot){
   if(_tkImg) _tkImg.innerHTML = t.ticketImg ? ('<img src="'+t.ticketImg+'" style="max-width:60px;max-height:60px;border-radius:6px;vertical-align:middle;cursor:pointer" title="Ver ticket" onclick="event.stopPropagation();emVerImg(this.src)">') : '';
   if(sug){
     // No pisar el cuadro si lo estas ESCRIBIENDO ahora (re-render por recargar/tiempo real no borra tu texto).
-    if(document.activeElement!==sug){ sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):''); }
+    if(!t.draftEdited && document.activeElement!==sug){ sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):''); }
     const _tid=t.id;
     sug.oninput=function(){ const tt=EMBANDEJA.find(function(x){return x.id===_tid;}); if(tt){ tt.draft=sug.value; tt.draftEdited=true; emSave(); emPushDebounced(tt); } };  // marca tu edicion y la sube a la nube (debounced) para que recargar la bandeja / tiempo real NO la pisen
   }
   emRenderInterno(); emRenderClaim(slot);
+}
+function emRenderThread(slot){
+  const isMail=(slot==='mail');
+  const id=isMail?emSelMail:emSelChat;
+  const t=EMBANDEJA.find(function(x){return x.id===id;});
+  if(!t)return;
+  const who=$(isMail?'emMailWho':'emChatWho');
+  if(who)who.textContent=(t.de||'cliente')+((t.estado==='espera')?(' · EN ESPERA'+(emEsperaNota(t)?(': '+emEsperaNota(t)):'')):((t.estado&&t.estado!=='nuevo')?(' · '+t.estado):''))+((t._consol&&t._consol.total>1)?(' · '+t._consol.total+' correos'):'')+(emClaimTxt(t)?(' · '+emClaimTxt(t)):'');
+  const cliEl=$(isMail?'emMailCli':'emChatCli');
+  if(cliEl){ cliEl.innerHTML=emClienteInfoHTML(t, slot); }
+  const psel=$(isMail?'emMailPais':'emChatPais');
+  if(psel&&psel.style.display!=='none'){ psel.value=emThreadPais(t); }
+  const vsel=$(isMail?'emMailVert':'emChatVert');
+  if(vsel&&vsel.style.display!=='none'){ vsel.value=emThreadVert(t); }
+  if(isMail){
+    const clis=(t.mensajes||[]).filter(function(m){return m.from!=='agente' && m.from!=='espera';});
+    const consol=(t._consol && t._consol.pendientes>1) ? ('<div style="font-size:11px;color:var(--accent);margin-bottom:4px">Este cliente tiene '+t._consol.pendientes+' correos pendientes en la bandeja'+(t._consol.repetidos?(' · '+t._consol.repetidos+' repetido(s) spam'):'')+'. Los respondidos quedan en el filtro Respondido.</div>') : '';
+    if($('emMailHead'))$('emMailHead').innerHTML=consol+'<b>De:</b> '+escapeHtml(t.de||'cliente')+'<br><b>Asunto:</b> '+escapeHtml(t.asunto||'(sin asunto)');
+    if($('emMailBody'))$('emMailBody').textContent=clis.map(function(m,i){return (clis.length>1?('['+(i+1)+'] '):'')+(m.text||'');}).join('\n\n———\n\n');
+    if($('emPara'))$('emPara').value=t.de||'';
+    if($('emAsuntoOut'))$('emAsuntoOut').value=(t.asunto&&!/^re:/i.test(t.asunto))?('Re: '+t.asunto):(t.asunto||'');
+  } else {
+    const th=$('emChatThread'); if(th){ th.innerHTML=(t.mensajes||[]).filter(function(m){return m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+escapeHtml(m.text||'')+((m.img||m.image_url)?('<br><img src="'+(m.img||m.image_url)+'" style="max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();emVerImg(this.src)">'):'')+'</div>'; }).join(''); scrollLectura(th,'.em-b'); }
+  }
+  const _tkImg=$(isMail?'emMailTicketImg':'emChatTicketImg');
+  if(_tkImg) _tkImg.innerHTML = t.ticketImg ? ('<img src="'+t.ticketImg+'" style="max-width:60px;max-height:60px;border-radius:6px;vertical-align:middle;cursor:pointer" title="Ver ticket" onclick="event.stopPropagation();emVerImg(this.src)">') : '';
+  const sug=$(isMail?'emMailSug':'emChatSug');
+  if(sug && !t.draftEdited && document.activeElement!==sug){
+    sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):'');
+  }
+  emRenderClaim(slot);
 }
 /* ---- Checklist de verificacion CRM: guia INTERNA de calidad. Convierte la seccion "Verificar en el
    CRM:" del analisis en casillas que el agente marca al comprobar cada dato; si falta alguna al enviar,
@@ -3859,8 +3891,8 @@ async function emAnalizarTicket(slot){
     // borrador = SOLO la respuesta al cliente de ESTE analisis (coherente con lo interno). Si el
     // analisis fallo (sin seccion cliente), no dejamos un borrador viejo de la IA que no cuadre:
     // solo se conserva si TU lo editaste a mano.
-    t.draft = tieneCli ? (extraerSugerida(t.iaRaw)||'') : (t.draftEdited ? (t.draft||'') : '');
-    if(tieneCli) t.draftEdited=false;
+    t.draft = tieneCli ? (t.draftEdited ? (t.draft||'') : (extraerSugerida(t.iaRaw)||'')) : (t.draftEdited ? (t.draft||'') : '');
+    if(tieneCli && !t.draftEdited) t.draftEdited=false;
     emSave(); emPush(t); emRenderSlot(slot);
     toast('Ticket analizado');
   }catch(e){ toast('No se pudo analizar el ticket'); }

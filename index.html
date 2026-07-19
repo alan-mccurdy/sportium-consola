@@ -1336,7 +1336,7 @@ body{background:transparent}
         <button class="em-bbtn sel" data-b="mensaje" onclick="emSetBandeja('mensaje')">Mensajes</button>
         <button class="em-bbtn" data-b="email" onclick="emSetBandeja('email')">Correos</button>
         <button class="em-bbtn" data-b="voz" onclick="emSetBandeja('voz')" title="Llamadas atendidas por el bot de voz">Llamadas</button>
-        <button class="em-bbtn" onclick="simIniciar()" title="Llamar al bot con tu micrófono y escuchar cómo responde" style="margin-left:6px">Probar llamada</button>
+        <button class="em-bbtn" onclick="simIniciar()" title="Llamar al bot con tu micrófono y escuchar cómo responde" style="margin-left:auto;border-color:var(--accent);color:var(--accent);white-space:nowrap">Probar llamada</button>
       </div>
       <div class="em-filtros" id="emFiltros">
         <button class="em-fbtn sel" data-f="metoca" onclick="emSetFiltro('metoca')" title="Lo que espera acción tuya AHORA: sin tomar, o donde el bot de voz pidió ayuda">Me toca a mí</button>
@@ -1349,7 +1349,7 @@ body{background:transparent}
     </div>
     <div class="em-cockpit">
       <div class="em-slot focus" id="emSlotChat" onclick="emFocusSet('chat')">
-        <div class="em-slot-h"><span class="em-badge canal">Mensaje</span><span id="emChatWho">sin chat seleccionado</span><select class="em-pais-sel" id="emChatPais" style="display:none" title="País de esta conversación" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadPais('chat',this.value)"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select><select class="em-pais-sel" id="emChatVert" style="display:none" title="¿Es un cliente o personal de sala (retail)?" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadVert('chat',this.value)"><option value="online">Cliente</option><option value="retail">Sala</option></select><span class="em-ident" id="emChatIdent" style="display:none"></span><span id="emChatLink"></span><span id="emChatCli" style="margin-left:auto"></span></div>
+        <div class="em-slot-h"><span class="em-badge canal" id="emChatCanalBadge">Mensaje</span><span id="emChatWho">sin chat seleccionado</span><select class="em-pais-sel" id="emChatPais" style="display:none" title="País de esta conversación" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadPais('chat',this.value)"><option value="MX">MX</option><option value="PA">PA</option><option value="CO">CO</option></select><select class="em-pais-sel" id="emChatVert" style="display:none" title="¿Es un cliente o personal de sala (retail)?" onclick="event.stopPropagation()" onchange="event.stopPropagation();emSetThreadVert('chat',this.value)"><option value="online">Cliente</option><option value="retail">Sala</option></select><span class="em-ident" id="emChatIdent" style="display:none"></span><span id="emChatLink"></span><span id="emChatCli" style="margin-left:auto"></span></div>
         <div class="em-claim" id="emChatClaim" style="display:none"></div>
         <div class="em-quad em-lr">
           <div class="em-leftcol">
@@ -3883,7 +3883,17 @@ function emClienteInfoHTML(t, slot){
   const rows=[];
   rows.push('<b>'+escapeHtml((cc&&cc.nombre)||t.de||'cliente')+'</b>'+(cc?(' <span style="opacity:.65">('+escapeHtml(cc.usuario)+')</span>'):''));
   // CONTADOR FIJO (no toast): cuantos mensajes/correos envio el cliente, incluidos repetidos
-  if(esChat){ var _vis={}, _uniq=0, _rep=0; msgsCli.forEach(function(m){ var nm=(typeof _normMsg==='function')?_normMsg(m.text):(m.text||''); if(!nm)return; if(_vis[nm]){_rep++;}else{_vis[nm]=1;_uniq++;} }); rows.push(cnt(nMsg)+' mensaje'+(nMsg!==1?'s':'')+' del cliente'+(_rep?(' · '+_uniq+' distinto'+(_uniq!==1?'s':'')+' · '+_rep+' repetido'+(_rep!==1?'s':'')):'')); }
+  /* En una LLAMADA lo que importa no es cuantos mensajes mando, sino CUANTO LLEVA EN LA LINEA:
+     el agente decide con eso si corre o si el bot puede seguir sondeando. */
+  if(t.canal==='voz'){
+    var _ini=0, _fin=0;
+    (t.mensajes||[]).forEach(function(m){ var v=(typeof m.t==='string')?Date.parse(m.t):m.t; if(!v)return; if(!_ini||v<_ini)_ini=v; if(v>_fin)_fin=v; });
+    var _dur=(_ini&&_fin)?(_fin-_ini):0;
+    var _desde=_fin?(Date.now()-_fin):0;
+    rows.push(cnt(nMsg)+' turno'+(nMsg!==1?'s':'')+' del cliente · en llamada '+(typeof fmtMs==='function'?fmtMs(_dur):Math.round(_dur/1000)+'s')+
+              (_desde>15000?(' · último turno hace '+(typeof fmtMs==='function'?fmtMs(_desde):Math.round(_desde/1000)+'s')):''));
+  }
+  else if(esChat){ var _vis={}, _uniq=0, _rep=0; msgsCli.forEach(function(m){ var nm=(typeof _normMsg==='function')?_normMsg(m.text):(m.text||''); if(!nm)return; if(_vis[nm]){_rep++;}else{_vis[nm]=1;_uniq++;} }); rows.push(cnt(nMsg)+' mensaje'+(nMsg!==1?'s':'')+' del cliente'+(_rep?(' · '+_uniq+' distinto'+(_uniq!==1?'s':'')+' · '+_rep+' repetido'+(_rep!==1?'s':'')):'')); }
   else { const c=t._consol||{}; const tot=c.total||1; var seg=[cnt(tot)+' correo'+(tot!==1?'s':'')+' de este cliente']; if(c.pendientes!=null){ seg.push(c.pendientes+' pendiente'+(c.pendientes!==1?'s':'')+(c.nuevos?(' ('+c.nuevos+' nuevo'+(c.nuevos!==1?'s':'')+')'):'')); } if(c.respondidos){ seg.push(c.respondidos+' respondido'+(c.respondidos!==1?'s':'')); } if(c.repetidos){ seg.push(c.repetidos+' repetido'+(c.repetidos!==1?'s':'')+' (spam)'); } rows.push(seg.join(' · ')); }
   rows.push((t.canal==='voz'?'Llamada · asistir al bot':(esChat?'Chat':'Correo'))+' · '+pais+' · '+escapeHtml(est)+(emClaimTxt(t)?(' · '+escapeHtml(emClaimTxt(t))):''));
   if(cc){ rows.push('Saldo '+fmtMon(cc.saldo,cc.pais)+' · KYC '+((cc.kyc&&cc.kyc.verificado)?'verificado':'<b style="color:var(--bad,#e66)">pendiente</b>')+(cc.nivel==='VIP'?' · VIP':'')+(cc.autoexcluido?' · <b style="color:var(--bad,#e66)">autoexcluido</b>':'')+((cc.tickets_previos&&cc.tickets_previos.length)?(' · '+cc.tickets_previos.length+' tickets'):'')); }
@@ -3967,11 +3977,12 @@ function emRenderThread(slot){
    el CSAT (se manda por link, y no hay donde clickear en una llamada). */
 /* Sello de version visible: si la consola quedo cacheada, este numero delata que build se esta
    viendo. Sin esto no hay forma de distinguir "no se desplego" de "el navegador tiene lo viejo". */
-const BUILD_SINELI='2026-07-19 · llamadas v5';
+const BUILD_SINELI='2026-07-19 · llamadas v6';
 try{ document.addEventListener('DOMContentLoaded', function(){ var b=document.getElementById('buildStamp'); if(b) b.textContent=BUILD_SINELI; }); }catch(e){}
 function emBotonesPorCanal(t){
   const esVoz=!!(t && t.canal==='voz');
   const ct=$('emChatColTitle'); if(ct) ct.textContent = esVoz ? 'Transcripción de la llamada' : 'Mensaje del cliente';
+  const cb=$('emChatCanalBadge'); if(cb) cb.textContent = esVoz ? 'Llamada' : 'Mensaje';
   const mostrar=function(id,ver){ const el=$(id); if(el) el.style.display=ver?'':'none'; };
   mostrar('emChatCopiar', !esVoz);
   mostrar('emChatEspera', !esVoz);

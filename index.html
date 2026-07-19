@@ -3438,7 +3438,14 @@ async function emAutoPendYa(pid){ if(!sb)return; try{ const {error}=await sb.fro
 function emAutoPendStart(){ emAutoPendStop(); emAutoPendLoad(); _emApT=setInterval(emAutoPendLoad,5000); _emApTick=setInterval(emAutoPendRender,1000); }
 function emAutoPendStop(){ if(_emApT){clearInterval(_emApT);_emApT=null;} if(_emApTick){clearInterval(_emApTick);_emApTick=null;} EM_APEND=[]; emAutoPendRender(); }
 // stubs (se implementan en Tasks 3-4 y 5):
-function emLoad(){ try{ EMBANDEJA=JSON.parse(localStorage.getItem('email-bandeja')||'[]')||[]; }catch(e){ EMBANDEJA=[]; } }
+function emLoad(){
+  try{ EMBANDEJA=JSON.parse(localStorage.getItem('email-bandeja')||'[]')||[]; }catch(e){ EMBANDEJA=[]; }
+  /* Lo que ya estaba guardado en el navegador ANTES de que existiera la marca _cloud se da por
+     conocido por la nube. Sin esto, esas conversaciones reviven una ultima vez despues de borrarlas
+     del servidor: no traen la marca, la fusion las toma por "creadas sin conexion" y las reinserta.
+     Es una migracion de una sola vez; lo que se cree de aqui en mas ya nace marcado. */
+  EMBANDEJA.forEach(function(x){ if(x && x._cloud===undefined) x._cloud=true; });
+}
 function emSave(){ try{ lsSafeSet('email-bandeja', JSON.stringify(EMBANDEJA)); }catch(e){ console.warn('emSave fallback blinda:', e); } }
 let _emDraftT=null; function emSaveDraftDebounced(){ clearTimeout(_emDraftT); _emDraftT=setTimeout(function(){ emSave(); }, 500); }
 /* ===== COLA COMPARTIDA (Supabase + tiempo real). Degradacion suave: si no existe la tabla, sigue en localStorage ===== */
@@ -4012,7 +4019,7 @@ function emRenderThread(slot){
    el CSAT (se manda por link, y no hay donde clickear en una llamada). */
 /* Sello de version visible: si la consola quedo cacheada, este numero delata que build se esta
    viendo. Sin esto no hay forma de distinguir "no se desplego" de "el navegador tiene lo viejo". */
-const BUILD_SINELI='2026-07-19 · llamadas v11';
+const BUILD_SINELI='2026-07-19 · llamadas v12';
 try{ document.addEventListener('DOMContentLoaded', function(){ var b=document.getElementById('buildStamp'); if(b) b.textContent=BUILD_SINELI; }); }catch(e){}
 /* Colgar. Cierra la llamada del lado de la consola: marca la conversacion como respondida para que
    el contador pare y deje de contar como llamada viva. La telefonia real cortara la linea cuando se

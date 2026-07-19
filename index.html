@@ -427,7 +427,9 @@
   .em-mailfields input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .em-badge.canal{background:var(--accent-soft);color:var(--accent);border:1px solid transparent;margin-right:5px}
   .em-badge.leido{background:var(--surface);border:1px solid var(--line);color:var(--txt-2)}
-  .em-bandejas{display:flex;gap:4px;padding:10px 14px 2px}
+  /* flex-wrap: la columna de la lista es angosta y sin esto el ultimo boton ("Probar llamada") se
+     salia del contenedor y quedaba recortado, invisible para el agente. */
+  .em-bandejas{display:flex;flex-wrap:wrap;gap:4px;padding:10px 14px 2px}
   .em-bbtn{flex:1;border:1px solid var(--line);background:var(--surface);color:var(--txt-2);border-radius:10px;padding:7px 10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
   .em-bbtn.sel{background:var(--accent);color:#fff;border-color:transparent}
   .em-filtros{display:flex;gap:5px;padding:8px 14px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
@@ -3888,10 +3890,15 @@ function emClienteInfoHTML(t, slot){
   if(t.canal==='voz'){
     var _ini=0, _fin=0;
     (t.mensajes||[]).forEach(function(m){ var v=(typeof m.t==='string')?Date.parse(m.t):m.t; if(!v)return; if(!_ini||v<_ini)_ini=v; if(v>_fin)_fin=v; });
-    var _dur=(_ini&&_fin)?(_fin-_ini):0;
+    /* Si la llamada SIGUE viva, el reloj corre contra AHORA, no contra el ultimo turno. Medir hasta
+       el ultimo turno congela el contador cada vez que el cliente se queda callado, que es justo
+       cuando el agente mas necesita ver que el tiempo avanza. */
+    var _viva=(est!=='respondido');
+    var _dur=_ini?((_viva?Date.now():_fin)-_ini):0;
     var _desde=_fin?(Date.now()-_fin):0;
-    rows.push(cnt(nMsg)+' turno'+(nMsg!==1?'s':'')+' del cliente · en llamada '+(typeof fmtMs==='function'?fmtMs(_dur):Math.round(_dur/1000)+'s')+
-              (_desde>15000?(' · último turno hace '+(typeof fmtMs==='function'?fmtMs(_desde):Math.round(_desde/1000)+'s')):''));
+    var _ms=function(v){ return (typeof fmtMs==='function')?fmtMs(v):(Math.floor(v/60000)+':'+('0'+Math.floor(v/1000)%60).slice(-2)); };
+    rows.push(cnt(nMsg)+' turno'+(nMsg!==1?'s':'')+' del cliente · '+(_viva?'en llamada ':'duró ')+_ms(_dur)+
+              ((_viva&&_desde>10000)?(' · <b style="color:var(--bad,#e66)">esperando '+_ms(_desde)+'</b>'):''));
   }
   else if(esChat){ var _vis={}, _uniq=0, _rep=0; msgsCli.forEach(function(m){ var nm=(typeof _normMsg==='function')?_normMsg(m.text):(m.text||''); if(!nm)return; if(_vis[nm]){_rep++;}else{_vis[nm]=1;_uniq++;} }); rows.push(cnt(nMsg)+' mensaje'+(nMsg!==1?'s':'')+' del cliente'+(_rep?(' · '+_uniq+' distinto'+(_uniq!==1?'s':'')+' · '+_rep+' repetido'+(_rep!==1?'s':'')):'')); }
   else { const c=t._consol||{}; const tot=c.total||1; var seg=[cnt(tot)+' correo'+(tot!==1?'s':'')+' de este cliente']; if(c.pendientes!=null){ seg.push(c.pendientes+' pendiente'+(c.pendientes!==1?'s':'')+(c.nuevos?(' ('+c.nuevos+' nuevo'+(c.nuevos!==1?'s':'')+')'):'')); } if(c.respondidos){ seg.push(c.respondidos+' respondido'+(c.respondidos!==1?'s':'')); } if(c.repetidos){ seg.push(c.repetidos+' repetido'+(c.repetidos!==1?'s':'')+' (spam)'); } rows.push(seg.join(' · ')); }
@@ -3977,7 +3984,7 @@ function emRenderThread(slot){
    el CSAT (se manda por link, y no hay donde clickear en una llamada). */
 /* Sello de version visible: si la consola quedo cacheada, este numero delata que build se esta
    viendo. Sin esto no hay forma de distinguir "no se desplego" de "el navegador tiene lo viejo". */
-const BUILD_SINELI='2026-07-19 · llamadas v6';
+const BUILD_SINELI='2026-07-19 · llamadas v7';
 try{ document.addEventListener('DOMContentLoaded', function(){ var b=document.getElementById('buildStamp'); if(b) b.textContent=BUILD_SINELI; }); }catch(e){}
 function emBotonesPorCanal(t){
   const esVoz=!!(t && t.canal==='voz');
@@ -3994,8 +4001,30 @@ function emBotonesPorCanal(t){
   }
   const tb=$('emChatTomarBtn');
   if(tb && esVoz) tb.title='Tomar la llamada para asistir al bot';
-  emRenderInterno(); emRenderClaim(slot);
+  /* OJO: aqui NO va emRenderClaim(slot). `slot` no existe en este ambito y lanzaba un
+     ReferenceError que abortaba el resto del render del panel. */
 }
+
+/* ---- RELOJ DE LLAMADA EN VIVO ----
+   El tiempo en linea tiene que correr solo. Si el contador se calcula una vez al abrir la
+   conversacion queda congelado, y un agente que ve "en llamada 0:20" cuando el cliente lleva tres
+   minutos esperando toma la decision equivocada. Se refresca cada segundo, pero SOLO la linea de
+   informacion del cliente y SOLO si hay una llamada abierta: no se vuelve a dibujar el hilo para
+   no robarle el foco al agente mientras escribe. */
+var _EM_RELOJ=null;
+function emRelojLlamada(){
+  if(_EM_RELOJ) return;
+  _EM_RELOJ=setInterval(function(){
+    try{
+      if(!emSelChat) return;
+      var t=EMBANDEJA.find(function(x){ return x.id===emSelChat; });
+      if(!t || t.canal!=='voz') return;
+      var el=$('emChatCli');
+      if(el && document.visibilityState!=='hidden') el.innerHTML=emClienteInfoHTML(t,'chat');
+    }catch(_){}
+  },1000);
+}
+try{ document.addEventListener('DOMContentLoaded', emRelojLlamada); }catch(e){}
 /* ---- Checklist de verificacion CRM: guia INTERNA de calidad. Convierte la seccion "Verificar en el
    CRM:" del analisis en casillas que el agente marca al comprobar cada dato; si falta alguna al enviar,
    se le pregunta antes (el dato de la respuesta al cliente debe estar comprobado, no supuesto). ---- */

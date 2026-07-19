@@ -1787,15 +1787,47 @@ async function toggleAgent(id,active){
    La voz se reproduce con speechSynthesis del navegador: sirve para OIR como suena el bot sin
    contratar ningun servicio de TTS. En la llamada real el TTS lo pone el proveedor de telefonia. */
 var VOZ_SEL=null;
-function vozVoces(){ try{ return (window.speechSynthesis? speechSynthesis.getVoices():[]).filter(function(v){ return /^es/i.test(v.lang); }); }catch(e){ return []; } }
-function vozDecir(txt, btn){
+/* getVoices() casi siempre devuelve VACIO en la primera llamada y se puebla de forma asincrona.
+   Por eso la voz "cambiaba sola": a veces se alcanzaba a elegir una y a veces hablaba la del
+   sistema. Se cachean y se refrescan cuando el navegador avisa. */
+var VOZ_LISTA=null;
+function vozVoces(){
+  try{
+    if(!window.speechSynthesis) return [];
+    if(VOZ_LISTA && VOZ_LISTA.length) return VOZ_LISTA;
+    var vs=speechSynthesis.getVoices()||[];
+    var es=vs.filter(function(v){ return /^es/i.test(v.lang||''); });
+    VOZ_LISTA = es.length?es:vs;
+    return VOZ_LISTA;
+  }catch(e){ return []; }
+}
+try{ if(window.speechSynthesis) speechSynthesis.onvoiceschanged=function(){ VOZ_LISTA=null; vozVoces(); }; }catch(e){}
+function _vozHash(s){ var h=0,x=''+(s||'x'); for(var i=0;i<x.length;i++){ h=((h<<5)-h+x.charCodeAt(i))|0; } return Math.abs(h); }
+function _vozMujer(v){ return /female|mujer|paulina|sabina|helena|laura|m[oó]nica|esperanza|marisol|luc[ií]a|elena|camila|sof[ií]a|isabela|dalia|renata|salom[eé]|ximena/i.test(v.name||''); }
+function _vozHombre(v){ return /male|hombre|jorge|diego|pablo|carlos|miguel|ra[uú]l|enrique|andr[eé]s|juan|[aá]lvaro|liam|gonzalo|felipe/i.test(v.name||''); }
+/* Voz FIJA por cliente: el mismo hilo suena siempre igual (seria rarisimo que a mitad de una
+   llamada cambie el agente). Entre clientes distintos alterna hombre/mujer segun el hash del id,
+   que es determinista: no cambia entre recargas ni entre agentes que revisen la misma llamada. */
+function vozElegir(clave){
+  var vs=vozVoces(); if(!vs.length) return null;
+  var muj=vs.filter(_vozMujer), hom=vs.filter(_vozHombre);
+  var h=_vozHash(clave);
+  var grupo=(muj.length && hom.length) ? ((h%2===0)?muj:hom) : vs;
+  return { voz:grupo[h%grupo.length], mujer:(muj.length&&hom.length)?(h%2===0):null };
+}
+function vozDecir(txt, btn, clave){
   if(!window.speechSynthesis){ toast('Este navegador no puede reproducir voz'); return; }
   try{
     speechSynthesis.cancel();
-    var u=new SpeechSynthesisUtterance(String(txt||'').slice(0,600));
-    var vs=vozVoces(); if(vs.length) u.voice=vs[0];
-    u.lang=(u.voice&&u.voice.lang)||'es-MX'; u.rate=1.02; u.pitch=1;
-    if(btn){ btn.textContent='▮ Detener'; u.onend=function(){ btn.textContent='▶ Escuchar'; }; }
+    var limpio=String(txt||'').slice(0,600).replace(/\s*·\s*/g,', ');   // separadores visuales -> pausa hablada
+    var u=new SpeechSynthesisUtterance(limpio);
+    var el=vozElegir(clave||LL_SEL||'default');
+    if(el && el.voz){ u.voice=el.voz; }
+    u.lang=(u.voice&&u.voice.lang)||'es-MX';
+    /* Menos robotico: un poco mas lento que el default y con el tono apenas movido. Hablar
+       rapido y plano es lo que hace que suene a maquina. */
+    u.rate=0.96; u.pitch=(el&&el.mujer===false)?0.96:1.06; u.volume=1;
+    if(btn){ var prev=btn.textContent; btn.textContent='▮'; u.onend=function(){ btn.textContent=prev; }; u.onerror=function(){ btn.textContent=prev; }; }
     speechSynthesis.speak(u);
   }catch(e){ toast('No se pudo reproducir la voz'); }
 }
@@ -1829,13 +1861,13 @@ async function vozAbrir(id){
     const filas=ms.map(function(m,i){
       const esBot=(m.from==='agente');
       const quien=esBot?(m.auto?'Bot':'Agente'):'Cliente';
-      const btn=esBot?('<button class="btn ghost mini" onclick="vozDecir(this.getAttribute(\'data-t\'),this)" data-t="'+escapeHtml(m.text||'')+'">▶ Escuchar</button>'):'';
+      const btn=esBot?('<button class="btn ghost mini" onclick="vozDecir(this.getAttribute(\'data-t\'),this,\''+id+'\')" data-t="'+escapeHtml(m.text||'')+'">▶ Escuchar</button>'):'';
       return '<div style="margin:4px 0;padding:5px 7px;border-left:3px solid '+(esBot?'var(--accent)':'var(--txt-2)')+';background:rgba(127,127,127,.06);border-radius:3px">'+
              '<b style="font-size:11px">'+quien+'</b> '+btn+'<div style="font-size:12px;margin-top:2px">'+escapeHtml(m.text||'')+'</div></div>';
     }).join('');
     const todo=ms.filter(function(m){return m.from==='agente';}).map(function(m){return m.text;}).join('. ');
     box.innerHTML='<div class="fld">Transcripción — '+escapeHtml(data.de||id)+
-      ' <button class="btn ghost mini" onclick="vozDecir(this.getAttribute(\'data-t\'),this)" data-t="'+escapeHtml(todo)+'">▶ Escuchar todo el bot</button>'+
+      ' <button class="btn ghost mini" onclick="vozDecir(this.getAttribute(\'data-t\'),this,\''+id+'\')" data-t="'+escapeHtml(todo)+'">▶ Escuchar todo el bot</button>'+
       ' <button class="btn ghost mini" onclick="vozDetener()">▮ Detener</button></div>'+
       '<div style="max-height:260px;overflow:auto">'+(filas||'<small>Sin turnos.</small>')+'</div>'+
       (data.ia_raw?('<div class="em-crmchk" style="margin-top:6px"><b>Interno del bot:</b><div style="font-size:12px;white-space:pre-wrap">'+escapeHtml(String(data.ia_raw).slice(0,900))+'</div></div>'):'')+
@@ -4450,7 +4482,7 @@ async function emAbrirLlamada(id){
     const turnos=ms.map(function(m){
       const esBot=(m.from==='agente');
       const quien=esBot?(m.auto?'Bot':'Agente'):'Cliente';
-      const btn=esBot?('<button class="btn ghost mini" onclick="vozDecir(this.getAttribute(\'data-t\'),this)" data-t="'+escapeHtml(m.text||'')+'">▶</button>'):'';
+      const btn=esBot?('<button class="btn ghost mini" onclick="vozDecir(this.getAttribute(\'data-t\'),this,\''+id+'\')" data-t="'+escapeHtml(m.text||'')+'">▶</button>'):'';
       return '<div style="margin:4px 0;padding:5px 7px;border-left:3px solid '+(esBot?'var(--accent)':'var(--txt-2)')+';background:rgba(127,127,127,.06);border-radius:3px">'+
              '<b style="font-size:11px">'+quien+'</b> '+btn+'<div style="font-size:12px;margin-top:2px">'+escapeHtml(m.text||'')+'</div></div>';
     }).join('');
@@ -4458,7 +4490,7 @@ async function emAbrirLlamada(id){
     box.innerHTML=
       '<div class="fld">'+escapeHtml(data.de||id)+' · '+escapeHtml(data.pais||'')+' · '+escapeHtml(data.estado||'')+
         (data.ayuda_pedida?' <span class="em-badge nuevo">el bot pide ayuda</span>':'')+'</div>'+
-      '<div style="margin:4px 0"><button class="btn ghost mini" onclick="vozDecir(this.getAttribute(\'data-t\'),this)" data-t="'+escapeHtml(todoBot)+'">▶ Escuchar al bot</button> '+
+      '<div style="margin:4px 0"><button class="btn ghost mini" onclick="vozDecir(this.getAttribute(\'data-t\'),this,\''+id+'\')" data-t="'+escapeHtml(todoBot)+'">▶ Escuchar al bot</button> '+
         '<button class="btn ghost mini" onclick="vozDetener()">▮ Detener</button></div>'+
       '<div style="max-height:300px;overflow:auto">'+(turnos||'<small>Sin turnos todavía.</small>')+'</div>'+
       (data.ia_raw?('<div class="em-crmchk" style="margin-top:6px"><b>Análisis del bot:</b><div style="font-size:12px;white-space:pre-wrap">'+escapeHtml(String(data.ia_raw).slice(0,900))+'</div></div>'):'')+

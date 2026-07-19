@@ -1356,7 +1356,7 @@ body{background:transparent}
         <div class="em-claim" id="emChatClaim" style="display:none"></div>
         <div class="em-quad em-lr">
           <div class="em-leftcol">
-            <div class="em-q em-conv"><div class="em-coltitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emChatTicketImg"></span></div></div>
+            <div class="em-q em-conv"><div class="em-coltitle" id="emChatColTitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emChatTicketImg"></span></div></div>
             <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" id="emChatTomarBtn" onclick="event.stopPropagation();emTomarToggle('chat')">Tomar</button><button class="btn ghost" id="emChatCopiar" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn ghost" id="emChatEspera" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('chat')">En espera</button><button class="btn ghost" id="emChatCsat" title="Envía la encuesta de satisfacción (CSAT) al cliente, cierra la conversación y abre el siguiente chat en espera" onclick="event.stopPropagation();emCerrarConCsat('chat')">Cerrar y enviar CSAT</button><button class="btn" id="emChatResp" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
           </div>
           <div class="em-q em-ana" id="emChatAna"><div class="em-coltitle">Interno (chat y correo)</div><div class="em-analisis" id="emChatAnalisis"></div></div>
@@ -1375,7 +1375,7 @@ body{background:transparent}
 </div>
 <aside class="panel" id="teampanel">
   <div class="tc-top">
-    <b style="flex:1;font-size:15px">Mensajes</b>
+    <b style="flex:1;font-size:15px">Mensajes <span id="buildStamp" style="font-size:10px;opacity:.55;font-weight:normal"></span></b>
     <button class="ic adminonly" id="tcClearBtn" title="Borrar el chat de equipo (general)" onclick="clearTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     <button class="ic" title="Cerrar" onclick="closeTeam()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
   </div>
@@ -3957,6 +3957,10 @@ function emRenderThread(slot){
       sug.placeholder=''; sug.removeAttribute('data-voz');
     }
   }
+  /* Que el hilo se mantenga abajo, como en WhatsApp: al llegar un turno nuevo se ve solo, sin que
+     el agente tenga que bajar a mano. Importa mas en una llamada, donde los turnos entran mientras
+     el cliente esta hablando. */
+  try{ const _th=$((slot==='mail')?'emMailThread':'emChatThread'); if(_th) _th.scrollTop=_th.scrollHeight; }catch(_){}
   if(slot==='chat') emBotonesPorCanal(t);
   emRenderInterno(); emRenderClaim(slot);
 }
@@ -3964,8 +3968,13 @@ function emRenderThread(slot){
    funciones cuando vuelve a ser un chat normal. En una LLAMADA no aplican: copiar la respuesta
    (la dice el bot, no se pega en ningun lado), "En espera" (la persona esta en la linea ahora) ni
    el CSAT (se manda por link, y no hay donde clickear en una llamada). */
+/* Sello de version visible: si la consola quedo cacheada, este numero delata que build se esta
+   viendo. Sin esto no hay forma de distinguir "no se desplego" de "el navegador tiene lo viejo". */
+const BUILD_SINELI='2026-07-19 · llamadas v4';
+try{ document.addEventListener('DOMContentLoaded', function(){ var b=document.getElementById('buildStamp'); if(b) b.textContent=BUILD_SINELI; }); }catch(e){}
 function emBotonesPorCanal(t){
   const esVoz=!!(t && t.canal==='voz');
+  const ct=$('emChatColTitle'); if(ct) ct.textContent = esVoz ? 'Transcripción de la llamada' : 'Mensaje del cliente';
   const mostrar=function(id,ver){ const el=$(id); if(el) el.style.display=ver?'':'none'; };
   mostrar('emChatCopiar', !esVoz);
   mostrar('emChatEspera', !esVoz);

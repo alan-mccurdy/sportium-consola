@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es" data-theme="light">
 <head>
 <meta charset="UTF-8">
@@ -1001,6 +1001,14 @@ body{background:transparent}
   <div class="sec"><div id="supResumen" style="margin-bottom:8px"></div><div id="supList"><small style="color:var(--txt-2)">Cargando…</small></div></div>
   <div class="sec"><div class="fld">Escalamientos — clientes que pidieron supervisor</div><div id="supEsc"><small style="color:var(--txt-2)">Cargando…</small></div></div>
   <div class="sec"><div class="fld">Por qué escalan los clientes (últimos 30 días)</div><div id="supEscMotivos"><small style="color:var(--txt-2)">Cargando…</small></div></div>
+  <div class="sec">
+    <div class="fld">Llamadas del bot de voz
+      <button class="btn ghost mini" onclick="vozCargar()" style="margin-left:8px">Actualizar</button>
+      <label style="margin-left:8px;font-size:11px;opacity:.8"><input type="checkbox" id="vozSoloAyuda" onchange="vozCargar()"> solo las que piden ayuda</label>
+    </div>
+    <div id="vozList"><small style="color:var(--txt-2)">Cargando…</small></div>
+    <div id="vozDetalle" style="margin-top:8px"></div>
+  </div>
   <div class="sec"><small style="color:var(--txt-2)">Métricas de hoy. El supervisor puede bloquear/desbloquear agentes; crear/invitar es solo del administrador.</small></div>
 </aside>
 
@@ -1266,6 +1274,7 @@ body{background:transparent}
       <button class="em-dbtn" title="Re-sugerir AMBOS (chat y correo si hay abiertos)" onclick="emResugerirAmbos()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M3 12a9 9 0 0 0 3 6.7L3 16"/><path d="M3 21v-5h5"/></svg></button>
       <button class="em-dbtn" title="Copiar respuesta (panel activo)" onclick="emCopiar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
       <button class="em-dbtn" title="Marcar respondido (panel activo)" onclick="emResponder()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></button>
+      <button class="em-dbtn" id="emPedirTiempo" title="Pedir tiempo al cliente (se habilita tras 2 min de espera)" onclick="emPedirTiempo()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
       <div class="em-dock-sep"></div>
       <button class="em-dbtn" id="emEnviarAmbos" title="Enviar AMBOS (responde el chat y el correo abiertos)" onclick="emEnviarAmbos()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></button>
       <button class="em-dbtn adminonly" title="Vaciar inbox" onclick="emVaciar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
@@ -1296,6 +1305,7 @@ body{background:transparent}
       <div class="em-bandejas" id="emBandejas">
         <button class="em-bbtn sel" data-b="mensaje" onclick="emSetBandeja('mensaje')">Mensajes</button>
         <button class="em-bbtn" data-b="email" onclick="emSetBandeja('email')">Correos</button>
+        <button class="em-bbtn" data-b="voz" onclick="emSetBandeja('voz')" title="Llamadas atendidas por el bot de voz">Llamadas</button>
       </div>
       <div class="em-filtros" id="emFiltros">
         <button class="em-fbtn sel" data-f="activos" onclick="emSetFiltro('activos')" title="Nuevos + leidos sin responder (oculta los ya respondidos)">Activos</button>
@@ -1761,7 +1771,82 @@ async function toggleAgent(id,active){
   }catch(e){ toast('No se pudo: '+(e.message||e)); }
 }
 /* ---- Dashboard de SUPERVISION (admin + supervisor): metricas por agente + bloquear ---- */
-function openSup(){ if(!puedeSupervisar())return; $('supOverlay').classList.add('on'); $('supPanel').classList.add('on'); loadSup(); }
+/* ===== REVISION DE LLAMADAS DEL BOT DE VOZ (supervisor y admin) =====
+   La llamada es una conversacion con canal='voz' y la transcripcion es su array de mensajes,
+   asi que no hace falta ninguna tabla nueva para revisarla.
+   La voz se reproduce con speechSynthesis del navegador: sirve para OIR como suena el bot sin
+   contratar ningun servicio de TTS. En la llamada real el TTS lo pone el proveedor de telefonia. */
+var VOZ_SEL=null;
+function vozVoces(){ try{ return (window.speechSynthesis? speechSynthesis.getVoices():[]).filter(function(v){ return /^es/i.test(v.lang); }); }catch(e){ return []; } }
+function vozDecir(txt, btn){
+  if(!window.speechSynthesis){ toast('Este navegador no puede reproducir voz'); return; }
+  try{
+    speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(String(txt||'').slice(0,600));
+    var vs=vozVoces(); if(vs.length) u.voice=vs[0];
+    u.lang=(u.voice&&u.voice.lang)||'es-MX'; u.rate=1.02; u.pitch=1;
+    if(btn){ btn.textContent='▮ Detener'; u.onend=function(){ btn.textContent='▶ Escuchar'; }; }
+    speechSynthesis.speak(u);
+  }catch(e){ toast('No se pudo reproducir la voz'); }
+}
+function vozDetener(){ try{ speechSynthesis.cancel(); }catch(e){} }
+async function vozCargar(){
+  if(!sb||!puedeSupervisar())return;
+  const cont=$('vozList'); if(!cont)return;
+  const solo=$('vozSoloAyuda') && $('vozSoloAyuda').checked;
+  try{
+    let q=sb.from('inbox_conversaciones').select('id,de,estado,pais,ayuda_pedida,mensajes,updated_at')
+      .eq('tenant',CONFIG.tenant).eq('canal','voz').order('updated_at',{ascending:false}).limit(25);
+    if(solo) q=q.eq('ayuda_pedida',true);
+    const {data,error}=await q; if(error)throw error;
+    if(!data||!data.length){ cont.innerHTML='<small style="color:var(--txt-2)">Sin llamadas'+(solo?' que pidan ayuda':'')+'.</small>'; $('vozDetalle').innerHTML=''; return; }
+    cont.innerHTML=data.map(function(c){
+      var n=Array.isArray(c.mensajes)?c.mensajes.length:0;
+      var ay=c.ayuda_pedida?'<span class="em-badge nuevo" title="El bot se atoro y pide ayuda">pide ayuda</span>':'';
+      return '<div class="file" style="cursor:pointer" onclick="vozAbrir(\''+c.id+'\')"><span class="nm">'+escapeHtml(c.de||c.id)+'</span>'+
+             '<span style="color:var(--txt-2)">'+escapeHtml((c.pais||'')+' · '+n+' turnos · '+(c.estado||''))+' '+ay+'</span></div>';
+    }).join('');
+  }catch(e){ cont.innerHTML='<small style="color:var(--err,#c0392b)">No se pudieron cargar las llamadas.</small>'; }
+}
+async function vozAbrir(id){
+  if(!sb||!puedeSupervisar())return;
+  VOZ_SEL=id; const box=$('vozDetalle'); if(!box)return;
+  box.innerHTML='<small style="color:var(--txt-2)">Cargando transcripción…</small>';
+  try{
+    const {data,error}=await sb.from('inbox_conversaciones').select('id,de,mensajes,ia_raw,ayuda_pedida').eq('id',id).single();
+    if(error)throw error;
+    const ms=Array.isArray(data.mensajes)?data.mensajes:[];
+    const filas=ms.map(function(m,i){
+      const esBot=(m.from==='agente');
+      const quien=esBot?(m.auto?'Bot':'Agente'):'Cliente';
+      const btn=esBot?('<button class="btn ghost mini" onclick="vozDecir(this.getAttribute(\'data-t\'),this)" data-t="'+escapeHtml(m.text||'')+'">▶ Escuchar</button>'):'';
+      return '<div style="margin:4px 0;padding:5px 7px;border-left:3px solid '+(esBot?'var(--accent)':'var(--txt-2)')+';background:rgba(127,127,127,.06);border-radius:3px">'+
+             '<b style="font-size:11px">'+quien+'</b> '+btn+'<div style="font-size:12px;margin-top:2px">'+escapeHtml(m.text||'')+'</div></div>';
+    }).join('');
+    const todo=ms.filter(function(m){return m.from==='agente';}).map(function(m){return m.text;}).join('. ');
+    box.innerHTML='<div class="fld">Transcripción — '+escapeHtml(data.de||id)+
+      ' <button class="btn ghost mini" onclick="vozDecir(this.getAttribute(\'data-t\'),this)" data-t="'+escapeHtml(todo)+'">▶ Escuchar todo el bot</button>'+
+      ' <button class="btn ghost mini" onclick="vozDetener()">▮ Detener</button></div>'+
+      '<div style="max-height:260px;overflow:auto">'+(filas||'<small>Sin turnos.</small>')+'</div>'+
+      (data.ia_raw?('<div class="em-crmchk" style="margin-top:6px"><b>Interno del bot:</b><div style="font-size:12px;white-space:pre-wrap">'+escapeHtml(String(data.ia_raw).slice(0,900))+'</div></div>'):'')+
+      '<div class="fld" style="margin-top:8px">Ayudar al bot'+(data.ayuda_pedida?' <span class="em-badge nuevo">te esta pidiendo ayuda</span>':'')+'</div>'+
+      '<textarea id="vozAyuda" rows="2" placeholder="Escribile el dato que le falta. Lo usa con prioridad en su próxima respuesta al cliente."></textarea>'+
+      '<button class="btn" onclick="vozEnviarAyuda()" style="margin-top:4px">Enviar al bot</button>';
+  }catch(e){ box.innerHTML='<small style="color:var(--err,#c0392b)">No se pudo abrir la llamada.</small>'; }
+}
+/* Mismo mecanismo que las casillas del CRM: un humano aporta el dato que al bot le falta y el bot
+   redacta con eso. El bot lo consume una sola vez y limpia la bandera. */
+async function vozEnviarAyuda(){
+  if(!sb||!VOZ_SEL)return;
+  const ta=$('vozAyuda'); const txt=(ta&&ta.value||'').trim();
+  if(!txt){ toast('Escribe la indicación para el bot'); return; }
+  try{
+    const {error}=await sb.from('inbox_conversaciones').update({ayuda_texto:txt, ayuda_pedida:false, updated_at:new Date().toISOString()}).eq('id',VOZ_SEL);
+    if(error)throw error;
+    ta.value=''; toast('Enviado: el bot lo usará en su próxima respuesta'); vozCargar(); vozAbrir(VOZ_SEL);
+  }catch(e){ toast('No se pudo enviar la indicación'); }
+}
+function openSup(){ if(!puedeSupervisar())return; $('supOverlay').classList.add('on'); $('supPanel').classList.add('on'); loadSup(); vozCargar(); }
 function closeSup(){ $('supOverlay').classList.remove('on'); $('supPanel').classList.remove('on'); }
 async function loadSup(){
   if(!sb||!puedeSupervisar())return;
@@ -2097,10 +2182,60 @@ let COMANDOS=[
 ];
 
 const norm=x=>((x||'')+'').toLowerCase().replace(/[^a-z0-9@.]/g,'');
+/* Adaptador: el CRM real (crm-core) guarda {keys, fields}; la consola espera la forma plana de
+   CLIENTES. Se traduce aqui para que findCliente pueda devolver cualquiera de las dos fuentes
+   sin que el resto del codigo note la diferencia. */
+function crmToCliente(c){
+  if(!c) return null;
+  var k=c.keys||{}, f=c.fields||{};
+  return {
+    usuario:k.usuario||'', nombre:f.nombre||k.usuario||k.correo||'(cliente)', pais:f.pais||'',
+    email:k.correo||'', celular:f.celular||'', cedula:k.cedula||'-', registro:f.registro||'',
+    _crm:true, _fields:f,
+    kyc:{ verificado:/verific|aprob|complet|ok/i.test(f.kyc_estado||''),
+          documentos_faltantes:(f.documentos_estado && !/complet|ok|ningun/i.test(f.documentos_estado))?[f.documentos_estado]:[] }
+  };
+}
+/* Busca tambien en CAMPOS del CRM (celular, ticket, folio, referencia...), no solo en las claves.
+   crm-core.searchStore solo mira usuario/cedula/correo/nombre; por eso un numero de ticket o un
+   telefono nunca aparecia. No se toca crm-core para no romper sus tests. */
+function crmBuscarAmplio(q){
+  if(typeof crmStore==='undefined' || !crmStore || !crmStore.length) return null;
+  var qq=norm(q); if(!qq) return null;
+  for(var i=0;i<crmStore.length;i++){
+    var c=crmStore[i], f=c.fields||{}, k=c.keys||{};
+    var vals=Object.keys(f).map(function(x){return f[x];}).concat([k.usuario,k.cedula,k.correo]);
+    for(var j=0;j<vals.length;j++){
+      var v=norm(vals[j]); if(!v) continue;
+      if(v===qq || (qq.length>=4 && v.indexOf(qq)>=0)) return c;
+    }
+  }
+  return null;
+}
 function findCliente(q){ if(!q)return null; const s=(''+q).toLowerCase().trim(); const sn=norm(s);
-  return CLIENTES.find(c=>c.usuario.toLowerCase()===s||c.email.toLowerCase()===s||norm(c.cedula)===sn||c.nombre.toLowerCase()===s)
-    || CLIENTES.find(c=>c.usuario.toLowerCase().includes(s)||c.email.toLowerCase().includes(s)||(sn.length>5&&norm(c.cedula).includes(sn))||c.nombre.toLowerCase().includes(s)); }
+  /* 1) CRM REAL primero. Antes esto no existia: el buscador miraba SOLO los clientes de demo de
+        abajo, y por eso no encontraba a ningun cliente de verdad ni ningun numero de ticket. */
+  try{
+    if(typeof crmStore!=='undefined' && crmStore && crmStore.length && typeof CRM!=='undefined'){
+      var ex=CRM.getClient(crmStore, q); if(ex) return crmToCliente(ex);
+      var hits=CRM.searchStore(crmStore, q); if(hits && hits.length) return crmToCliente(hits[0]);
+      var amp=crmBuscarAmplio(q); if(amp) return crmToCliente(amp);
+    }
+  }catch(e){ console.warn('findCliente: fallo la busqueda en el CRM, se usa la base de demo', e); }
+  /* 2) Base de demo (fallback). Se agrego el celular, que existia en los registros y no se buscaba. */
+  return CLIENTES.find(c=>c.usuario.toLowerCase()===s||c.email.toLowerCase()===s||norm(c.cedula)===sn||c.nombre.toLowerCase()===s||(c.celular&&norm(c.celular)===sn))
+    || CLIENTES.find(c=>c.usuario.toLowerCase().includes(s)||c.email.toLowerCase().includes(s)||(sn.length>5&&norm(c.cedula).includes(sn))||c.nombre.toLowerCase().includes(s)||(c.celular&&sn.length>=6&&norm(c.celular).includes(sn))); }
 function detectCliente(text){ const low=(text||'').toLowerCase(); const sn=norm(low);
+  /* Detecta al cliente mencionado dentro de un mensaje. Igual que findCliente: primero el CRM real. */
+  try{
+    if(typeof crmStore!=='undefined' && crmStore && crmStore.length){
+      for(var i=0;i<crmStore.length;i++){
+        var k=crmStore[i].keys||{};
+        var u=(k.usuario||'').toLowerCase(), co=(k.correo||'').toLowerCase(), ce=norm(k.cedula);
+        if((u && u.length>=4 && low.includes(u)) || (co && low.includes(co)) || (ce && ce.length>=6 && sn.includes(ce))) return crmToCliente(crmStore[i]);
+      }
+    }
+  }catch(e){}
   return CLIENTES.find(c=>low.includes(c.usuario.toLowerCase())||low.includes(c.email.toLowerCase())||(c.cedula!=='-'&&sn.includes(norm(c.cedula)))) || null; }
 
 /* ---- sesiones (multi-cliente) ---- */
@@ -3135,9 +3270,9 @@ function emConsolidarCliente(t){
   pendientes.forEach(function(x){ (x.mensajes||[]).forEach(function(m){ if(m.from==='agente')return; var nm=_normMsg(m.text); if(!nm)return; if(vistos[nm]){ repetidos++; return; } vistos[nm]=1; unicos++; }); });
   t._consol={ total:grupo.length, respondidos:respondidos.length, pendientes:pendientes.length, nuevos:nuevos, unicos:unicos, repetidos:repetidos };
 }
-function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'activos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); mAcordeonInit(); var _epg=$('emPegar'); if(_epg)_epg.style.display=(isAdmin()&&emModo==='manual')?'':'none'; /* "Agregar conversacion" solo admin Y solo en modo manual */ var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); try{ if(localStorage.getItem('inbox-listcol')==='1'&&$('emShell'))$('emShell').classList.add('listcol'); }catch(e){}     if(emModo==='auto'){ emAutoCfgLoad(); emAutoPendStart(); if(EMAIL_AUTO.on) emFetchAuto(); if(!emSelChat&&!emSelMail&&EM_APEND&&EM_APEND.length){ var firstP=EM_APEND[0]; if(firstP&&firstP.conv_id&&EMBANDEJA.some(function(x){return x.id===firstP.conv_id;})){ emSelect(firstP.conv_id); } } } emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); emSyncStart(); try{ _emDisp=(localStorage.getItem('inbox-recibiendo')==='1'); }catch(e){} emDispReflect(); emAutoAsignarStart(); }
+function openEmail(){ if(!me){ gateShow(); return; } emLoad(); try{ const sel=JSON.parse(localStorage.getItem('inbox-sel')||'{}'); if(sel.chat&&EMBANDEJA.some(function(x){return x.id===sel.chat;}))emSelChat=sel.chat; if(sel.mail&&EMBANDEJA.some(function(x){return x.id===sel.mail;}))emSelMail=sel.mail; if(sel.focus)emFocus=sel.focus; }catch(e){} try{ emFiltro=localStorage.getItem('inbox-filtro')||'activos'; }catch(e){} try{ emBandeja=localStorage.getItem('inbox-bandeja-sel')||'mensaje'; }catch(e){} emModo=(localStorage.getItem('email-modo')||'manual'); var _ep=$('emPais'); if(_ep) _ep.value=turnoPais(); emReflectModo(); emReflectCanal(); emReflectFiltro(); emReflectBandeja(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); mAcordeonInit(); var _epg=$('emPegar'); if(_epg)_epg.style.display=(puedeSupervisar()&&emModo==='manual')?'':'none'; /* "Agregar conversacion" solo admin Y solo en modo manual */ var _emm=$('emModoRow'); if(_emm)_emm.style.display=isAdmin()?'':'none'; const ci=$('emCliInput'); if(ci)ci.oninput=emCliFiltro; const cs=$('emChatSug'); if(cs)cs.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelChat;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const ms=$('emMailSug'); if(ms)ms.oninput=function(){ const t=EMBANDEJA.find(function(x){return x.id===emSelMail;}); if(t){ t.draft=this.value; t.draftEdited=true; emSave(); emPushDebounced(t); } }; const h=$('emTurnoHint'); if(h) h.textContent='Turno: '+turnoPais()+' / '+turnoVert(); $('emailPanel').classList.add('on'); setView('inbox'); try{ if(localStorage.getItem('inbox-listcol')==='1'&&$('emShell'))$('emShell').classList.add('listcol'); }catch(e){}     if(emModo==='auto'){ emAutoCfgLoad(); emAutoPendStart(); if(EMAIL_AUTO.on) emFetchAuto(); if(!emSelChat&&!emSelMail&&EM_APEND&&EM_APEND.length){ var firstP=EM_APEND[0]; if(firstP&&firstP.conv_id&&EMBANDEJA.some(function(x){return x.id===firstP.conv_id;})){ emSelect(firstP.conv_id); } } } emCloudLoad().then(function(ok){ if(ok){ subInbox(); emRenderList(); emRenderSlot('chat'); emRenderSlot('mail'); emFocusSet(emFocus); } }); emSyncStart(); try{ _emDisp=(localStorage.getItem('inbox-recibiendo')==='1'); }catch(e){} emDispReflect(); emAutoAsignarStart(); }
 function closeEmail(){ emAutoPendStop(); emSyncStop(); emAutoAsignarStop(); $('emailPanel').classList.remove('on'); setView('chat'); }
-function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = (emModo==='manual' && typeof isAdmin==='function' && isAdmin()) ? '' : 'none'; /* Agregar conversacion: solo admin y solo en manual */ if(typeof emAutoBarReflect==='function') emAutoBarReflect(); }
+function emReflectModo(){ const mm=$('emModoManual'), ma=$('emModoAuto'), pg=$('emPegar'); if(mm) mm.classList.toggle('sel', emModo==='manual'); if(ma) ma.classList.toggle('sel', emModo==='auto'); if(pg) pg.style.display = (emModo==='manual' && typeof puedeSupervisar==='function' && puedeSupervisar()) ? '' : 'none'; /* Agregar conversacion: solo admin y solo en manual */ if(typeof emAutoBarReflect==='function') emAutoBarReflect(); }
 function emSetModo(modo){ emModo=modo; try{ localStorage.setItem('email-modo', modo); }catch(e){} emReflectModo(); if(modo==='auto'){ emAutoCfgLoad(); emAutoPendStart(); if(EMAIL_AUTO.on) emFetchAuto(); /* sub-fuente legacy (correos reenviados) solo si esta activada */ } else { emAutoPendStop(); } emRenderList(); }
 /* ===== MODO AUTOMATICO: vista de actividad de la IA + interruptor remoto del bot (inbox_config) ===== */
 let EM_AUTOFAQ=null, EM_AUTOCHAT=null, EM_AUTOCORREO=null, EM_PAUSA=30, EM_VACIADO=0;   // cache: interruptores del bot (master + por canal), pausa de revision (s) y marca de vaciado (ms)
@@ -3192,6 +3327,13 @@ async function emAutoAsignarTick(){
   if((cand.estado||'nuevo')==='nuevo') cand.estado='leido';
   emBotPausaConv(cand); emSave(); emPush(cand);                         // asignado a un humano: el bot se retira de este
   emSelect(cand.id);                                                    // abrelo para que lo conteste
+  // REGENERAR al asignar: emSelect solo sugiere si NO habia iaRaw, asi que si el bot ya habia
+  // dejado un analisis la respuesta se quedaba vieja y no cambiaba nada al asignarse el chat.
+  // Se fuerza IA (sin atajo de FAQ) para que la respuesta salga del analisis del caso.
+  var _slotA=(cand.canal==='mensaje')?'chat':'mail';
+  var _yaRespA=(cand.mensajes||[]).some(function(m){return m.from==='agente' && !m.auto;});
+  if(!cand.draftEdited && !_yaRespA) emPedirSugerencia(_slotA, false, true);
+  emAcuseAsignacion(cand, _slotA);   // el cliente sabe que ya lo tomaron, aunque la respuesta tarde
   toast('Nuevo chat asignado: '+(cand.de||cand.id));
 }
 async function emAutoFaqBtnClick(){ if(!(typeof isAdmin==='function'&&isAdmin())){ toast('Solo el administrador puede pausar o activar el bot'); return; } if(!sb){ toast('Sin conexion con la nube — no se pudo cambiar'); return; } const nuevo=!(EM_AUTOFAQ!==false);
@@ -3351,7 +3493,8 @@ async function emTomar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSel
     // ya se le haya respondido al cliente. Antes bastaba con que existiera un borrador viejo de la
     // IA para NO refrescar, y al tomar veias una respuesta vieja que no incorporaba los requisitos
     // ni lo verificado en el CRM. Tu texto a mano NUNCA se pisa.
-    if(!t.draftEdited && !_yaResp){ emPedirSugerencia(slot); }
+    if(!t.draftEdited && !_yaResp){ emPedirSugerencia(slot, false, true); }   // forzar IA: sin atajo de FAQ, la respuesta sale del analisis del caso
+    emAcuseAsignacion(t, slot);   // avisarle al cliente que su caso ya lo tomo alguien
   }
   emTomarMismoCliente(t); }
 // Complemento: al tomar una conversacion, si el MISMO cliente tiene otra en el OTRO canal,
@@ -3374,7 +3517,7 @@ async function emTomarMismoCliente(t){
   // MISMO criterio que emTomar: se regenera aunque ya exista un borrador VIEJO de la IA, para que
   // la respuesta del otro canal tambien salga con los requisitos y con lo verificado en el CRM.
   // Solo se respeta el texto escrito a mano por el agente (draftEdited) o que ya se haya respondido.
-  if(!otro.draftEdited && !_yaResp){ emPedirSugerencia(oslot); }
+  if(!otro.draftEdited && !_yaResp){ emPedirSugerencia(oslot, false, true); }   // mismo criterio que emTomar
   toast('Mismo cliente: también tomé su '+(oslot==='mail'?'correo':'chat')+(_yaResp?'':' y generé su respuesta')+'.');
 }
 /* El boton Tomar es un TOGGLE: si la conversacion ya es tuya, muestra "Liberar" y la suelta desde ahi. */
@@ -3666,7 +3809,7 @@ async function emDevolverAlBot(slot){ slot=slot||emFocus; const id=(slot==='mail
 // Pausa del bot POR CONVERSACION al intervenir un humano: si el bot estaba reactivado (bot_on=true),
 // tomar o responder manualmente lo apaga para que no choque con el agente.
 function emBotPausaConv(t){ if(!t||t.canal!=='mensaje'||t.bot_on!==true)return; t.bot_on=false; try{ if(sb) sb.from('inbox_conversaciones').update({bot_on:false,updated_at:new Date().toISOString()}).eq('id',t.id).then(function(){}); }catch(e){} }
-function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var est=(t.estado||'nuevo'); var fok=(emFiltro==='todos')?true:(emFiltro==='activos')?(est!=='respondido'):(emFiltro==='sintomar')?!t.tomado_por:(est===emFiltro); var aok=(emModo!=='auto')||((t.mensajes||[]).some(function(m){return m&&m.auto===true;})||(typeof EM_APEND!=='undefined'&&EM_APEND.some(function(p){return p.conv_id===t.id;}))); /* modo auto: hilos con respuesta pendiente o ya respondidos por la IA */ if(emModo==='auto'&&emFiltro==='activos')fok=true; /* la vista Automatico muestra tambien lo respondido por el bot */ var bok=(emFiltro==='todos')?true:(ch===emBandeja); /* "Todos" = TODO de verdad, incluido el otro canal: antes solo abria el filtro por ESTADO y seguia limitando a la bandeja activa, por eso los correos no aparecian */ return bok && fok && aok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); /* preview = ULTIMO mensaje del hilo (no el primero), para que se note cuando llega uno nuevo. Prefijo Tú:/IA: si el ultimo es del agente/bot. */ var _lm=null; for(var _li=(t.mensajes||[]).length-1;_li>=0;_li--){ var _lc=t.mensajes[_li]; if(_lc&&_lc.from!=='espera'){ _lm=_lc; break; } } var body=_lm?((_lm.from==='agente'?((_lm.auto?'IA: ':'Tú: ')):'')+(_lm.text||'')):''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='espera'?'espera':(est==='leido'?'leido':'nuevo'))); var bl=(est==='espera'?'en espera':est); var _ua=null; for(var _i=(t.mensajes||[]).length-1;_i>=0;_i--){ var _mm=t.mensajes[_i]; if(_mm&&_mm.from==='agente'){ _ua=_mm; break; } } var _ia=(_ua&&_ua.auto===true)?'<span class="em-badge ia" title="La última respuesta la envió el bot (auto-FAQ)">IA</span>':''; return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+(est==='espera'?' esp':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags">'+((emFiltro==='todos')?('<span class="em-badge" title="Canal">'+cn+'</span>'):'')+_ia+'<span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+(function(){var _ms=emTiempoResp(t);return _ms!=null?('<div class="em-claimline">respondida en '+fmtMs(_ms)+'</div>'):'';})()+'</div>'; }).join('')||('<div class="em-empty">'+(emModo==='auto'?'Sin actividad automática de la IA en este filtro.':'Sin conversaciones en este filtro.')+'</div>'); }
+function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':(t.canal==='voz'?'voz':'email'));   /* la voz es su propia bandeja: antes caia en 'email' y las llamadas salian rotuladas como CORREO */ var est=(t.estado||'nuevo'); var fok=(emFiltro==='todos')?true:(emFiltro==='activos')?(est!=='respondido'):(emFiltro==='sintomar')?!t.tomado_por:(est===emFiltro); var aok=(emModo!=='auto')||((t.mensajes||[]).some(function(m){return m&&m.auto===true;})||(typeof EM_APEND!=='undefined'&&EM_APEND.some(function(p){return p.conv_id===t.id;}))); /* modo auto: hilos con respuesta pendiente o ya respondidos por la IA */ if(emModo==='auto'&&emFiltro==='activos')fok=true; /* la vista Automatico muestra tambien lo respondido por el bot */ var bok=(emFiltro==='todos')?true:(ch===emBandeja); /* "Todos" = TODO de verdad, incluido el otro canal: antes solo abria el filtro por ESTADO y seguia limitando a la bandeja activa, por eso los correos no aparecian */ return bok && fok && aok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':(t.canal==='voz'?'Llamada':'Correo')); /* preview = ULTIMO mensaje del hilo (no el primero), para que se note cuando llega uno nuevo. Prefijo Tú:/IA: si el ultimo es del agente/bot. */ var _lm=null; for(var _li=(t.mensajes||[]).length-1;_li>=0;_li--){ var _lc=t.mensajes[_li]; if(_lc&&_lc.from!=='espera'){ _lm=_lc; break; } } var body=_lm?((_lm.from==='agente'?((_lm.auto?'IA: ':'Tú: ')):'')+(_lm.text||'')):''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='espera'?'espera':(est==='leido'?'leido':'nuevo'))); var bl=(est==='espera'?'en espera':est); var _ua=null; for(var _i=(t.mensajes||[]).length-1;_i>=0;_i--){ var _mm=t.mensajes[_i]; if(_mm&&_mm.from==='agente'){ _ua=_mm; break; } } var _ia=(_ua&&_ua.auto===true)?'<span class="em-badge ia" title="La última respuesta la envió el bot (auto-FAQ)">IA</span>':''; return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+(est==='espera'?' esp':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags">'+((emFiltro==='todos')?('<span class="em-badge" title="Canal">'+cn+'</span>'):'')+_ia+'<span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+(function(){var _ms=emTiempoResp(t);return _ms!=null?('<div class="em-claimline">respondida en '+fmtMs(_ms)+'</div>'):'';})()+'</div>'; }).join('')||('<div class="em-empty">'+(emModo==='auto'?'Sin actividad automática de la IA en este filtro.':'Sin conversaciones en este filtro.')+'</div>'); }
 // Ficha FIJA de datos del cliente en el inbox (contador de mensajes/correos + KYC + saldo + más detalles).
 function emClienteInfoHTML(t, slot){
   if(!t) return '';
@@ -3682,7 +3825,7 @@ function emClienteInfoHTML(t, slot){
   // CONTADOR FIJO (no toast): cuantos mensajes/correos envio el cliente, incluidos repetidos
   if(esChat){ var _vis={}, _uniq=0, _rep=0; msgsCli.forEach(function(m){ var nm=(typeof _normMsg==='function')?_normMsg(m.text):(m.text||''); if(!nm)return; if(_vis[nm]){_rep++;}else{_vis[nm]=1;_uniq++;} }); rows.push(cnt(nMsg)+' mensaje'+(nMsg!==1?'s':'')+' del cliente'+(_rep?(' · '+_uniq+' distinto'+(_uniq!==1?'s':'')+' · '+_rep+' repetido'+(_rep!==1?'s':'')):'')); }
   else { const c=t._consol||{}; const tot=c.total||1; var seg=[cnt(tot)+' correo'+(tot!==1?'s':'')+' de este cliente']; if(c.pendientes!=null){ seg.push(c.pendientes+' pendiente'+(c.pendientes!==1?'s':'')+(c.nuevos?(' ('+c.nuevos+' nuevo'+(c.nuevos!==1?'s':'')+')'):'')); } if(c.respondidos){ seg.push(c.respondidos+' respondido'+(c.respondidos!==1?'s':'')); } if(c.repetidos){ seg.push(c.repetidos+' repetido'+(c.repetidos!==1?'s':'')+' (spam)'); } rows.push(seg.join(' · ')); }
-  rows.push((esChat?'Chat':'Correo')+' · '+pais+' · '+escapeHtml(est)+(emClaimTxt(t)?(' · '+escapeHtml(emClaimTxt(t))):''));
+  rows.push((t.canal==='voz'?'Llamada · asistir al bot':(esChat?'Chat':'Correo'))+' · '+pais+' · '+escapeHtml(est)+(emClaimTxt(t)?(' · '+escapeHtml(emClaimTxt(t))):''));
   if(cc){ rows.push('Saldo '+fmtMon(cc.saldo,cc.pais)+' · KYC '+((cc.kyc&&cc.kyc.verificado)?'verificado':'<b style="color:var(--bad,#e66)">pendiente</b>')+(cc.nivel==='VIP'?' · VIP':'')+(cc.autoexcluido?' · <b style="color:var(--bad,#e66)">autoexcluido</b>':'')+((cc.tickets_previos&&cc.tickets_previos.length)?(' · '+cc.tickets_previos.length+' tickets'):'')); }
   const quitar = cc ? '<span title="Quitar cliente" style="position:absolute;top:3px;right:6px;cursor:pointer;opacity:.55;font-size:13px" onclick="event.stopPropagation();emDetachCliente(\''+slot+'\')">×</span>' : '';
   return '<div style="position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:3px 12px;font-size:11px;line-height:1.45;background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.18);border-radius:8px;padding:6px 26px 6px 10px;margin:2px 0">'+quitar+rows.map(function(r,i){return '<div style="'+(i>0?'padding-left:12px;border-left:1px solid rgba(127,127,127,.22)':'')+'">'+r+'</div>';}).join('')+'</div>';
@@ -3824,7 +3967,10 @@ function emAutoPendInject(t){
   if(p.faq) t._apFaq=true;
   emSave();
 }
-function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const wasNuevo=((t.estado||'nuevo')==='nuevo'); emAutoPais(t); if(t.canal!=='mensaje') emConsolidarCliente(t); if(wasNuevo){ t.estado='leido'; emSave(); emPush(t); } const slot=(t.canal==='mensaje')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emAutoPendInject(t); emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } if(t.ticketImg && !t._tkAnalizado && typeof emAnalizarTicket==='function'){ t._tkAnalizado=true; emAnalizarTicket(slot); } }
+function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const wasNuevo=((t.estado||'nuevo')==='nuevo'); emAutoPais(t); if(t.canal!=='mensaje') emConsolidarCliente(t); if(wasNuevo){ t.estado='leido'; emSave(); emPush(t); } /* La LLAMADA se abre en el panel de CHAT, no en el de correo: asistir al bot en vivo se parece
+   mucho mas a conversar que a redactar un correo, y el panel de correo es demasiado limitado
+   para el ida y vuelta rapido que necesita una llamada en curso. */
+const slot=(t.canal==='mensaje'||t.canal==='voz')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emAutoPendInject(t); emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } if(t.ticketImg && !t._tkAnalizado && typeof emAnalizarTicket==='function'){ t._tkAnalizado=true; emAnalizarTicket(slot); } }
 function emAddManual(){
   const de=($('emDe')&&$('emDe').value||'').trim();
   const asunto=($('emAsunto')&&$('emAsunto').value||'').trim();
@@ -3891,7 +4037,7 @@ async function emEnriquecerFaq(t, slot, pregunta, respFaq){
     emSave(); emPush(t); emRenderSlot(slot);
   }catch(e){ console.warn('emEnriquecerFaq error:', e); }
 }
-async function emPedirSugerencia(slot, _retrySesion){
+async function emPedirSugerencia(slot, _retrySesion, _forzarIA){
   slot=slot||emFocus; const isMail=(slot==='mail');
   const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;});
   const gen=$(isMail?'emMailGen':'emChatGen'); if(!t)return;
@@ -3899,6 +4045,12 @@ async function emPedirSugerencia(slot, _retrySesion){
   var _lastCli=''; for(var _k=(t.mensajes||[]).length-1;_k>=0;_k--){ if(t.mensajes[_k].from==='cliente'){ _lastCli=t.mensajes[_k].text||''; break; } }
   var _faq=(typeof matchFaq==='function')?matchFaq(_lastCli, (typeof emThreadPais==='function'?emThreadPais(t):'')):null;
   if(_faq && typeof faqConfident==='function' && !faqConfident(_faq,_lastCli)) _faq=null; // no dejar que una FAQ suelta secuestre un correo largo
+  // RE-SUGERIR = el agente pide una respuesta PENSADA para ESTE caso. El atajo de FAQ de abajo
+  // devuelve texto enlatado y deja el analisis (interno + Verificar en el CRM) para un segundo
+  // llamado (emEnriquecerFaq) que ya NO vuelve a tocar la respuesta al cliente. Ese es el motivo
+  // de que al re-sugerir cambiara solo el "Para ti" y la respuesta quedara igual e incoherente.
+  // Con _forzarIA se salta el atajo y se genera TODO junto, coherente entre si.
+  if(_forzarIA) _faq=null;
   if(_faq){ var _pais=emThreadPais(t); t.iaRaw='Para ti (interno): Respuesta tomada de una correccion guardada (FAQ), sin IA.\nRespuesta sugerida al cliente: '+_faq.respuesta;
     // FORMATO DE CALIDAD: la FAQ cruda se entrega como mensaje terminado (saludo/firma segun canal y continuidad).
     var _cuerpoFaq=extraerSugerida(t.iaRaw); var _lk=emEnlaces(_lastCli,_pais);
@@ -4018,6 +4170,11 @@ async function emPedirSugerencia(slot, _retrySesion){
     var _lk=(vert==='retail')?[]:emEnlaces((t.mensajes||[]).map(function(m){return m.text;}).join(' '), pais);   // sin enlaces de autoservicio para personal de sala
     if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n' + _lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); }
     emSave(); emPush(t);
+    // El render normal NO pisa el cuadro si el cursor esta dentro (guard document.activeElement,
+    // para no arrancarte el texto mientras escribis). Pero esto es una regeneracion PEDIDA: la
+    // respuesta nueva tiene que entrar si o si. Sin esto solo se actualizaba el panel Interno
+    // (que no tiene ese guard) y parecia que la respuesta al cliente nunca cambiaba.
+    var _sugEl=$(isMail?'emMailSug':'emChatSug'); if(_sugEl) _sugEl.value=t.draft;
     emRenderSlot(slot);
   }catch(e){ toast('No se pudo generar la sugerencia'+((e&&e.message)?(' — '+e.message):'')+'. Reintenta con el botón de re-sugerir.'); }
   finally{ if(gen)gen.textContent=''; const ab2=$('emAddBtn'); if(ab2)ab2.disabled=false; }
@@ -4078,7 +4235,9 @@ async function emAnalizarTicket(slot){
   }catch(e){ toast('No se pudo analizar el ticket'); }
   finally{ if(gen)gen.textContent=''; }
 }
-function emResugerir(){ const t=emActiveThread(); if(!t){ toast('Selecciona una conversacion'); return; } t.draftEdited=false; emPedirSugerencia(emFocus); }
+/* Re-sugerir NO requiere tomar la conversacion: el agente puede tantear que responder sin
+   asignarsela y sin interferir con el flujo del bot (esto solo escribe el borrador local). */
+function emResugerir(){ const t=emActiveThread(); if(!t){ toast('Selecciona una conversacion'); return; } t.draftEdited=false; emPedirSugerencia(emFocus, false, true); }
 // Re-sugiere la respuesta en AMBOS paneles a la vez: el chat y el correo, segun cuales tengan
 // una conversacion abierta. Las genera en secuencia (coherentes entre canales via dirCoher).
 /* ENVIAR AMBOS: responde el chat y el correo abiertos en una sola accion.
@@ -4101,8 +4260,8 @@ async function emResugerirAmbos(){
   const c=EMBANDEJA.find(function(x){return x.id===emSelChat;});
   const m=EMBANDEJA.find(function(x){return x.id===emSelMail;});
   if(!c && !m){ toast('Abre una conversacion en el chat y/o el correo primero'); return; }
-  if(c){ c.draftEdited=false; await emPedirSugerencia('chat'); }
-  if(m){ m.draftEdited=false; await emPedirSugerencia('mail'); }
+  if(c){ c.draftEdited=false; await emPedirSugerencia('chat', false, true); }
+  if(m){ m.draftEdited=false; await emPedirSugerencia('mail', false, true); }
   toast((c&&m)?'Re-sugerí el chat y el correo':('Re-sugerí '+(c?'el chat':'el correo')));
 }
 // Resume la conversacion del chat del cliente y arma el CUERPO del correo (menciona lo importante del chat).
@@ -4189,6 +4348,72 @@ async function emRevisarCalidad(t, txt){
   }catch(e){ return null; }
 }
 function emCalidadHTML(t){ if(!t||!t.calidad)return ''; const c=t.calidad; const col=c.grave?'#e0564b':((c.score||0)>=4?'#2a9d5c':'var(--accent)'); return '<div style="margin-top:8px;padding:6px 8px;border-left:3px solid '+col+';background:rgba(127,127,127,.06);font-size:12px;border-radius:4px"><b>Revisor de calidad:</b> '+((c.score!=null)?(c.score+'/5'):'')+(c.grave?' · <b style="color:'+col+'">revisar antes de enviar</b>':' · sin problemas graves')+((c.problemas&&c.problemas.length)?('<br>'+c.problemas.map(function(p){return '· '+escapeHtml(p);}).join('<br>')):'')+'</div>'; }
+/* ===== PEDIR TIEMPO: que el cliente no se sienta olvidado =====
+   Mensaje corto y FIJO (plantilla, no lo redacta la IA) avisando que seguimos revisando.
+   Se habilita recien tras EM_ESPERA_MS de espera REAL del cliente, para no mandarlo cuando la
+   conversacion acaba de empezar. No cambia el estado ni cierra el caso: solo avisa.
+   No pasa por el revisor de calidad a proposito: es texto fijo, sin ningun dato de la cuenta,
+   asi que no hay nada que se pueda filtrar. */
+const EM_ESPERA_MS = 2*60*1000;
+function emEsperaMs(t){
+  if(!t) return 0;
+  var lastCli=0, lastAg=0;
+  (t.mensajes||[]).forEach(function(m){ if(!m)return; var v=(typeof m.t==='string')?Date.parse(m.t):m.t; if(!v)return;
+    if(m.from==='cliente'&&v>lastCli)lastCli=v; if(m.from==='agente'&&v>lastAg)lastAg=v; });
+  if(!lastCli || lastAg>lastCli) return 0;   // ya se le respondio despues de su ultimo mensaje
+  return Math.max(0, Date.now()-lastCli);
+}
+function emTextoEspera(t){
+  if(t && t.canal==='mensaje') return 'Seguimos revisando su caso. Gracias por su paciencia, le confirmamos en breve por este mismo chat.';
+  return 'Estimado/a,\n\nSeguimos revisando su caso. Le confirmamos por este mismo medio en cuanto tengamos la respuesta.\n\nGracias por su paciencia.\n\nAtentamente,\nEquipo de Soporte';
+}
+async function emPedirTiempo(slot){
+  slot=slot||emFocus; const isMail=(slot==='mail');
+  const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;});
+  if(!t){ toast('Selecciona una conversacion'); return; }
+  const esp=emEsperaMs(t);
+  if(esp < EM_ESPERA_MS){ toast('Aun no: se habilita a los '+Math.round(EM_ESPERA_MS/60000)+' min de espera (lleva '+fmtMs(esp)+')'); return; }
+  if(t._espAviso && (Date.now()-t._espAviso) < 10*60000){ toast('Ya se le pidio tiempo hace '+fmtMs(Date.now()-t._espAviso)); return; }
+  const txt=emTextoEspera(t);
+  t.mensajes.push({from:'agente',text:txt,t:Date.now(),espera:true,por:'Pedir tiempo'});
+  t._espAviso=Date.now();
+  emSave(); emPush(t); emRenderSlot(slot); emRenderList();
+  const out=(''+t.id).indexOf('wa-')===0?{url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'}:(''+t.id).indexOf('tg-')===0?{url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'}:(t.canal!=='mensaje'?{url:CORREO_OUT_WEBHOOK,nom:'correo'}:null);
+  if(!out){ toast('Aviso agregado al hilo (esta conversacion no tiene canal de salida)'); return; }
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(out.url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({id:t.id,texto:txt})});
+    let j=null; try{ j=await r.json(); }catch(_){}
+    toast((j&&j.ok)?('Le pedimos tiempo al cliente por '+out.nom):(out.nom+': no se pudo enviar'+((j&&j.error)?(' ('+j.error+')'):'')));
+  }catch(e){ toast(out.nom+': no se pudo enviar'); }
+}
+/* ===== ACUSE AL ASIGNARSE: el cliente sabe que alguien ya tomo su caso =====
+   Se dispara solo cuando un agente se asigna la conversacion (manual o automatica). Texto FIJO,
+   sin datos de cuenta, por eso no pasa por el revisor de calidad.
+   Guards: solo si NADIE le respondio todavia y solo UNA vez por conversacion, para no encimarse
+   con la respuesta real ni repetirse si la conversacion cambia de manos. */
+function emTextoAcuse(t){
+  var vert=(typeof emThreadVert==='function')?emThreadVert(t):'online';
+  if(vert==='retail') return 'Recibido. Ya estoy revisando el caso; en un momento te confirmo o te pido algun dato mas si hace falta.';
+  if(t && t.canal==='mensaje') return 'Su caso ya está siendo revisado por un agente. En breve le respondemos por este mismo chat.';
+  return 'Estimado/a,\n\nConfirmamos la recepción de su mensaje. Su caso ya está siendo revisado por un agente y le responderemos por este mismo medio; si necesitamos algún dato adicional se lo solicitaremos.\n\nAtentamente,\nEquipo de Soporte';
+}
+async function emAcuseAsignacion(t, slot){
+  if(!t || t._acuse) return;                                             // ya se le aviso
+  if((t.mensajes||[]).some(function(m){ return m && m.from==='agente'; })) return;   // ya hubo respuesta: no hace falta acuse
+  const out=(''+t.id).indexOf('wa-')===0?{url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'}:(''+t.id).indexOf('tg-')===0?{url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'}:(t.canal!=='mensaje'?{url:CORREO_OUT_WEBHOOK,nom:'correo'}:null);
+  if(!out) return;                                                       // sin canal de salida: no se inventa nada
+  const txt=emTextoAcuse(t);
+  t._acuse=Date.now();
+  t.mensajes.push({from:'agente',text:txt,t:Date.now(),acuse:true,por:'Acuse de asignación'});
+  emSave(); emPush(t); emRenderSlot(slot);
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(out.url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({id:t.id,texto:txt})});
+    let j=null; try{ j=await r.json(); }catch(_){}
+    if(!(j&&j.ok)) toast(out.nom+': no se pudo enviar el acuse'+((j&&j.error)?(' ('+j.error+')'):''));
+  }catch(e){ toast(out.nom+': no se pudo enviar el acuse'); }
+}
 async function emResponder(slot){
   slot=slot||emFocus; const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); const sug=$(isMail?'emMailSug':'emChatSug'); if(!t||!sug){ toast('Selecciona una conversacion'); return; }
   const txt=(sug.value||'').trim(); if(!txt){ toast('Escribe o genera una respuesta primero'); return; }
@@ -4219,6 +4444,19 @@ async function emResponder(slot){
   // Conversacion de canal REAL (WhatsApp 'wa-<tel>' / Telegram 'tg-<chat>' / correo): la respuesta sale al cliente.
   // El correo se envia por Gmail desde n8n (correo-out); el destinatario lo resuelve el workflow leyendo
   // la conversacion en la base, por eso aqui solo viaja el id y el texto.
+  /* LLAMADA: lo que escribe el agente NO se le manda al cliente (esta hablando con el bot por
+     telefono). Se le pasa al BOT como indicacion, que la usa con prioridad en su proxima frase.
+     Es el mismo mecanismo que las casillas del CRM: el humano aporta el dato, el bot lo dice. */
+  if(t.canal==='voz'){
+    try{
+      const {error:_ev}=await sb.from('inbox_conversaciones').update({ayuda_texto:txt, ayuda_pedida:false, updated_at:new Date().toISOString()}).eq('id',t.id);
+      if(_ev) throw _ev;
+      toast('Enviado al bot: lo dirá en su próxima respuesta al cliente');
+    }catch(e){ toast('No se pudo pasarle la indicación al bot'); }
+    if(slot==='mail')emSelMail=null; else emSelChat=null; emSaveSel();
+    emRenderList(); emRenderSlot(slot); emRenderInterno();
+    return;
+  }
   const _outCanal=(''+t.id).indexOf('wa-')===0?{url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'}:(''+t.id).indexOf('tg-')===0?{url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'}:(t.canal!=='mensaje'?{url:CORREO_OUT_WEBHOOK,nom:'correo'}:null);
   if(_outCanal){ try{ const {data:{session}}=await sb.auth.getSession(); fetch(_outCanal.url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({id:t.id,texto:txt})}).then(function(r){return r.json();}).then(function(j){ if(!(j&&j.ok)) toast(_outCanal.nom+': no se envio al cliente ('+((j&&j.error)||'error')+')'); else toast('Enviado al '+_outCanal.nom+' del cliente'); }).catch(function(){ toast(_outCanal.nom+': no se pudo enviar'); }); }catch(e){} }
   if(slot==='mail')emSelMail=null; else emSelChat=null; emSaveSel();   // al responder se quita del panel; queda en la bandeja por si lo buscas
@@ -4474,6 +4712,16 @@ document.addEventListener('keydown',e=>{
     const idx=parseInt(e.key,10)-1;
     if(sessions[idx]){ e.preventDefault(); switchTo(sessions[idx].id); $('input').focus(); }
   }
+});
+/* Ctrl+K / Cmd+K: envia la respuesta del panel ACTIVO del inbox.
+   Llama a emResponder, que es el MISMO camino del boton: pasa SIEMPRE por el revisor de calidad.
+   Es deliberado que no exista un atajo que lo saltee: el revisor es lo que evita filtrar datos
+   de la cuenta, sobre todo cuando quien escribe es un TERCERO y no el titular. */
+document.addEventListener('keydown',e=>{
+  if(!(e.ctrlKey||e.metaKey) || (e.key!=='k' && e.key!=='K')) return;
+  const pnl=$('emailPanel'); if(!pnl || !pnl.classList.contains('on')) return;   // solo con el inbox abierto
+  e.preventDefault();
+  if(typeof emResponder==='function') emResponder(emFocus);
 });
 /* ESC cierra el panel/overlay abierto (modal tiene su propio ESC) */
 document.addEventListener('keydown',e=>{

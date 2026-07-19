@@ -3947,6 +3947,16 @@ function emRenderThread(slot){
   if(sug && !t.draftEdited && document.activeElement!==sug){
     sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):'');
   }
+  /* LLAMADA: mismo lugar, otra gestion. Se deja claro en la propia caja que lo que se escribe va
+     al BOT y no al cliente, para que nadie mande al aire una respuesta pensando que la lee alguien. */
+  if(sug){
+    if(t.canal==='voz'){
+      sug.placeholder='Escribile al BOT lo que necesita saber. NO se le manda al cliente: el bot lo dirá en la llamada.';
+      sug.setAttribute('data-voz','1');
+    } else if(sug.getAttribute('data-voz')){
+      sug.placeholder=''; sug.removeAttribute('data-voz');
+    }
+  }
   emRenderInterno(); emRenderClaim(slot);
 }
 /* ---- Checklist de verificacion CRM: guia INTERNA de calidad. Convierte la seccion "Verificar en el
@@ -4030,12 +4040,12 @@ function emAutoPendInject(t){
   if(p.faq) t._apFaq=true;
   emSave();
 }
-function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const wasNuevo=((t.estado||'nuevo')==='nuevo'); emAutoPais(t); if(t.canal!=='mensaje') emConsolidarCliente(t); if(wasNuevo){ t.estado='leido'; emSave(); emPush(t); } /* La LLAMADA tiene PANEL PROPIO. Los datos si se cruzan entre canales (mismo cliente, misma KB,
-   mismo historial) porque eso mejora las respuestas; pero la GESTION no: en una llamada el agente
-   no le escribe al cliente, le dicta al bot. Mezclarla con los chats haria que los mismos botones
-   signifiquen cosas distintas segun la fila seleccionada. */
-if(t.canal==='voz'){ emAbrirLlamada(id); return; }
-const slot=(t.canal==='mensaje')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emAutoPendInject(t); emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } if(t.ticketImg && !t._tkAnalizado && typeof emAnalizarTicket==='function'){ t._tkAnalizado=true; emAnalizarTicket(slot); } }
+function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const wasNuevo=((t.estado||'nuevo')==='nuevo'); emAutoPais(t); if(t.canal!=='mensaje') emConsolidarCliente(t); if(wasNuevo){ t.estado='leido'; emSave(); emPush(t); } /* La LLAMADA se atiende DENTRO del inbox, en el slot de conversacion: la transcripcion en vivo se
+   ve al costado como si fueran mensajes. Lo que cambia no es el lugar sino la GESTION: el texto que
+   escribe el agente NO va al cliente, se le dicta al BOT, que es quien habla por telefono.
+   (Antes esto abria un overlay y hacia return antes de refrescar la lista: la interfaz quedaba con
+   la conversacion anterior y el overlay tapaba todo, que es el "se congela" que reporto Alan.) */
+const slot=(t.canal==='mensaje'||t.canal==='voz')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emAutoPendInject(t); emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } if(t.ticketImg && !t._tkAnalizado && typeof emAnalizarTicket==='function'){ t._tkAnalizado=true; emAnalizarTicket(slot); } }
 function emAddManual(){
   const de=($('emDe')&&$('emDe').value||'').trim();
   const asunto=($('emAsunto')&&$('emAsunto').value||'').trim();

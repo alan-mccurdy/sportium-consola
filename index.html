@@ -1357,7 +1357,7 @@ body{background:transparent}
         <div class="em-quad em-lr">
           <div class="em-leftcol">
             <div class="em-q em-conv"><div class="em-coltitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emChatTicketImg"></span></div></div>
-            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" id="emChatTomarBtn" onclick="event.stopPropagation();emTomarToggle('chat')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn ghost" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('chat')">En espera</button><button class="btn ghost" title="Envía la encuesta de satisfacción (CSAT) al cliente, cierra la conversación y abre el siguiente chat en espera" onclick="event.stopPropagation();emCerrarConCsat('chat')">Cerrar y enviar CSAT</button><button class="btn" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
+            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" id="emChatTomarBtn" onclick="event.stopPropagation();emTomarToggle('chat')">Tomar</button><button class="btn ghost" id="emChatCopiar" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn ghost" id="emChatEspera" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('chat')">En espera</button><button class="btn ghost" id="emChatCsat" title="Envía la encuesta de satisfacción (CSAT) al cliente, cierra la conversación y abre el siguiente chat en espera" onclick="event.stopPropagation();emCerrarConCsat('chat')">Cerrar y enviar CSAT</button><button class="btn" id="emChatResp" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
           </div>
           <div class="em-q em-ana" id="emChatAna"><div class="em-coltitle">Interno (chat y correo)</div><div class="em-analisis" id="emChatAnalisis"></div></div>
         </div>
@@ -2015,7 +2015,7 @@ async function casoSugerir(){
     const dir='Un cliente pidió hablar con un supervisor porque la atención automática no resolvió su consulta ('+escMotivoTxt(r.escalado_motivo)+'). Redacta la respuesta FINAL del SUPERVISOR humano para el cliente: breve, conversacional, de "usted", que reconozca la espera, responda su consulta con la información disponible y confirme el siguiente paso. Devuelve la sección "Respuesta sugerida al cliente:" con ese mensaje. PAIS: usa únicamente información de '+pais+'; si no tienes el dato, dilo y no lo inventes.';
     const mensajes=[{role:'system',content:dir}].concat((Array.isArray(r.mensajes)?r.mensajes:[]).filter(function(m){ return m&&m.from!=='espera'; }).map(function(m){ return {role:(m.from==='cliente'?'user':'assistant'),content:m.text||''}; }));
     const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
-      body:JSON.stringify({mensajes:mensajes,canal:canal,audiencia:'cliente',formato:(canal==='email'?'correo':'mensaje'),instruccion:dir,cliente:(r.cliente||null),pais:pais,turno:{pais:pais,vertical:'online'},tenant:CONFIG.tenant,empresa:{nombre:CONFIG.cliente},contexto:ctxCache,glosario:GLOS})});
+      body:JSON.stringify({mensajes:mensajes,canal:canal,audiencia:'cliente',formato:(canal==='email'?'correo':(canal==='llamada'?'llamada':'mensaje')),instruccion:dir,cliente:(r.cliente||null),pais:pais,turno:{pais:pais,vertical:'online'},tenant:CONFIG.tenant,empresa:{nombre:CONFIG.cliente},contexto:ctxCache,glosario:GLOS})});
     if(!res.ok) throw new Error('Servidor '+res.status);
     let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ j={}; }
     const txt=(j.respuesta||'').trim();
@@ -3843,7 +3843,7 @@ function emRenderClaimTop(){
   const slot=emFocus||'chat'; const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat;
   const t=EMBANDEJA.find(function(x){return x.id===id;});
   if(!t){ top.style.display='none'; top.innerHTML=''; return; }
-  const canal=isMail?'Correo':'Mensaje'; const txt=emClaimTxt(t); const otro=emTomadaPorOtro(t);
+  const canal=(t&&t.canal==='voz')?'Llamada':(isMail?'Correo':'Mensaje'); const txt=emClaimTxt(t); const otro=emTomadaPorOtro(t);
   top.style.display='';
   // "Devolver al bot": solo en chats donde el bot quedo pausado para ESA conversacion (tomada o con
   // respuesta humana en las ultimas 12h — el mismo guard del bot). Reactiva el flujo bot<->cliente
@@ -3879,7 +3879,7 @@ function emClienteInfoHTML(t, slot){
   const cc=t.cliente;
   const msgsCli=(t.mensajes||[]).filter(function(m){return m.from!=='agente';});
   const nMsg=msgsCli.length;
-  const esChat=(t.canal==='mensaje');
+  const esChat=(t.canal==='mensaje'||t.canal==='voz');   /* la llamada se cuenta como conversacion, no como correo */
   const pais=emThreadPais(t);
   const est=t.estado||'nuevo';
   const cnt=function(n){ return '<b style="color:var(--accent);font-size:12px">'+n+'</b>'; };
@@ -3957,6 +3957,26 @@ function emRenderThread(slot){
       sug.placeholder=''; sug.removeAttribute('data-voz');
     }
   }
+  if(slot==='chat') emBotonesPorCanal(t);
+  emRenderInterno(); emRenderClaim(slot);
+}
+/* Los botones del panel cambian solos segun el canal de la conversacion abierta, sin perder sus
+   funciones cuando vuelve a ser un chat normal. En una LLAMADA no aplican: copiar la respuesta
+   (la dice el bot, no se pega en ningun lado), "En espera" (la persona esta en la linea ahora) ni
+   el CSAT (se manda por link, y no hay donde clickear en una llamada). */
+function emBotonesPorCanal(t){
+  const esVoz=!!(t && t.canal==='voz');
+  const mostrar=function(id,ver){ const el=$(id); if(el) el.style.display=ver?'':'none'; };
+  mostrar('emChatCopiar', !esVoz);
+  mostrar('emChatEspera', !esVoz);
+  mostrar('emChatCsat',  !esVoz);
+  const r=$('emChatResp');
+  if(r){
+    r.textContent = esVoz ? 'Enviar al bot' : 'Marcar respondido';
+    r.title = esVoz ? 'Le pasa tu texto al bot: lo dirá en la llamada. NO se le manda al cliente.' : '';
+  }
+  const tb=$('emChatTomarBtn');
+  if(tb && esVoz) tb.title='Tomar la llamada para asistir al bot';
   emRenderInterno(); emRenderClaim(slot);
 }
 /* ---- Checklist de verificacion CRM: guia INTERNA de calidad. Convierte la seccion "Verificar en el
@@ -4142,7 +4162,9 @@ async function emPedirSugerencia(slot, _retrySesion, _forzarIA){
   if(emThreadVert(t)!=='retail' && (t.ticketImg || _disputa)){ return emAnalizarTicket(slot); }
   if(gen)gen.textContent='generando...'; const ab=$('emAddBtn'); if(ab)ab.disabled=true;
   try{
-    const canal=(t.canal==='mensaje'?'mensaje':'email');
+    /* La LLAMADA es su propio canal. Antes caia en 'email' y por eso la sugerencia salia con
+       formato de correo ("Atentamente, Equipo de Soporte"), que por telefono no tiene sentido. */
+    const canal=(t.canal==='mensaje'?'mensaje':(t.canal==='voz'?'llamada':'email'));
     const pais=emThreadPais(t);
     const vert=emThreadVert(t);   // 'online'=cliente externo · 'retail'=personal interno de sala
     if(!t.cliente){ const _ct=(t.mensajes||[]).map(function(m){return m.text;}).join(' '); t.cliente = detectCliente(_ct) || findCliente(t.de) || null; emRenderSlot(slot); if(t.cliente) emTryLink(t); }
@@ -4175,7 +4197,9 @@ async function emPedirSugerencia(slot, _retrySesion, _forzarIA){
       '"Respuesta sugerida al cliente:" el mensaje FINAL listo para ENVIAR al cliente, de "usted", SIN ningun dato interno ni instrucciones para el agente.',
       'COHERENCIA OBLIGATORIA: la "Respuesta sugerida al cliente" debe decir al cliente la MISMA conclusion de tu "Para ti (interno)" (traducida a lenguaje sencillo, sin datos internos). Responde EXACTAMENTE lo que el cliente pregunto en su mensaje; NO cambies de tema, NO contradigas tu diagnostico, NO des una respuesta generica. Si el interno concluye que falta un requisito, que se escala, o cual es la causa, la respuesta al cliente debe reflejar ESO mismo.',
       'REQUISITOS AL CLIENTE (regla clave): los puntos que pusiste en "Verificar en el CRM" son las CONDICIONES que deciden el caso. La "Respuesta sugerida al cliente" DEBE decirle al cliente, en lenguaje simple y SIN nombres de campos ni datos internos, cuales son esos requisitos y que se necesita de su parte, AUNQUE el agente todavia no los haya verificado. Escribelos como condiciones concretas y verificables por el propio cliente (ej.: "para que el bono se acredite se necesita: deposito minimo de X, apostar Y veces el monto y hacerlo dentro de los primeros Z dias"), NUNCA como preguntas al agente ni como un vago "estamos revisando su caso". OBJETIVO: que el cliente sepa exactamente que le falta y que la respuesta se pueda ENVIAR TAL CUAL, sin esperar la verificacion, porque en la mayoria de los casos ya se ve que no cumplio alguno. Si un requisito aparece entre los DATOS YA VERIFICADOS, no lo plantees como pendiente: afirma su estado real.',
-      (canal==='email'
+      (canal==='llamada'
+        ? ('Esto es una LLAMADA TELEFONICA en curso y quien habla es el BOT DE VOZ. Lo que escribas en "Respuesta sugerida al cliente" es lo que el bot va a DECIR en voz alta, asi que: maximo 2 o 3 frases; prohibido listas, vinetas, numeracion, asteriscos y direcciones web porque no se pueden leer; montos y plazos en palabras naturales ("tres mil quinientos pesos", "siete dias"); sin saludo de correo y SIN firma ni "Atentamente". Tono hablado y cercano, de usted. En "Para ti (interno)" escribi lo que el AGENTE tiene que confirmar en el CRM para que el bot pueda seguir la llamada.')
+        : canal==='email'
         ? (yaHablamos
           ? ('Esa respuesta al cliente es un CORREO de SEGUIMIENTO de una conversacion ya iniciada: NO vuelvas a saludar con "Estimado/a" ni te presentes; entra directo al tema retomando el hilo, y cierra con "Atentamente," y en la linea siguiente "Equipo de Soporte de '+emp+'".')
           : ('Esa respuesta al cliente es un CORREO. '+(nombreCli
@@ -4227,7 +4251,7 @@ async function emPedirSugerencia(slot, _retrySesion, _forzarIA){
     const {data:{session}}=await sb.auth.getSession();
     if(!session){ toast('Tu sesión expiró: vuelve a iniciar sesión para generar respuestas.'); emRenderSlot(slot); return; }
     const res=await fetchWithRetry(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
-      body:JSON.stringify({mensajes:mensajes, canal:canal, audiencia:(vert==='retail'?'interno':'cliente'), formato:(canal==='email'?'correo':'mensaje'), instruccion:dirFinal, cliente:(vert==='retail'?null:(cliente||null)), pais:pais, turno:{pais:pais,vertical:vert}, escalar:(vert==='retail'&&!!t.escalar), tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
+      body:JSON.stringify({mensajes:mensajes, canal:canal, audiencia:(vert==='retail'?'interno':'cliente'), formato:(canal==='email'?'correo':(canal==='llamada'?'llamada':'mensaje')), instruccion:dirFinal, cliente:(vert==='retail'?null:(cliente||null)), pais:pais, turno:{pais:pais,vertical:vert}, escalar:(vert==='retail'&&!!t.escalar), tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
     if(!res) throw new Error('No se pudo contactar al servidor (timeout o red caida)');
     if(!res.ok) throw new Error('Servidor '+res.status);
     let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ j={}; }

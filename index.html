@@ -1356,7 +1356,7 @@ body{background:transparent}
         <div class="em-quad em-lr">
           <div class="em-leftcol">
             <div class="em-q em-conv"><div class="em-coltitle" id="emChatColTitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emChatTicketImg"></span></div></div>
-            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" id="emChatTomarBtn" onclick="event.stopPropagation();emTomarToggle('chat')">Tomar</button><button class="btn ghost" id="emChatCopiar" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn ghost" id="emChatEspera" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('chat')">En espera</button><button class="btn ghost" id="emChatCsat" title="Envía la encuesta de satisfacción (CSAT) al cliente, cierra la conversación y abre el siguiente chat en espera" onclick="event.stopPropagation();emCerrarConCsat('chat')">Cerrar y enviar CSAT</button><button class="btn" id="emChatResp" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
+            <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" id="emChatTomarBtn" onclick="event.stopPropagation();emTomarToggle('chat')">Tomar</button><button class="btn ghost" id="emChatCopiar" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn ghost" id="emChatEspera" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('chat')">En espera</button><button class="btn ghost" id="emChatColgar" title="Termina la llamada: el bot se despide y la conversacion se cierra" style="display:none;border-color:var(--bad,#e66);color:var(--bad,#e66)" onclick="event.stopPropagation();emColgar()">Colgar llamada</button><button class="btn ghost" id="emChatCsat" title="Envía la encuesta de satisfacción (CSAT) al cliente, cierra la conversación y abre el siguiente chat en espera" onclick="event.stopPropagation();emCerrarConCsat('chat')">Cerrar y enviar CSAT</button><button class="btn" id="emChatResp" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
           </div>
           <div class="em-q em-ana" id="emChatAna"><div class="em-coltitle">Interno (chat y correo)</div><div class="em-analisis" id="emChatAnalisis"></div></div>
         </div>
@@ -3238,6 +3238,12 @@ function emSetFiltro(f){ emFiltro=f; try{ localStorage.setItem('inbox-filtro',f)
 function emReflectBandeja(){ var fs=document.querySelectorAll('#emBandejas .em-bbtn'); for(var i=0;i<fs.length;i++){ fs[i].classList.toggle('sel', fs[i].getAttribute('data-b')===emBandeja); } }
 function emSetBandeja(b){ emBandeja=b; try{ localStorage.setItem('inbox-bandeja-sel',b); }catch(e){} emReflectBandeja(); emRenderList(); }
 function emActiveThread(){ const id=(emFocus==='mail')?emSelMail:emSelChat; return EMBANDEJA.find(function(x){return x.id===id;}); }
+/* En que slot vive una conversacion. La LLAMADA se atiende en el slot de conversacion, igual que un
+   chat: la transcripcion en vivo va al costado. Existe como funcion porque estaba escrito a mano en
+   varios lados como `canal==='mensaje' ? 'chat' : 'mail'`, y esa forma manda las llamadas al slot de
+   CORREO: al llegar un turno nuevo se refrescaba el panel equivocado y la transcripcion en vivo se
+   quedaba quieta. */
+function emSlotDe(canal){ return (canal==='mensaje'||canal==='voz') ? 'chat' : 'mail'; }
 function emThreadPais(t){ return (t&&t.pais) || (t&&t.cliente&&t.cliente.pais) || turnoPais(); }
 function emSetThreadPais(slot,val){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.pais=val; t.paisAuto=true; emSave(); emPush(t); emRenderSlot(slot); toast('País de la conversación: '+((typeof PAISN!=='undefined'&&PAISN[val])||val)); }
 /* PAIS/VERTICAL: en modo MANUAL el agente los elige (selectores). En modo AUTOMATICO son un
@@ -3305,8 +3311,8 @@ function emTryLink(t){ if(!t || !emClienteKeys(t).length)return; const tIsChat=(
   const other=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if(((x.canal==='mensaje'))===tIsChat)return false; return emMismoCliente(t,x); });
   if(!other)return;
   t._linkOtro=other.id; other._linkOtro=t.id;   // CRUCE: la IA usara el contexto de AMBOS canales para responder coherente
-  const oslot=(other.canal==='mensaje')?'chat':'mail'; const cur=(oslot==='mail')?emSelMail:emSelChat;
-  if(cur!==other.id){ if(oslot==='chat')emSelChat=other.id; else emSelMail=other.id; emRenderList(); emRenderSlot(oslot); emFocusSet(t.canal==='mensaje'?'chat':'mail'); }   // trae el otro canal pero deja el foco donde estabas
+  const oslot=emSlotDe(other.canal); const cur=(oslot==='mail')?emSelMail:emSelChat;
+  if(cur!==other.id){ if(oslot==='chat')emSelChat=other.id; else emSelMail=other.id; emRenderList(); emRenderSlot(oslot); emFocusSetemSlotDe(t.canal)); }   // trae el otro canal pero deja el foco donde estabas
   toast('Mismo cliente: traje su '+(oslot==='mail'?'correo':'chat')+' al otro panel; la IA respondera COHERENTE entre ambos canales.'); }
 // Pais automatico: si la conversacion no tiene pais marcado, lo deduce del cliente enganchado o de pistas del texto.
 function emAutoPais(t){ if(!t || t.pais) return; if(t.cliente && t.cliente.pais){ t.pais=t.cliente.pais; return; }
@@ -3392,7 +3398,7 @@ async function emAutoAsignarTick(){
   // REGENERAR al asignar: emSelect solo sugiere si NO habia iaRaw, asi que si el bot ya habia
   // dejado un analisis la respuesta se quedaba vieja y no cambiaba nada al asignarse el chat.
   // Se fuerza IA (sin atajo de FAQ) para que la respuesta salga del analisis del caso.
-  var _slotA=(cand.canal==='mensaje')?'chat':'mail';
+  var _slotA=emSlotDe(cand.canal);
   var _yaRespA=(cand.mensajes||[]).some(function(m){return m.from==='agente' && !m.auto;});
   if(!cand.draftEdited && !_yaRespA) emPedirSugerencia(_slotA, false, true);
   emAcuseAsignacion(cand, _slotA);   // el cliente sabe que ya lo tomaron, aunque la respuesta tarde
@@ -3411,7 +3417,7 @@ async function emAutoCanalBtnClick(canal){ if(!(typeof isAdmin==='function'&&isA
   catch(e){ toast('No se pudo guardar el cambio: '+((e&&e.message)||'error')); } }
 /* ===== PAUSA DE REVISION (30 s): respuestas del bot en cola auto_pendientes; el agente puede cancelarlas o adelantarlas ===== */
 let EM_APEND=[], _emApT=null, _emApTick=null;
-async function emAutoPendLoad(){ if(!sb||!me||emModo!=='auto'){ emAutoPendRender(); return; } try{ const {data,error}=await sb.from('auto_pendientes').select('id,conv_id,texto,envia_at,estado').eq('tenant',CONFIG.tenant).eq('estado','pendiente').order('envia_at',{ascending:true}).limit(20); if(error)throw error; EM_APEND=data||[]; }catch(e){ EM_APEND=[]; } emAutoPendRender(); EM_APEND.forEach(function(p){ if(p.conv_id){ const t=EMBANDEJA.find(function(x){return x.id===p.conv_id;}); if(t) emAutoPendInject(t); } }); /* si la respuesta ya salió de la cola (se envió o se canceló en otra pestaña), quitar la vista previa: el mensaje real llega por la nube */ EMBANDEJA.forEach(function(t){ if(t._apInjected && !EM_APEND.some(function(p){return p.conv_id===t.id;})){ t.mensajes=(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}); t._apInjected=false; emSave(); const slot=(t.canal==='mensaje')?'chat':'mail'; if((slot==='chat'?emSelChat:emSelMail)===t.id) emRenderThread(slot); } }); emRenderList(); }
+async function emAutoPendLoad(){ if(!sb||!me||emModo!=='auto'){ emAutoPendRender(); return; } try{ const {data,error}=await sb.from('auto_pendientes').select('id,conv_id,texto,envia_at,estado').eq('tenant',CONFIG.tenant).eq('estado','pendiente').order('envia_at',{ascending:true}).limit(20); if(error)throw error; EM_APEND=data||[]; }catch(e){ EM_APEND=[]; } emAutoPendRender(); EM_APEND.forEach(function(p){ if(p.conv_id){ const t=EMBANDEJA.find(function(x){return x.id===p.conv_id;}); if(t) emAutoPendInject(t); } }); /* si la respuesta ya salió de la cola (se envió o se canceló en otra pestaña), quitar la vista previa: el mensaje real llega por la nube */ EMBANDEJA.forEach(function(t){ if(t._apInjected && !EM_APEND.some(function(p){return p.conv_id===t.id;})){ t.mensajes=(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}); t._apInjected=false; emSave(); const slot=emSlotDe(t.canal); if((slot==='chat'?emSelChat:emSelMail)===t.id) emRenderThread(slot); } }); emRenderList(); }
 function emAutoPendRender(){ const el=$('emAutoPend'); if(!el)return; if(emModo!=='auto'||!EM_APEND.length){ el.style.display='none'; el.innerHTML=''; return; } el.style.display=''; /* Solo cuenta regresiva + chat + botones. El texto de la respuesta y los pasos internos del bot se ven en el hilo (al seleccionar la conversación), no aquí, para no desacomodar la barra. */ el.innerHTML='<b style="font-size:12px">Respuestas del bot en espera de revisión ('+EM_APEND.length+')</b>'+EM_APEND.map(function(p){ const s=Math.max(0,Math.ceil((Date.parse(p.envia_at)-Date.now())/1000)); return '<div class="apitem"><span class="apcd">'+s+'s</span><span class="aplbl" title="Abrir esta conversación" style="cursor:pointer" onclick="emSelect(\''+p.conv_id+'\')">'+escapeHtml((p.conv_id||'').replace(/^tg-/,'chat '))+'</span><button class="ubtn" title="Abre la conversación con la respuesta de la IA cargada para que la corrijas y la mandes tú" onclick="emAutoPendEditar(\''+p.id+'\')">Corregir</button><button class="ubtn" onclick="emAutoPendCancelar(\''+p.id+'\')">Cancelar</button><button class="ubtn" onclick="emAutoPendYa(\''+p.id+'\')">Enviar ya</button></div>'; }).join(''); }
 // CORREGIR LA IA: el agente no confía en la respuesta automática -> se cancela el envío del bot y se
 // abre la conversación con ESE texto cargado en el borrador para que lo corrija y responda él mismo.
@@ -3425,7 +3431,7 @@ async function emAutoPendEditar(pid){ const p=EM_APEND.find(function(x){return x
   t.mensajes=(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}); /* solo la vista previa; los mensajes que el bot YA envió se conservan */
   t.iaRaw=''; t._apInjected=false; emBotPausaConv(t); emSave(); emPush(t);
   emSetModo('manual'); emSelect(t.id);
-  var slot=(t.canal==='mensaje')?'chat':'mail'; var sug=$(slot==='mail'?'emMailSug':'emChatSug'); if(sug)sug.value=t.draft;
+  var slot=emSlotDe(t.canal); var sug=$(slot==='mail'?'emMailSug':'emChatSug'); if(sug)sug.value=t.draft;
   toast('Respuesta de la IA cargada: corrígela y responde. El envío automático se canceló.'); emAutoPendLoad(); }
 async function emAutoPendCancelar(pid){ if(!sb)return; try{ const {error}=await sb.from('auto_pendientes').update({estado:'cancelado',por:(me&&me.email)||'agente',updated_at:new Date().toISOString()}).eq('id',pid).eq('estado','pendiente'); if(error)throw error; const p=EM_APEND.find(function(x){return x.id===pid;}); if(p){ const t=EMBANDEJA.find(function(x){return x.id===p.conv_id;}); if(t){ t.mensajes=(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}); t.iaRaw=''; t._apInjected=false; emSave(); } } toast('Respuesta automatica cancelada: el caso queda para un agente'); }catch(e){ toast('No se pudo cancelar: '+((e&&e.message)||'error')); } emAutoPendLoad(); }
 async function emAutoPendYa(pid){ if(!sb)return; try{ const {error}=await sb.from('auto_pendientes').update({envia_at:new Date(Date.now()-1000).toISOString(),updated_at:new Date().toISOString()}).eq('id',pid).eq('estado','pendiente'); if(error)throw error; toast('Se enviará en unos segundos'); }catch(e){ toast('No se pudo adelantar: '+((e&&e.message)||'error')); } emAutoPendLoad(); }
@@ -3519,7 +3525,7 @@ function emOnRealtime(p){
   if(idx<0){ EMBANDEJA.unshift(inc); }
   else { const l=EMBANDEJA[idx]; if(_emActive && (open || l.draftEdited || (l.draft && !inc.draft))){ inc.draft=l.draft; if(l.draftEdited) inc.draftEdited=true; if(l.iaRaw && !inc.iaRaw) inc.iaRaw=l.iaRaw; /* la nube trae el analisis fresco del bot: gana; lo local solo rellena */ } if(l.vertical) inc.vertical=l.vertical; if(l._apInjected){ inc._apInjected=true; if(l.iaRaw && !inc.iaRaw) inc.iaRaw=l.iaRaw; if(l.draft&&!inc.draft) inc.draft=l.draft; if(Array.isArray(l.mensajes)){ const autoMsgs=l.mensajes.filter(function(m){return m&&m.pend;}); /* solo la vista previa local; los mensajes auto YA enviados vienen en la fila de la nube */ if(autoMsgs.length){ const existing=inc.mensajes||[]; autoMsgs.forEach(function(am){ if(!existing.some(function(x){return x&&x.pend&&x.t===am.t;})) existing.push(am); }); inc.mensajes=existing; } } } EMBANDEJA[idx]=inc; }
   clearTimeout(_emRenderListTimer); _emRenderListTimer=setTimeout(emRenderList, 80);
-  if(open){ const slot=r.canal==='mensaje'?'chat':'mail'; emRenderThread(slot); }
+  if(open){ const slot=emSlotDe(r.canal); emRenderThread(slot); if(r.canal==='voz'){ const _c=$('emChatCli'); if(_c) _c.innerHTML=emClienteInfoHTML(r,'chat'); } }
   else { if(r.id===emSelChat) emRenderClaim('chat'); if(r.id===emSelMail) emRenderClaim('mail'); }
 }
 function emTomadaPorOtro(t){ return !!(t&&t.tomado_por&&me&&t.tomado_por!==me.id); }
@@ -3568,7 +3574,7 @@ async function emTomarMismoCliente(t){
   if(!otro)return;
   t._linkOtro=otro.id; otro._linkOtro=t.id;   // CRUCE de contexto entre canales
   if(typeof emTomadaPorOtro==='function' && emTomadaPorOtro(otro))return;   // ya la atiende alguien mas: no la robamos
-  var oslot=(otro.canal==='mensaje')?'chat':'mail';
+  var oslot=emSlotDe(otro.canal);
   const _ok2=await emClaimRow(otro); if(!_ok2)return;   // claim atomico: si otro la tomo justo ahora, no la robamos
   if((otro.estado||'nuevo')==='nuevo')otro.estado='leido';
   emSave(); emPush(otro);
@@ -3914,6 +3920,18 @@ function _emRenderBody(slot, t){
   if(who)who.textContent=(t.de||'cliente')+((t.estado==='espera')?(' · EN ESPERA'+(emEsperaNota(t)?(': '+emEsperaNota(t)):'')):((t.estado&&t.estado!=='nuevo')?(' · '+t.estado):''))+((t._consol&&t._consol.total>1)?(' · '+t._consol.total+' correos'):'')+(emClaimTxt(t)?(' · '+emClaimTxt(t)):'');
   const cliEl=$(isMail?'emMailCli':'emChatCli');
   if(cliEl){ cliEl.innerHTML=emClienteInfoHTML(t, slot); }
+  /* El badge de la esquina se fija AQUI, en el camino que corre siempre que se dibuja el panel, y no
+     solo dentro de emBotonesPorCanal: si esa funcion falla o no llega a correr, el agente se queda
+     viendo "Mensaje" arriba de una llamada en curso y responde por el canal equivocado. */
+  if(!isMail){
+    const _b=$('emChatCanalBadge');
+    if(_b){
+      const _voz=(t.canal==='voz'), _viva=(t.estado!=='respondido');
+      _b.textContent = _voz ? (_viva?'Llamada en vivo':'Llamada') : 'Mensaje';
+      _b.style.color = (_voz&&_viva) ? 'var(--accent)' : '';
+      _b.style.borderColor = (_voz&&_viva) ? 'var(--accent)' : '';
+    }
+  }
   emReflectIdent(slot,t);
   if(isMail){
     const clis=(t.mensajes||[]).filter(function(m){return m.from!=='agente' && m.from!=='espera';});
@@ -3984,8 +4002,20 @@ function emRenderThread(slot){
    el CSAT (se manda por link, y no hay donde clickear en una llamada). */
 /* Sello de version visible: si la consola quedo cacheada, este numero delata que build se esta
    viendo. Sin esto no hay forma de distinguir "no se desplego" de "el navegador tiene lo viejo". */
-const BUILD_SINELI='2026-07-19 · llamadas v7';
+const BUILD_SINELI='2026-07-19 · llamadas v8';
 try{ document.addEventListener('DOMContentLoaded', function(){ var b=document.getElementById('buildStamp'); if(b) b.textContent=BUILD_SINELI; }); }catch(e){}
+/* Colgar. Cierra la llamada del lado de la consola: marca la conversacion como respondida para que
+   el contador pare y deje de contar como llamada viva. La telefonia real cortara la linea cuando se
+   conecte el adaptador; mientras tanto esto es lo que saca la llamada de la bandeja del agente. */
+function emColgar(){
+  const t=EMBANDEJA.find(function(x){ return x.id===emSelChat; });
+  if(!t || t.canal!=='voz'){ toast('No hay una llamada abierta'); return; }
+  if(!confirm('¿Terminar la llamada con '+(t.de||'el cliente')+'?')) return;
+  t.estado='respondido'; t.colgada_at=new Date().toISOString();
+  emSave(); emPush(t); emRenderList(); emRenderSlot('chat');
+  try{ logAudit('llamada_colgada',{conv:''+t.id}); }catch(_){}
+  toast('Llamada terminada');
+}
 function emBotonesPorCanal(t){
   const esVoz=!!(t && t.canal==='voz');
   const ct=$('emChatColTitle'); if(ct) ct.textContent = esVoz ? 'Transcripción de la llamada' : 'Mensaje del cliente';
@@ -3994,6 +4024,7 @@ function emBotonesPorCanal(t){
   mostrar('emChatCopiar', !esVoz);
   mostrar('emChatEspera', !esVoz);
   mostrar('emChatCsat',  !esVoz);
+  mostrar('emChatColgar', esVoz && (t.estado!=='respondido'));
   const r=$('emChatResp');
   if(r){
     r.textContent = esVoz ? 'Enviar al bot' : 'Marcar respondido';
@@ -4111,7 +4142,7 @@ function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); i
    escribe el agente NO va al cliente, se le dicta al BOT, que es quien habla por telefono.
    (Antes esto abria un overlay y hacia return antes de refrescar la lista: la interfaz quedaba con
    la conversacion anterior y el overlay tapaba todo, que es el "se congela" que reporto Alan.) */
-const slot=(t.canal==='mensaje'||t.canal==='voz')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emAutoPendInject(t); emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } if(t.ticketImg && !t._tkAnalizado && typeof emAnalizarTicket==='function'){ t._tkAnalizado=true; emAnalizarTicket(slot); } }
+const slot=emSlotDe(t.canal); if(slot==='chat')emSelChat=id; else emSelMail=id; emAutoPendInject(t); emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } if(t.ticketImg && !t._tkAnalizado && typeof emAnalizarTicket==='function'){ t._tkAnalizado=true; emAnalizarTicket(slot); } }
 function emAddManual(){
   const de=($('emDe')&&$('emDe').value||'').trim();
   const asunto=($('emAsunto')&&$('emAsunto').value||'').trim();

@@ -19,6 +19,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="crm-core.js"></script>
 <script src="crm-ui.js"></script>
+<script src="reglas-negocio.js"></script>
 <style>
   /* Paleta GRIS SPATIAL (grafito neutro, profesional): sin tintes calidos ni zonas sobreiluminadas */
   :root[data-theme="light"]{--bg:#EDEEF1;--surface:#F7F8FA;--line:#DCDFE5;--txt:#1D2026;--txt-2:#646B77;--txt-3:#99A0AB;
@@ -261,6 +262,8 @@
   .em-crmchk{margin-top:8px;padding:6px 8px;border-left:3px solid #3b82f6;background:rgba(59,130,246,.07);font-size:12px;border-radius:4px}
   .em-crmchk label{display:flex;gap:6px;align-items:flex-start;margin-top:4px;cursor:pointer}
   .em-crmchk input{margin-top:1px;flex-shrink:0}
+  .em-crmchk-sw{display:inline-flex!important;gap:4px;align-items:center;margin:0 0 0 6px!important;font-size:11px;opacity:.75}
+  .em-crmchk-hint{margin-top:6px;font-size:11px;opacity:.7;font-style:italic}
   .blk-h .pxi{width:12px;height:12px}
   .tile .pxi{width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:5px}
   .sec h4 .pxi{width:14px;height:14px;color:var(--accent);flex-shrink:0}
@@ -570,6 +573,8 @@
   .auth-by b{color:var(--txt-2);font-weight:700}
   .auth-brand{font-weight:800;font-size:38px;letter-spacing:-1.2px;line-height:1;margin-bottom:8px;
     background:linear-gradient(120deg,var(--txt) 35%,var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+  #bhHero{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;display:none}
+  :root[data-theme="dark"] #bhHero{display:block}
 </style>
 <style id="spatial-theme">
 /* ===== TEMA SPATIAL (Apple Vision Pro) — capa de overrides, NO toca logica/JS ===== */
@@ -594,6 +599,8 @@
   --depth-3: 0 54px 120px -28px rgba(0,0,0,.92);
   --shadow: var(--depth-1);
   --accent-glow: 0 12px 32px -12px rgba(255,90,77,.55);
+  --bh-glow:0 0 30px rgba(232,154,60,.08);
+  --bh-border:rgba(232,154,60,.15);
 }
 :root{ --blur: 36px; --blur-strong: 52px; }
 
@@ -705,9 +712,17 @@ body{background:transparent}
 .res-bar i{display:block;width:100%;max-width:34px;background:linear-gradient(180deg,var(--accent),#a3000f);border-radius:7px 7px 3px 3px}
 .res-bar span{font-size:9.5px;color:var(--txt-3)}
 .res-note{margin-top:16px;font-size:11.5px;color:var(--txt-3);text-align:center}
+:root[data-theme="dark"] .bubble.ai{border-color:var(--bh-border)}
+:root[data-theme="dark"] .tab.active{border-color:var(--bh-border);box-shadow:0 0 20px rgba(232,154,60,.06)}
+:root[data-theme="dark"] .ic:hover{border-color:rgba(255,150,60,.6)}
+:root[data-theme="dark"] .cbox:focus-within{border-color:rgba(255,150,60,.5);box-shadow:0 0 20px rgba(232,154,60,.06)}
+:root[data-theme="dark"] .msg .blocksec{border-color:rgba(232,154,60,.1)}
+:root[data-theme="dark"] .auth-card .mark{text-shadow:0 0 30px rgba(232,154,60,.1)}
+:root[data-theme="dark"] .chero{border-color:rgba(232,154,60,.08)}
 </style>
 </head>
 <body>
+<canvas id="bhHero" aria-hidden="true"></canvas>
 <div class="spatial-canvas" aria-hidden="true"></div>
 <div class="boot-splash" id="bootSplash" aria-hidden="true"><canvas class="bh-logo bh-big" width="120" height="120" aria-label="SINELI"></canvas><div class="boot-wm">SINELI</div><div class="boot-bar"><i></i></div></div>
 <div class="leftdock" id="leftDock" aria-label="Paneles"></div>
@@ -1252,7 +1267,7 @@ body{background:transparent}
       <button class="em-dbtn" title="Copiar respuesta (panel activo)" onclick="emCopiar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
       <button class="em-dbtn" title="Marcar respondido (panel activo)" onclick="emResponder()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></button>
       <div class="em-dock-sep"></div>
-      <button class="em-dbtn" id="emEnviarAmbos" title="Enviar ambos (proximamente — falta conectar el envio real)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></button>
+      <button class="em-dbtn" id="emEnviarAmbos" title="Enviar AMBOS (responde el chat y el correo abiertos)" onclick="emEnviarAmbos()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></button>
       <button class="em-dbtn adminonly" title="Vaciar inbox" onclick="emVaciar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     </div>
     <div class="em-list" id="emList">
@@ -1346,6 +1361,7 @@ const LOGIN_WEBHOOK = "https://laptop-38oeljea.tailc68292.ts.net/webhook/request
 const FETCHURL_WEBHOOK= "https://laptop-38oeljea.tailc68292.ts.net/webhook/fetch-url";
 const WHATSAPP_OUT_WEBHOOK = "https://laptop-38oeljea.tailc68292.ts.net/webhook/whatsapp-out"; // respuesta del agente -> WhatsApp del cliente (conversaciones id 'wa-...')
 const TELEGRAM_OUT_WEBHOOK = "https://laptop-38oeljea.tailc68292.ts.net/webhook/telegram-out"; // respuesta del agente -> Telegram del cliente (conversaciones id 'tg-...')
+const CORREO_OUT_WEBHOOK = "https://laptop-38oeljea.tailc68292.ts.net/webhook/correo-out";   // respuesta del agente -> correo del cliente (envia por Gmail; el destinatario sale de la BASE, no de aqui)
 
 /* ============================================================
    MARCA / CONFIG  —  lo UNICO que cambia por cliente.
@@ -1370,6 +1386,32 @@ const lsSet=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const sbReady = (typeof window.supabase!=='undefined') && /^https?:\/\//.test(SUPABASE_URL);
 const sb = sbReady ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
+
+/* ---- fetch wrapper con timeout + retry (aborta y reintenta si el webhook tarda mas de 25s) ---- */
+async function fetchWithRetry(url, opts, retries){
+  retries=retries||2; const timeMs=25000;
+  for(let i=0;i<=retries;i++){
+    const ctrl=new AbortController(); const id=setTimeout(()=>ctrl.abort(),timeMs);
+    try{ const r=await fetch(url,Object.assign({},opts,{signal:ctrl.signal})); clearTimeout(id); return r; }
+    catch(e){ clearTimeout(id);
+      if(i===retries||e.name==='AbortError'?false:true){ if(i<retries){ console.warn('fetchWithRetry('+url.slice(0,60)+') intento '+(i+1)+' fallo:', e.message); continue; } }
+      console.error('fetchWithRetry agoto '+retries+' intentos:', url.slice(0,60), e.message); return null;
+    }
+  }
+  return null;
+}
+/* ---- localStorage quota guard: comprueba si queda espacio antes de guardar datos pesados ---- */
+function lsSafeSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){
+  if(e.name==='QuotaExceededError'||e.code===22||e.code===1014){
+    console.warn('localStorage lleno ('+k+'), comprimiendo BANDEJA...');
+    try{ const raw=localStorage.getItem('email-bandeja'); if(raw&&raw.length>1000){
+      const limpio=JSON.stringify(JSON.parse(raw).map(function(t){ var o=Object.assign({},t); if(o.mensajes&&o.mensajes.length>10) o.mensajes=o.mensajes.slice(-10); if(o.iaRaw&&o.iaRaw.length>2000) o.iaRaw=o.iaRaw.slice(0,2000); if(Array.isArray(o.crmChk)) o.crmChk=o.crmChk.slice(0,6); delete o._consol; return o; }));
+      if(limpio.length<raw.length*0.5) localStorage.setItem('email-bandeja', limpio);
+    } }catch(_){}
+    try{ localStorage.setItem(k,v); return true; }catch(e2){ console.error('localStorage lleno y no se pudo liberar:', k); return false; }
+  }
+  return false;
+} }
 
 function emptyPaises(){ return { MX:{online:'',retail:''}, PA:{online:'',retail:''}, CO:{online:'',retail:''} }; }
 let me=null, myProfile={role:'agent'}, ctxCache={system_prompt:'',bonos_notes:'',reglas_calculo:'',paises:emptyPaises()};
@@ -1996,89 +2038,6 @@ const CLIENTES=[
   nivel:'VIP', nota_interna:'', tickets_previos:[]}
 ];
 
-/* ============================================================
-   MOTOR DE ANALISIS  —  todo se CALCULA desde los datos crudos.
-   Reglas clave:
-   - El BONO se OTORGA con: deposito>=minimo + codigo correcto + dentro de vigencia.
-     (La verificacion KYC NO condiciona el otorgamiento del bono.)
-   - El RETIRO si requiere KYC verificada + rollover al 100%.
-   - Multicuenta: se marca si otra cuenta comparte la misma IP.
-   ============================================================ */
-function diasEntre(fechaISO, hasta){ return Math.floor((hasta - new Date(fechaISO)) / 86400000); }
-function fmtMon(n, pais){ return '$' + Number(n||0).toLocaleString('es-MX') + ' ' + (MON[pais]||''); }
-function bonoDe(c){ return (BONOS[c.pais]||[]).find(b=>b.id===c.bono_reclamado) || null; }
-
-/* Multicuenta: cuentas distintas que comparten IP de dispositivo */
-function detectarMulticuenta(c){
-  if(!c.ip) return {hay:false, cuentas:[]};
-  const otras = CLIENTES.filter(x=>x.ip===c.ip && x.usuario!==c.usuario).map(x=>x.usuario);
-  return {hay:otras.length>0, cuentas:otras};
-}
-
-function analizar(c){
-  const a = { pais:c.pais, saldoTxt:fmtMon(c.saldo,c.pais), kycOk:!!(c.kyc&&c.kyc.verificado), motivosFallo:[], checks:{}, escalar:{debe:false} };
-
-  // --- Acceso ---
-  if((c.logins_fallidos||0) >= 5){ a.acceso={estado:'Bloqueo de seguridad', clase:'bad', detalle:(c.logins_fallidos)+' intentos fallidos: bloqueo temporal. Desbloqueo segun el manual.'}; }
-  else if(c.ip_pais && c.ip_pais !== c.pais){ a.acceso={estado:'Acceso restringido (geo)', clase:'bad', detalle:'Conecta desde '+(PAISN[c.ip_pais]||c.ip_pais)+', fuera de su pais ('+PAISN[c.pais]+'). Recomendar conectarse desde '+PAISN[c.pais]+' o sin VPN.'}; }
-  else { a.acceso={estado:'Normal', clase:'ok', detalle:'Sin restricciones de acceso.'}; }
-  a.blocked = (c.logins_fallidos||0) >= 5;
-
-  // --- Multicuenta y autoexclusion (alertas) ---
-  a.multicuenta = detectarMulticuenta(c);
-  a.autoexcluido = !!c.autoexcluido;
-
-  // --- Retiros pendientes/rechazados ---
-  a.retiroPendiente = (c.retiros||[]).find(r=>r.estado==='pendiente') || null;
-
-  // --- Verificacion KYC (informativa; afecta RETIRO, no el bono) ---
-  const docs = (c.kyc&&c.kyc.documentos_faltantes)||[];
-  a.kyc = a.kycOk ? {ok:true, detalle:'KYC verificada'} : {ok:false, detalle:'KYC pendiente'+(docs.length?': falta '+docs.join(', '):'')};
-
-  // --- Bono ---
-  const bono = bonoDe(c); a.bono = bono;
-  if(!bono){ a.estado='Sin bono reclamado'; a.estadoClase=''; a.rollover={pct:0}; a.cumpleTodo=null; a.retiro=evaluarRetiro(a,c); return a; }
-  const dep = (c.depositos&&c.depositos[0]) || null;
-  const depMonto = dep ? dep.monto : 0;
-  const montoBono = (bono.monto_fijo!=null) ? bono.monto_fijo : Math.min(depMonto*(bono.porcentaje/100), bono.monto_max);
-  a.montoBono = montoBono;
-
-  // Requisitos de OTORGAMIENTO (sin KYC)
-  const cDep = bono.deposito_min===0 ? {ok:true, detalle:'No requiere deposito'} : {ok: depMonto>=bono.deposito_min, detalle:'Deposito '+fmtMon(depMonto,c.pais)+' vs minimo '+fmtMon(bono.deposito_min,c.pais)};
-  const cCod = (bono.codigo==null) ? {ok:true, detalle:'No requiere codigo'} : {ok:(c.codigo_ingresado||'').toUpperCase()===bono.codigo, detalle: c.codigo_ingresado ? ('Ingreso "'+c.codigo_ingresado+'", requiere "'+bono.codigo+'"') : ('No ingreso codigo (requiere "'+bono.codigo+'")')};
-  const dias = dep ? diasEntre(dep.fecha, HOY) : null;
-  const cVig = (bono.vigencia_dias==null||dias==null) ? {ok:true, detalle:'-'} : {ok: dias<=bono.vigencia_dias, detalle: dias+' dias desde el deposito (limite '+bono.vigencia_dias+')'};
-  a.checks = {deposito:cDep, codigo:cCod, vigencia:cVig, kyc:a.kyc};
-  a.cumpleTodo = cDep.ok && cCod.ok && cVig.ok;            // KYC NO entra aqui
-  if(!cDep.ok) a.motivosFallo.push('Deposito por debajo del minimo ('+cDep.detalle+')');
-  if(!cCod.ok) a.motivosFallo.push('Codigo de bono no aplicado ('+cCod.detalle+')');
-  if(!cVig.ok) a.motivosFallo.push('Fuera de la ventana de vigencia ('+cVig.detalle+')');
-
-  // Rollover
-  const base = (bono.rollover_base==='bono') ? montoBono : depMonto;
-  const objetivo = base * bono.rollover_factor;
-  const acum = c.rollover_acumulado || 0;
-  const pct = objetivo>0 ? Math.min(100, Math.round(acum/objetivo*100)) : 0;
-  a.rollover = {objetivo, acumulado:acum, pct, falta:Math.max(0,objetivo-acum), factor:bono.rollover_factor, cuota_min:bono.cuota_min, base:bono.rollover_base};
-
-  // Estado derivado: si YA fue acreditado esta otorgado; si NO, se evalua elegibilidad.
-  if(c.bono_acreditado){ a.estado = (pct>=100)?'Liberado (rollover completo)':'Activo · rollover '+pct+'% completado'; a.estadoClase='ok'; }
-  else if(a.cumpleTodo){ a.estado='ERROR: cumple requisitos pero NO acreditado'; a.estadoClase='bad';
-    a.escalar={debe:true, depto:'Bonos/Promociones', evidencias:['Captura del deposito ('+fmtMon(depMonto,c.pais)+', '+(dep?dep.fecha:'')+')','Codigo aplicado: '+bono.codigo,'Usuario: '+c.usuario,'Captura de que el bono no figura en el CRM']}; }
-  else { a.estado='No otorgado (requisitos incompletos)'; a.estadoClase='warn'; }
-
-  // Retiro (requiere KYC + rollover 100%)
-  a.retiro = evaluarRetiro(a, c);
-  return a;
-}
-
-/* Evalua si el cliente puede retirar: KYC verificada + rollover completo */
-function evaluarRetiro(a, c){
-  const motivos=[];
-  if(!a.kycOk) motivos.push('KYC sin verificar'+((c.kyc&&c.kyc.documentos_faltantes&&c.kyc.documentos_faltantes.length)?' (falta '+c.kyc.documentos_faltantes.join(', ')+')':''));
-  if(a.rollover && a.bono && c.bono_acreditado && a.rollover.pct<100) motivos.push('rollover en '+a.rollover.pct+'% (debe llegar a 100%)');
-  return {bloqueado:motivos.length>0, motivos};
-}
 /* ============================================================
    SALAS RETAIL (Panama) — base ficticia. Cada sala: numero (5 digitos,
    empieza con 60), ciudad, IP de la sala, usuario compartido, POS (1-2)
@@ -3128,12 +3087,22 @@ function emNombreCorreo(t){
   if(m){ var nom=m[1].trim(); if(nom && nom.indexOf('@')<0) return nom; }
   return '';
 }
-function emInterno(raw){ if(!raw)return ''; const s=''+raw;
+function emInterno(raw){ if(!raw)return ''; let s=''+raw;
   // "Interno" = los pasos/analisis internos (todo lo previo a la respuesta al cliente).
   const ci=s.search(/Respuesta\s+(?:sugerida\s+)?al\s+cliente\s*:/i);
-  if(ci>=0) return s.slice(0,ci).trim();
+  if(ci>=0) s=s.slice(0,ci);
   // Sin marca de respuesta al cliente: solo es interno si trae etiquetas internas; si no, es texto del cliente y no se duplica.
-  return /(Para ti \(interno\)|Verificar en el CRM)/i.test(s) ? s.trim() : '';
+  else if(!/(Para ti \(interno\)|Verificar en el (?:CRM|sistema))/i.test(s)) return '';
+  // ANTI-DUPLICADO: la seccion "Verificar en el CRM/sistema" se muestra ABAJO como casillas
+  // (emChecklistHTML). Si tambien se deja aqui, el agente ve los mismos puntos dos veces con
+  // dos encabezados distintos ("Verificar en el CRM:" y "Comprueba en el CRM antes de enviar:").
+  s=s.replace(/(^|\n)\s*Verificar en el (?:CRM|sistema)\s*:[\s\S]*$/i,'$1');
+  // MARCADORES REPETIDOS: el panel ya se titula "Interno", y el bot ademas antepone su propia
+  // etiqueta en cada actualizacion de ia_raw. Se quitan TODAS las apariciones, no solo la primera.
+  s=s.replace(/(^|\n)[ \t]*Para ti\s*\(interno\)\s*:?[ \t]*/gi,'$1');
+  // Formato de reporte estable: sin lineas en blanco de mas ni vinetas sueltas al inicio.
+  s=s.replace(/\n{3,}/g,'\n\n').replace(/^\s*[-·•]\s*$/gm,'');
+  return s.trim();
 }
 function emTryLink(t){ if(!t || !emClienteKeys(t).length)return; const tIsChat=(t.canal==='mensaje');
   const other=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if(((x.canal==='mensaje'))===tIsChat)return false; return emMismoCliente(t,x); });
@@ -3260,7 +3229,7 @@ function emAutoPendStart(){ emAutoPendStop(); emAutoPendLoad(); _emApT=setInterv
 function emAutoPendStop(){ if(_emApT){clearInterval(_emApT);_emApT=null;} if(_emApTick){clearInterval(_emApTick);_emApTick=null;} EM_APEND=[]; emAutoPendRender(); }
 // stubs (se implementan en Tasks 3-4 y 5):
 function emLoad(){ try{ EMBANDEJA=JSON.parse(localStorage.getItem('email-bandeja')||'[]')||[]; }catch(e){ EMBANDEJA=[]; } }
-function emSave(){ try{ localStorage.setItem('email-bandeja', JSON.stringify(EMBANDEJA)); }catch(e){} }
+function emSave(){ try{ lsSafeSet('email-bandeja', JSON.stringify(EMBANDEJA)); }catch(e){ console.warn('emSave fallback blinda:', e); } }
 let _emDraftT=null; function emSaveDraftDebounced(){ clearTimeout(_emDraftT); _emDraftT=setTimeout(function(){ emSave(); }, 500); }
 /* ===== COLA COMPARTIDA (Supabase + tiempo real). Degradacion suave: si no existe la tabla, sigue en localStorage ===== */
 let emCloudReady=false, emChan=null; const emPushT={}; let _emLastSeenUpd=0;   // updated_at mas nuevo visto (nube)
@@ -3276,8 +3245,8 @@ async function emSignPath(path, ttl){ ttl=ttl||3600; if(!_emEsRef(path)) return 
 function emResolveImgs(root){ if(!root||!root.querySelectorAll) return; root.querySelectorAll('img[data-imgpath]').forEach(function(el){ const p=el.getAttribute('data-imgpath'); el.removeAttribute('data-imgpath'); if(!p) return; emSignPath(p).then(function(u){ if(u) el.src=u; }); }); }
 function emMsgImg(m){ var v=m&&(m.img||m.image_url); if(!v) return ''; var st='max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer'; if(_emEsRef(v)) return '<br><img data-imgpath="'+escapeHtml(v)+'" alt="adjunto" style="'+st+'" onclick="event.stopPropagation();emVerImg(this.src)">'; return '<br><img src="'+v+'" style="'+st+'" onclick="event.stopPropagation();emVerImg(this.src)">'; }
 function emTicketThumb(v){ if(!v) return ''; var st='max-width:60px;max-height:60px;border-radius:6px;vertical-align:middle;cursor:pointer'; if(_emEsRef(v)) return '<img data-imgpath="'+escapeHtml(v)+'" title="Ver ticket" style="'+st+'" onclick="event.stopPropagation();emVerImg(this.src)">'; return '<img src="'+v+'" title="Ver ticket" style="'+st+'" onclick="event.stopPropagation();emVerImg(this.src)">'; }
-function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), paisAuto:!!r.pais, vertical:r.vertical||'', vertAuto:!!r.vertical, estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', ticketImg:r.ticket_img||'', bot_on:(r.bot_on===true), tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, escalado:!!r.escalado, escalado_motivo:r.escalado_motivo||'', escalado_estado:r.escalado_estado||null, escalado_at:r.escalado_at||null, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
-function emThreadToRow(t){ return { id:t.id, tenant:CONFIG.tenant, canal:t.canal, de:t.de||'cliente', asunto:t.asunto||'', pais:emThreadPais(t), vertical:t.vertical||null, estado:t.estado||'nuevo', mensajes:(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}) /* las vistas previas pendientes NO se suben: aun no se enviaron */, cliente:t.cliente||null, draft:t.draft||'', ia_raw:t.iaRaw||'', ticket_img:t.ticketImg||'', tomado_por:t.tomado_por||null, tomado_email:t.tomado_email||'', tomado_at:t.tomado_at||null, updated_by:me?me.id:null, updated_at:new Date().toISOString() }; }
+function emRowToThread(r){ return { id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), paisAuto:!!r.pais, vertical:r.vertical||'', vertAuto:!!r.vertical, estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', ticketImg:r.ticket_img||'', bot_on:(r.bot_on===true), tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, escalado:!!r.escalado, escalado_motivo:r.escalado_motivo||'', escalado_estado:r.escalado_estado||null, escalado_at:r.escalado_at||null, crmChk:(r.crm_chk&&typeof r.crm_chk==='object'&&!Array.isArray(r.crm_chk))?r.crm_chk:{}, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
+function emThreadToRow(t){ return { id:t.id, tenant:CONFIG.tenant, canal:t.canal, de:t.de||'cliente', asunto:t.asunto||'', pais:emThreadPais(t), vertical:t.vertical||null, estado:t.estado||'nuevo', mensajes:(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}) /* las vistas previas pendientes NO se suben: aun no se enviaron */, cliente:t.cliente||null, draft:t.draft||'', ia_raw:t.iaRaw||'', ticket_img:t.ticketImg||'', tomado_por:t.tomado_por||null, tomado_email:t.tomado_email||'', tomado_at:t.tomado_at||null, crm_chk:(t.crmChk&&typeof t.crmChk==='object'&&!Array.isArray(t.crmChk))?t.crmChk:{}, updated_by:me?me.id:null, updated_at:new Date().toISOString() }; }
 async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; await emAutoCfgLoad(); /* refresca EM_VACIADO/EM_AUTOFAQ antes de fusionar */ if(Array.isArray(data)&&data.length){ const _mx=Date.parse(data[0].updated_at)||0; if(_mx>_emLastSeenUpd)_emLastSeenUpd=_mx; } if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(!l) return; const isOpen=(n.id===emSelChat||n.id===emSelMail); if(_emActive && !_emAdopt){ /* solo la pestaña ACTIVA conserva su trabajo; las pasivas ADOPTAN la nube (espejo) */ if(isOpen || l.draftEdited){ if(l.draft!=null) n.draft=l.draft; if(l.draftEdited) n.draftEdited=true; if(l.iaRaw && !n.iaRaw) n.iaRaw=l.iaRaw; } else if(l.draft && !n.draft){ n.draft=l.draft; if(l.iaRaw && !n.iaRaw) n.iaRaw=l.iaRaw; } } if(l.vertical && !n.vertical) n.vertical=l.vertical; /* la vertical fresca de la nube (detectada por el bot) gana */ }); const _inc={}; incoming.forEach(function(n){ _inc[n.id]=1; }); EMBANDEJA.forEach(function(l){ if(_inc[l.id]) return; if(EM_VACIADO && (l.t||0)<=EM_VACIADO) return; /* vaciado por el admin: NO resucita desde esta copia local */ incoming.push(l); }); EMBANDEJA=incoming; emSave(); } return true; }catch(e){ emCloudReady=false; return false; } }
 async function emPush(t){ if(!emCloudReady||!sb||!t)return; if(typeof _emActive!=='undefined' && !_emActive) return; /* pestaña pasiva: no sube (no pisa a la activa) */ if(EM_VACIADO && (t.t||0)<=EM_VACIADO) return; /* hilo anterior al vaciado del admin: no se re-sube (no resucita) */ try{ await sb.from('inbox_conversaciones').upsert(emThreadToRow(t)); }catch(e){} }
 function emPushDebounced(t){ if(!emCloudReady||!t)return; if(typeof _emActive!=='undefined' && !_emActive) return; clearTimeout(emPushT[t.id]); emPushT[t.id]=setTimeout(function(){ emPush(t); }, 700); }
@@ -3378,8 +3347,11 @@ async function emTomar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSel
   if(emModo!=='auto'){
     if(t.iaRaw && /sesi[oó]n no v[aá]lida/i.test(t.iaRaw)){ t.iaRaw=''; if(!t.draftEdited) t.draft=''; }
     const _yaResp=(t.mensajes||[]).some(function(m){return m.from==='agente' && !m.auto;});
-    const _usable=(t.draftEdited && t.draft) || (t.draft||'').trim() || (t.iaRaw && extraerSugerida(t.iaRaw));
-    if(!_usable && !_yaResp){ emPedirSugerencia(slot); }
+    // Al TOMAR se REGENERA siempre, salvo que el borrador lo hayas escrito tu (draftEdited) o que
+    // ya se le haya respondido al cliente. Antes bastaba con que existiera un borrador viejo de la
+    // IA para NO refrescar, y al tomar veias una respuesta vieja que no incorporaba los requisitos
+    // ni lo verificado en el CRM. Tu texto a mano NUNCA se pisa.
+    if(!t.draftEdited && !_yaResp){ emPedirSugerencia(slot); }
   }
   emTomarMismoCliente(t); }
 // Complemento: al tomar una conversacion, si el MISMO cliente tiene otra en el OTRO canal,
@@ -3399,8 +3371,10 @@ async function emTomarMismoCliente(t){
   emRenderList(); emRenderSlot(oslot);
   if(otro.iaRaw && /sesi[oó]n no v[aá]lida/i.test(otro.iaRaw)){ otro.iaRaw=''; if(!otro.draftEdited) otro.draft=''; }
   var _yaResp=(otro.mensajes||[]).some(function(m){return m.from==='agente' && !m.auto;});
-  var _usable2=(otro.draftEdited && otro.draft) || (otro.draft||'').trim() || (otro.iaRaw && extraerSugerida(otro.iaRaw));
-  if(!_usable2 && !_yaResp){ emPedirSugerencia(oslot); }
+  // MISMO criterio que emTomar: se regenera aunque ya exista un borrador VIEJO de la IA, para que
+  // la respuesta del otro canal tambien salga con los requisitos y con lo verificado en el CRM.
+  // Solo se respeta el texto escrito a mano por el agente (draftEdited) o que ya se haya respondido.
+  if(!otro.draftEdited && !_yaResp){ emPedirSugerencia(oslot); }
   toast('Mismo cliente: también tomé su '+(oslot==='mail'?'correo':'chat')+(_yaResp?'':' y generé su respuesta')+'.');
 }
 /* El boton Tomar es un TOGGLE: si la conversacion ya es tuya, muestra "Liberar" y la suelta desde ahi. */
@@ -3592,7 +3566,8 @@ function hturRenderEquipo(){
   }).join('')||'<div class="est">Sin agentes.</div>';
 }
 async function guardarHorario(uid){
-  const row=document.querySelector('#hturEquipo .hrow[data-uid="'+uid+'"]'); if(!row) return;
+  const _qUid=String(uid).replace(/["\\]/g,'\\$&');
+  const row=document.querySelector('#hturEquipo .hrow[data-uid="'+_qUid+'"]'); if(!row) return;
   const dias=[].slice.call(row.querySelectorAll('.dchk input')).filter(function(c){return c.checked;}).map(function(c){return +c.dataset.d;});
   const inicio=row.querySelector('.hini').value||'09:00', fin=row.querySelector('.hfin').value||'18:00';
   try{ const {error}=await sb.from('horarios_agentes').upsert({user_id:uid,dias:dias,inicio:inicio,fin:fin,updated_by:me.id,updated_at:new Date().toISOString()});
@@ -3685,12 +3660,13 @@ function emRenderClaimTop(){
 async function emDevolverAlBot(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; if(!sb){ toast('Sin conexion con la nube — no se pudo cambiar'); return; }
   try{ const {error}=await sb.from('inbox_conversaciones').update({bot_on:true,tomado_por:null,tomado_email:'',tomado_at:null,updated_at:new Date().toISOString()}).eq('id',t.id); if(error)throw error;
     t.bot_on=true; t.tomado_por=null; t.tomado_email=''; t.tomado_at=null; emSave(); emRenderList(); emRenderClaimTop();
+    try{ logAudit('devolver_al_bot',{canal:(t.canal==='mensaje'?'chat':'correo'),conv:''+t.id}); }catch(_){}
     toast('El bot vuelve a atender este chat. Se pausa solo si el cliente escala o si un agente lo toma o responde.'); }
   catch(e){ toast('No se pudo devolver al bot: '+((e&&e.message)||'error')); } }
 // Pausa del bot POR CONVERSACION al intervenir un humano: si el bot estaba reactivado (bot_on=true),
 // tomar o responder manualmente lo apaga para que no choque con el agente.
 function emBotPausaConv(t){ if(!t||t.canal!=='mensaje'||t.bot_on!==true)return; t.bot_on=false; try{ if(sb) sb.from('inbox_conversaciones').update({bot_on:false,updated_at:new Date().toISOString()}).eq('id',t.id).then(function(){}); }catch(e){} }
-function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var est=(t.estado||'nuevo'); var fok=(emFiltro==='todos')?true:(emFiltro==='activos')?(est!=='respondido'):(emFiltro==='sintomar')?!t.tomado_por:(est===emFiltro); var aok=(emModo!=='auto')||((t.mensajes||[]).some(function(m){return m&&m.auto===true;})||(typeof EM_APEND!=='undefined'&&EM_APEND.some(function(p){return p.conv_id===t.id;}))); /* modo auto: hilos con respuesta pendiente o ya respondidos por la IA */ if(emModo==='auto'&&emFiltro==='activos')fok=true; /* la vista Automatico muestra tambien lo respondido por el bot */ return ch===emBandeja && fok && aok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); /* preview = ULTIMO mensaje del hilo (no el primero), para que se note cuando llega uno nuevo. Prefijo Tú:/IA: si el ultimo es del agente/bot. */ var _lm=null; for(var _li=(t.mensajes||[]).length-1;_li>=0;_li--){ var _lc=t.mensajes[_li]; if(_lc&&_lc.from!=='espera'){ _lm=_lc; break; } } var body=_lm?((_lm.from==='agente'?((_lm.auto?'IA: ':'Tú: ')):'')+(_lm.text||'')):''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='espera'?'espera':(est==='leido'?'leido':'nuevo'))); var bl=(est==='espera'?'en espera':est); var _ua=null; for(var _i=(t.mensajes||[]).length-1;_i>=0;_i--){ var _mm=t.mensajes[_i]; if(_mm&&_mm.from==='agente'){ _ua=_mm; break; } } var _ia=(_ua&&_ua.auto===true)?'<span class="em-badge ia" title="La última respuesta la envió el bot (auto-FAQ)">IA</span>':''; return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+(est==='espera'?' esp':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags">'+_ia+'<span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+(function(){var _ms=emTiempoResp(t);return _ms!=null?('<div class="em-claimline">respondida en '+fmtMs(_ms)+'</div>'):'';})()+'</div>'; }).join('')||('<div class="em-empty">'+(emModo==='auto'?'Sin actividad automática de la IA en este filtro.':'Sin conversaciones en este filtro.')+'</div>'); }
+function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':'email'); var est=(t.estado||'nuevo'); var fok=(emFiltro==='todos')?true:(emFiltro==='activos')?(est!=='respondido'):(emFiltro==='sintomar')?!t.tomado_por:(est===emFiltro); var aok=(emModo!=='auto')||((t.mensajes||[]).some(function(m){return m&&m.auto===true;})||(typeof EM_APEND!=='undefined'&&EM_APEND.some(function(p){return p.conv_id===t.id;}))); /* modo auto: hilos con respuesta pendiente o ya respondidos por la IA */ if(emModo==='auto'&&emFiltro==='activos')fok=true; /* la vista Automatico muestra tambien lo respondido por el bot */ var bok=(emFiltro==='todos')?true:(ch===emBandeja); /* "Todos" = TODO de verdad, incluido el otro canal: antes solo abria el filtro por ESTADO y seguia limitando a la bandeja activa, por eso los correos no aparecian */ return bok && fok && aok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':'Correo'); /* preview = ULTIMO mensaje del hilo (no el primero), para que se note cuando llega uno nuevo. Prefijo Tú:/IA: si el ultimo es del agente/bot. */ var _lm=null; for(var _li=(t.mensajes||[]).length-1;_li>=0;_li--){ var _lc=t.mensajes[_li]; if(_lc&&_lc.from!=='espera'){ _lm=_lc; break; } } var body=_lm?((_lm.from==='agente'?((_lm.auto?'IA: ':'Tú: ')):'')+(_lm.text||'')):''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='espera'?'espera':(est==='leido'?'leido':'nuevo'))); var bl=(est==='espera'?'en espera':est); var _ua=null; for(var _i=(t.mensajes||[]).length-1;_i>=0;_i--){ var _mm=t.mensajes[_i]; if(_mm&&_mm.from==='agente'){ _ua=_mm; break; } } var _ia=(_ua&&_ua.auto===true)?'<span class="em-badge ia" title="La última respuesta la envió el bot (auto-FAQ)">IA</span>':''; return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+(est==='espera'?' esp':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags">'+((emFiltro==='todos')?('<span class="em-badge" title="Canal">'+cn+'</span>'):'')+_ia+'<span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+(function(){var _ms=emTiempoResp(t);return _ms!=null?('<div class="em-claimline">respondida en '+fmtMs(_ms)+'</div>'):'';})()+'</div>'; }).join('')||('<div class="em-empty">'+(emModo==='auto'?'Sin actividad automática de la IA en este filtro.':'Sin conversaciones en este filtro.')+'</div>'); }
 // Ficha FIJA de datos del cliente en el inbox (contador de mensajes/correos + KYC + saldo + más detalles).
 function emClienteInfoHTML(t, slot){
   if(!t) return '';
@@ -3711,54 +3687,14 @@ function emClienteInfoHTML(t, slot){
   const quitar = cc ? '<span title="Quitar cliente" style="position:absolute;top:3px;right:6px;cursor:pointer;opacity:.55;font-size:13px" onclick="event.stopPropagation();emDetachCliente(\''+slot+'\')">×</span>' : '';
   return '<div style="position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:3px 12px;font-size:11px;line-height:1.45;background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.18);border-radius:8px;padding:6px 26px 6px 10px;margin:2px 0">'+quitar+rows.map(function(r,i){return '<div style="'+(i>0?'padding-left:12px;border-left:1px solid rgba(127,127,127,.22)':'')+'">'+r+'</div>';}).join('')+'</div>';
 }
-function emRenderSlot(slot){
+/* Shared inbox thread body: renders header, client info, mail/chat thread, ticket thumb */
+function _emRenderBody(slot, t){
   const isMail=(slot==='mail');
-  const id=isMail?emSelMail:emSelChat;
-  const t=EMBANDEJA.find(function(x){return x.id===id;});
-  const who=$(isMail?'emMailWho':'emChatWho');
-  const sug=$(isMail?'emMailSug':'emChatSug');
-  emReflectIdent(slot,t);   // país/vertical: selector (manual) o identificador de solo lectura (auto)
-  // botones de escalamiento de sala: solo cuando la conversacion es retail (personal de sala)
-  const _esRetail=!!(t && emThreadVert(t)==='retail'); const eok=$(isMail?'emMailEscOk':'emChatEscOk'), eno=$(isMail?'emMailEscNo':'emChatEscNo');
-  if(eok)eok.style.display=_esRetail?'':'none'; if(eno)eno.style.display=_esRetail?'':'none';
-  if(!t){ if(who)who.textContent=isMail?'sin correo seleccionado':'sin chat seleccionado'; if(sug)sug.value='';
-    if(isMail){ if($('emMailHead'))$('emMailHead').innerHTML=''; if($('emMailBody'))$('emMailBody').textContent=''; if($('emPara'))$('emPara').value=''; if($('emAsuntoOut'))$('emAsuntoOut').value=''; }
-    else { if($('emChatThread'))$('emChatThread').innerHTML=''; }
-    const cle=$(isMail?'emMailCli':'emChatCli'); if(cle)cle.innerHTML=''; emRenderClaim(slot); emRenderInterno(); return; }
-  if(who)who.textContent=(t.de||'cliente')+((t.estado==='espera')?(' · ⏳ EN ESPERA'+(emEsperaNota(t)?(': '+emEsperaNota(t)):'')):((t.estado&&t.estado!=='nuevo')?(' · '+t.estado):''))+((t._consol&&t._consol.total>1)?(' · '+t._consol.total+' correos'):'')+(emClaimTxt(t)?(' · '+emClaimTxt(t)):'');
-  const cliEl=$(isMail?'emMailCli':'emChatCli');
-  if(cliEl){ cliEl.innerHTML=emClienteInfoHTML(t, slot); }
-  if(isMail){
-    const clis=(t.mensajes||[]).filter(function(m){return m.from!=='agente' && m.from!=='espera';});
-    const consol=(t._consol && t._consol.pendientes>1) ? ('<div style="font-size:11px;color:var(--accent);margin-bottom:4px">Este cliente tiene '+t._consol.pendientes+' correos pendientes en la bandeja'+(t._consol.repetidos?(' · '+t._consol.repetidos+' repetido(s) spam'):'')+'. Los respondidos quedan en el filtro Respondido.</div>') : '';
-    if($('emMailHead'))$('emMailHead').innerHTML=consol+'<b>De:</b> '+escapeHtml(t.de||'cliente')+'<br><b>Asunto:</b> '+escapeHtml(t.asunto||'(sin asunto)');
-    if($('emMailBody'))$('emMailBody').textContent=clis.map(function(m,i){return (clis.length>1?('['+(i+1)+'] '):'')+(m.text||'');}).join('\n\n———\n\n');
-    if($('emPara'))$('emPara').value=t.de||'';
-    if($('emAsuntoOut'))$('emAsuntoOut').value=(t.asunto&&!/^re:/i.test(t.asunto))?('Re: '+t.asunto):(t.asunto||'');
-  } else {
-    const th=$('emChatThread'); if(th){ th.innerHTML=(t.mensajes||[]).filter(function(m){return m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+(m.auto?'<span class="em-badge ia" style="margin-right:4px;cursor:pointer" onclick="event.stopPropagation();emEditarAutoPend()" title="Haz clic para corregir esta respuesta automatica">IA</span>':'')+escapeHtml(m.text||'')+emMsgImg(m)+'</div>'; }).join(''); scrollLectura(th,'.em-b'); emResolveImgs(th); }
-  }
-  // miniatura del ticket de apuesta adjuntado a esta conversacion (si hay)
-  const _tkImg=$(isMail?'emMailTicketImg':'emChatTicketImg');
-  if(_tkImg){ _tkImg.innerHTML = emTicketThumb(t.ticketImg); emResolveImgs(_tkImg); }
-  if(sug){
-    // No pisar el cuadro si lo estas ESCRIBIENDO ahora (re-render por recargar/tiempo real no borra tu texto).
-    if(!t.draftEdited && document.activeElement!==sug){ sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):''); }
-    const _tid=t.id;
-    sug.oninput=function(){ const tt=EMBANDEJA.find(function(x){return x.id===_tid;}); if(tt){ tt.draft=sug.value; tt.draftEdited=true; emSave(); emPushDebounced(tt); } };  // marca tu edicion y la sube a la nube (debounced) para que recargar la bandeja / tiempo real NO la pisen
-  }
-  emRenderInterno(); emRenderClaim(slot);
-}
-function emRenderThread(slot){
-  const isMail=(slot==='mail');
-  const id=isMail?emSelMail:emSelChat;
-  const t=EMBANDEJA.find(function(x){return x.id===id;});
-  if(!t)return;
   const who=$(isMail?'emMailWho':'emChatWho');
   if(who)who.textContent=(t.de||'cliente')+((t.estado==='espera')?(' · EN ESPERA'+(emEsperaNota(t)?(': '+emEsperaNota(t)):'')):((t.estado&&t.estado!=='nuevo')?(' · '+t.estado):''))+((t._consol&&t._consol.total>1)?(' · '+t._consol.total+' correos'):'')+(emClaimTxt(t)?(' · '+emClaimTxt(t)):'');
   const cliEl=$(isMail?'emMailCli':'emChatCli');
   if(cliEl){ cliEl.innerHTML=emClienteInfoHTML(t, slot); }
-  emReflectIdent(slot,t);   // país/vertical: selector (manual) o identificador de solo lectura (auto)
+  emReflectIdent(slot,t);
   if(isMail){
     const clis=(t.mensajes||[]).filter(function(m){return m.from!=='agente' && m.from!=='espera';});
     const consol=(t._consol && t._consol.pendientes>1) ? ('<div style="font-size:11px;color:var(--accent);margin-bottom:4px">Este cliente tiene '+t._consol.pendientes+' correos pendientes en la bandeja'+(t._consol.repetidos?(' · '+t._consol.repetidos+' repetido(s) spam'):'')+'. Los respondidos quedan en el filtro Respondido.</div>') : '';
@@ -3771,12 +3707,41 @@ function emRenderThread(slot){
   }
   const _tkImg=$(isMail?'emMailTicketImg':'emChatTicketImg');
   if(_tkImg){ _tkImg.innerHTML = emTicketThumb(t.ticketImg); emResolveImgs(_tkImg); }
+}
+function emRenderSlot(slot){
+  const isMail=(slot==='mail');
+  const id=isMail?emSelMail:emSelChat;
+  const t=EMBANDEJA.find(function(x){return x.id===id;});
   const sug=$(isMail?'emMailSug':'emChatSug');
+  // botones de escalamiento de sala: solo cuando la conversacion es retail (personal de sala)
+  const _esRetail=!!(t && emThreadVert(t)==='retail'); const eok=$(isMail?'emMailEscOk':'emChatEscOk'), eno=$(isMail?'emMailEscNo':'emChatEscNo');
+  if(eok)eok.style.display=_esRetail?'':'none'; if(eno)eno.style.display=_esRetail?'':'none';
+  if(!t){
+    const who=$(isMail?'emMailWho':'emChatWho');
+    if(who)who.textContent=isMail?'sin correo seleccionado':'sin chat seleccionado';
+    if(sug)sug.value='';
+    if(isMail){ if($('emMailHead'))$('emMailHead').innerHTML=''; if($('emMailBody'))$('emMailBody').textContent=''; if($('emPara'))$('emPara').value=''; if($('emAsuntoOut'))$('emAsuntoOut').value=''; }
+    else { if($('emChatThread'))$('emChatThread').innerHTML=''; }
+    const cle=$(isMail?'emMailCli':'emChatCli'); if(cle)cle.innerHTML=''; emRenderClaim(slot); emRenderInterno(); return;
+  }
+  _emRenderBody(slot, t);
+  if(sug){
+    if(!t.draftEdited && document.activeElement!==sug){ sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):''); }
+    const _tid=t.id;
+    sug.oninput=function(){ const tt=EMBANDEJA.find(function(x){return x.id===_tid;}); if(tt){ tt.draft=sug.value; tt.draftEdited=true; emSave(); emPushDebounced(tt); } };
+  }
+  emRenderInterno(); emRenderClaim(slot);
+}
+function emRenderThread(slot){
+  const id=(slot==='mail')?emSelMail:emSelChat;
+  const t=EMBANDEJA.find(function(x){return x.id===id;});
+  if(!t)return;
+  _emRenderBody(slot, t);
+  const sug=$((slot==='mail')?'emMailSug':'emChatSug');
   if(sug && !t.draftEdited && document.activeElement!==sug){
     sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):'');
   }
-  emRenderInterno();   // supervision en vivo: los pasos internos del bot (ia_raw) se refrescan con el hilo
-  emRenderClaim(slot);
+  emRenderInterno(); emRenderClaim(slot);
 }
 /* ---- Checklist de verificacion CRM: guia INTERNA de calidad. Convierte la seccion "Verificar en el
    CRM:" del analisis en casillas que el agente marca al comprobar cada dato; si falta alguna al enviar,
@@ -3787,28 +3752,55 @@ function emChecklistItems(t){
   if(!m)return [];
   return m[1].split('\n').map(function(l){return l.replace(/^\s*[-·•\d.)\s]+/,'').trim();}).filter(function(l){return l.length>3;}).slice(0,6);
 }
-function emCrmChk(id,i,on){ var t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.crmChk=t.crmChk||{}; t.crmChk[i]=!!on; emSave(); }
+/* Interruptor PERSONAL de las casillas: cada agente las activa o desactiva para si mismo.
+   NO vive en inbox_config porque esa tabla es de escritura solo-admin por RLS; ponerlo ahi
+   dejaria el interruptor en manos del admin y no de todos. Aqui cada quien decide, sin
+   tocar la seguridad de la config compartida. */
+var EM_CRMCHK_ON=(function(){ try{ return localStorage.getItem('em-crmchk-off')!=='1'; }catch(e){ return true; } })();
+function emCrmChkToggle(on){
+  EM_CRMCHK_ON=!!on;
+  try{ localStorage.setItem('em-crmchk-off', on?'0':'1'); }catch(e){}
+  emRenderInterno();
+  toast(on?'Casillas del CRM activadas: lo que marques personaliza la respuesta':'Casillas del CRM desactivadas (solo para ti)');
+}
+/* Marcar una casilla ahora SE COMPARTE: sube a la conversacion (crm_chk) para que el equipo
+   vea lo ya verificado y para que la IA redacte con esos datos confirmados por un humano. */
+function emCrmChk(id,i,on){
+  var t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return;
+  t.crmChk=t.crmChk||{}; t.crmChk[i]=!!on;
+  emSave(); emPush(t); emRenderInterno();
+}
 function emChecklistHTML(t){
   var items=emChecklistItems(t); if(!items.length)return '';
+  var sw='<label class="em-crmchk-sw" title="Activa o desactiva las casillas (solo para ti)"><input type="checkbox" '+(EM_CRMCHK_ON?'checked':'')+' onchange="emCrmChkToggle(this.checked)"> usar casillas</label>';
+  if(!EM_CRMCHK_ON) return '<div class="em-crmchk"><b>Verificación en el CRM</b> '+sw+'</div>';
   var chk=t.crmChk||{};
-  return '<div class="em-crmchk"><b>Comprueba en el CRM antes de enviar:</b>'+items.map(function(it,i){
+  var n=items.filter(function(it,i){return !!chk[i];}).length;
+  var hint=n?('Verificado '+n+' de '+items.length+' · pulsa Re-sugerir para que la respuesta use lo confirmado')
+            :'Marca lo que confirmaste en el CRM y la respuesta se redactará con esos datos';
+  return '<div class="em-crmchk"><b>Comprueba en el CRM antes de enviar:</b> '+sw+items.map(function(it,i){
     return '<label><input type="checkbox" '+(chk[i]?'checked':'')+' onchange="emCrmChk(\''+t.id+'\','+i+',this.checked)"> '+escapeHtml(it)+'</label>';
-  }).join('')+'</div>';
+  }).join('')+'<div class="em-crmchk-hint">'+hint+'</div></div>';
 }
 function emRenderInterno(){
   const box=$('emChatAnalisis'); if(!box)return;
   const ct=EMBANDEJA.find(function(x){return x.id===emSelChat;});
   const mt=EMBANDEJA.find(function(x){return x.id===emSelMail;});
+  // MISMO CLIENTE en los dos canales: se muestra UN solo bloque de cada cosa. Antes el texto
+  // interno si se deduplicaba, pero la checklist y el bloque de calidad NO: salian las mismas
+  // casillas y el mismo score dos veces, uno debajo del otro.
+  const sameClient = !!((ct && ct.cliente && mt && mt.cliente && ct.cliente.usuario===mt.cliente.usuario) || (ct && mt && ct.de && (ct.de||'').toLowerCase()===(mt.de||'').toLowerCase()));
+  const dosBloques = !!(mt && mt!==ct && !sameClient);
   let html='';
-  if(ct && ct.iaRaw){ html += renderContent(emInterno(ct.iaRaw))||''; }
-  if(mt && mt.iaRaw){
-    const sameClient = !!((ct && ct.cliente && mt.cliente && ct.cliente.usuario===mt.cliente.usuario) || (ct && mt && ct.de && (ct.de||'').toLowerCase()===(mt.de||'').toLowerCase()));
-    if(!sameClient){ const mi=renderContent(emInterno(mt.iaRaw)); if(mi) html += '<div class="em-coltitle" style="margin-top:10px">Interno del correo ('+escapeHtml(mt.de||'cliente')+')</div>'+mi; }
+  if(ct && ct.iaRaw){ const ci=renderContent(emInterno(ct.iaRaw)); if(ci) html += ci; }
+  if(mt && mt.iaRaw && !sameClient){
+    const mi=renderContent(emInterno(mt.iaRaw));
+    if(mi) html += '<div class="em-coltitle" style="margin-top:10px">Interno del correo ('+escapeHtml(mt.de||'cliente')+')</div>'+mi;
   }
   if(ct) html += emChecklistHTML(ct);
-  if(mt && mt!==ct) html += emChecklistHTML(mt);
+  if(dosBloques) html += emChecklistHTML(mt);
   if(ct) html += emCalidadHTML(ct);
-  if(mt && mt!==ct) html += emCalidadHTML(mt);
+  if(dosBloques) html += emCalidadHTML(mt);
   box.innerHTML = html || '<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
   emRenderLink();
 }
@@ -3885,9 +3877,9 @@ async function emEnriquecerFaq(t, slot, pregunta, respFaq){
     const pais=emThreadPais(t);
     const dirFaq='La respuesta al cliente YA ESTA DECIDIDA (es una correccion aprobada por el equipo); NO la cambies, NO la evalues y NO propongas otra. Tu trabajo es SOLO el contexto interno para el agente. Devuelve DOS secciones EXACTAS, cada una iniciando su propia linea con el encabezado tal cual: "Para ti (interno):" por que esa es la respuesta correcta, el proceso interno detras y los pasos que el agente debe revisar antes de enviarla. "Verificar en el CRM:" 2 a 4 verificaciones concretas, cada una en su propia linea con formato "- [Campo del CRM] -> que confirmar y que valor esperas". NO incluyas ninguna seccion de respuesta al cliente. PAIS: usa solo informacion de '+pais+'; si no tienes el dato, dilo. NUNCA incluyas contrasenas reales de POS/SSBT.';
     const {data:{session}}=await sb.auth.getSession(); if(!session) return;
-    const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+    const res=await fetchWithRetry(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
       body:JSON.stringify({mensajes:[{role:'system',content:dirFaq},{role:'user',content:'CONSULTA DEL CLIENTE:\n'+(pregunta||'')+'\n\nRESPUESTA APROBADA QUE SE LE DARA:\n'+respFaq}], canal:(t.canal==='mensaje'?'mensaje':'email'), audiencia:'cliente', instruccion:dirFaq, pais:pais, turno:{pais:pais,vertical:(typeof emThreadVert==='function'?emThreadVert(t):'online')}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
-    if(!res.ok) return;
+    if(!res||!res.ok) return;
     let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ return; }
     const r=(j.respuesta||'').trim();
     if(!r || j.ok===false || j.chainFailed || /sesi[oó]n no v[aá]lida/i.test(r)) return;
@@ -3897,7 +3889,7 @@ async function emEnriquecerFaq(t, slot, pregunta, respFaq){
     t.iaRaw=interno+'\nRespuesta sugerida al cliente: '+respFaq;
     t.crmChk={};
     emSave(); emPush(t); emRenderSlot(slot);
-  }catch(e){}
+  }catch(e){ console.warn('emEnriquecerFaq error:', e); }
 }
 async function emPedirSugerencia(slot, _retrySesion){
   slot=slot||emFocus; const isMail=(slot==='mail');
@@ -3936,12 +3928,26 @@ async function emPedirSugerencia(slot, _retrySesion){
     const yaHablamos=(t.mensajes||[]).some(function(m){return m.from==='agente';});
     var _espMs=null; try{ for(var _q=(t.mensajes||[]).length-1;_q>=0;_q--){ var _mq=t.mensajes[_q]; if(_mq.from==='cliente'){ var _tq=(typeof _mq.t==='string')?Date.parse(_mq.t):_mq.t; if(_tq)_espMs=Date.now()-_tq; break; } } }catch(_){}
     const dirDemora=(_espMs && _espMs>(canal==='email'?45*60000:8*60000)) ? ' El cliente lleva esperando aproximadamente '+fmtMs(_espMs)+': incluye UNA disculpa breve por la demora (sin excusas largas) antes de resolver.' : '';
+    /* CRM CONFIRMADO POR UN HUMANO: las casillas que el agente marco dejan de ser supuestos.
+       Se le pasan a la IA como hechos para que la respuesta salga personalizada al caso real
+       del cliente en vez de generica y llena de condicionales. Es el puente manual mientras
+       no haya acceso directo al CRM. */
+    var _crmItems=EM_CRMCHK_ON?emChecklistItems(t):[];
+    var _crmOk=_crmItems.filter(function(it,i){ return !!(t.crmChk&&t.crmChk[i]); });
+    var _crmFalta=_crmItems.filter(function(it,i){ return !(t.crmChk&&t.crmChk[i]); });
+    var dirCrm='';
+    if(_crmOk.length){
+      dirCrm='DATOS YA VERIFICADOS por el agente humano (los comprobo en el CRM o en el sistema interno): '+_crmOk.join(' | ')+'. Dalos por CIERTOS: no los vuelvas a pedir, no los condiciones con "si" o "en caso de", y NO le pidas al cliente que confirme algo que ya fue verificado. Redacta afirmando lo que corresponde segun esos datos, concreto y personalizado a su caso.';
+      if(_crmFalta.length) dirCrm+=' AUN SIN VERIFICAR (no los afirmes como hechos; si son imprescindibles, deja esa parte condicionada o pide el dato): '+_crmFalta.join(' | ')+'.';
+    }
     const dir=[
       'Devuelve SIEMPRE estas TRES secciones EXACTAS, cada una iniciando su propia linea con el encabezado tal cual:',
+      dirCrm,
       '"Para ti (interno):" diagnostico, causa y pasos para el AGENTE (aqui van los datos internos: IPs, comandos, multicuenta, montos de referencia; pero NUNCA contrasenas reales de POS/SSBT: referencia al gestor interno de claves).',
       '"Verificar en el CRM:" 2 a 4 verificaciones CONCRETAS para el agente, cada una en su propia linea con formato "- [Campo del CRM] -> que confirmar y que valor esperas". Son exactamente los datos que sustentan la respuesta al cliente: si alguno no coincide en el CRM, la respuesta NO se debe enviar tal cual.',
       '"Respuesta sugerida al cliente:" el mensaje FINAL listo para ENVIAR al cliente, de "usted", SIN ningun dato interno ni instrucciones para el agente.',
       'COHERENCIA OBLIGATORIA: la "Respuesta sugerida al cliente" debe decir al cliente la MISMA conclusion de tu "Para ti (interno)" (traducida a lenguaje sencillo, sin datos internos). Responde EXACTAMENTE lo que el cliente pregunto en su mensaje; NO cambies de tema, NO contradigas tu diagnostico, NO des una respuesta generica. Si el interno concluye que falta un requisito, que se escala, o cual es la causa, la respuesta al cliente debe reflejar ESO mismo.',
+      'REQUISITOS AL CLIENTE (regla clave): los puntos que pusiste en "Verificar en el CRM" son las CONDICIONES que deciden el caso. La "Respuesta sugerida al cliente" DEBE decirle al cliente, en lenguaje simple y SIN nombres de campos ni datos internos, cuales son esos requisitos y que se necesita de su parte, AUNQUE el agente todavia no los haya verificado. Escribelos como condiciones concretas y verificables por el propio cliente (ej.: "para que el bono se acredite se necesita: deposito minimo de X, apostar Y veces el monto y hacerlo dentro de los primeros Z dias"), NUNCA como preguntas al agente ni como un vago "estamos revisando su caso". OBJETIVO: que el cliente sepa exactamente que le falta y que la respuesta se pueda ENVIAR TAL CUAL, sin esperar la verificacion, porque en la mayoria de los casos ya se ve que no cumplio alguno. Si un requisito aparece entre los DATOS YA VERIFICADOS, no lo plantees como pendiente: afirma su estado real.',
       (canal==='email'
         ? (yaHablamos
           ? ('Esa respuesta al cliente es un CORREO de SEGUIMIENTO de una conversacion ya iniciada: NO vuelvas a saludar con "Estimado/a" ni te presentes; entra directo al tema retomando el hilo, y cierra con "Atentamente," y en la linea siguiente "Equipo de Soporte de '+emp+'".')
@@ -3957,8 +3963,10 @@ async function emPedirSugerencia(slot, _retrySesion){
     ].join(' ');
     // PERSONAL DE SALA (retail): NO es cliente externo -> comunicacion interna con pasos/comandos, sin "Respuesta al cliente".
     const dirRetail=[
-      'Quien escribe es PERSONAL DE SALA (casino fisico, retail) de '+pais+'. NOSOTROS somos su soporte tecnico (no es un cliente final). Devuelve DOS secciones EXACTAS, cada una iniciando su propia linea con el encabezado tal cual:',
+      'Quien escribe es PERSONAL DE SALA (casino fisico, retail) de '+pais+'. NOSOTROS somos su soporte tecnico (no es un cliente final). Devuelve TRES secciones EXACTAS, cada una iniciando su propia linea con el encabezado tal cual:',
+      dirCrm,
       '"Para ti (interno):" SOLO para el agente de soporte: diagnostico, posibles causas y los PASOS/comandos que ejecuta el AGENTE (IPs, usuarios root/n1, putty -ssh user@<ip>, vncviewer <ip>:5900, systemctl restart <servicio>, reboot, etc.) y que deberia ver. El personal de sala NO ve esto. SEGURIDAD: NUNCA escribas contrasenas reales de POS ni de SSBT (ni de ningun equipo); si un paso la requiere, escribe "<usar la contrasena del POS/SSBT del gestor interno>" sin mostrarla.',
+      '"Verificar en el sistema:" 2 a 4 verificaciones CONCRETAS que el agente confirma ANTES de responder, cada una en su propia linea con formato "- [Que mirar] -> que confirmar y que valor esperas" (ej. estado del equipo en el monitoreo, sala y numero de terminal, si hay ticket abierto, ultima conexion, version del software). Son exactamente los datos que sustentan lo que se le dice al personal de sala: si alguno no coincide, la respuesta NO se envia tal cual.',
       '"Respuesta sugerida al cliente:" el mensaje que se le ENVIA al personal de sala. PROHIBIDO incluir comandos, IPs, usuarios o datos tecnicos internos. Lenguaje sencillo de soporte: confirma que estas revisando/ya revisaste el equipo y dile el siguiente paso concreto de su lado (ej.: "Ya revise el equipo de forma remota; por favor intenta imprimir de nuevo en unos minutos y confirmame si funciono. Si sigue igual, avisame."). Tono cordial de companero.',
       'PAIS: usa UNICAMENTE informacion de '+pais+'; no mezcles datos de otros paises.'
     ].join(' ');
@@ -3991,8 +3999,9 @@ async function emPedirSugerencia(slot, _retrySesion){
     // para plantillas locales (fases posteriores), jamas se envia aqui.
     const {data:{session}}=await sb.auth.getSession();
     if(!session){ toast('Tu sesión expiró: vuelve a iniciar sesión para generar respuestas.'); emRenderSlot(slot); return; }
-    const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
+    const res=await fetchWithRetry(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
       body:JSON.stringify({mensajes:mensajes, canal:canal, audiencia:(vert==='retail'?'interno':'cliente'), formato:(canal==='email'?'correo':'mensaje'), instruccion:dirFinal, cliente:(vert==='retail'?null:(cliente||null)), pais:pais, turno:{pais:pais,vertical:vert}, escalar:(vert==='retail'&&!!t.escalar), tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
+    if(!res) throw new Error('No se pudo contactar al servidor (timeout o red caida)');
     if(!res.ok) throw new Error('Servidor '+res.status);
     let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ j={}; }
     const _iaTxt=(j.respuesta||'').trim();
@@ -4021,7 +4030,7 @@ function emAdjuntarTicket(slot, ev){
   if(!t){ toast('Selecciona primero la conversación'); return; }
   const rd=new FileReader(); rd.onload=function(){ _downscaleImg(rd.result, function(small){ t.ticketImg=small; emSave(); emRenderSlot(slot); toast('Imagen del ticket adjuntada. Dale "Analizar ticket".'); }); }; rd.readAsDataURL(f);
 }
-function emVerImg(src){ const w=window.open('','_blank'); if(w) w.document.write('<img src="'+src+'" style="max-width:100%">'); }
+function emVerImg(src){ if(!src||/^javascript:/i.test(src)) return; const w=window.open('','_blank'); if(w) w.document.write('<img src="'+src.replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];})+'" style="max-width:100%">'); }
 // Analiza el ticket con el MISMO verificador del chat general (imagen y/o descripcion del cliente).
 // El verificador devuelve el formato "Para ti (interno): ... Respuesta sugerida al cliente: ...",
 // asi que reusamos todo el render del inbox (panel interno + borrador de respuesta al cliente).
@@ -4072,6 +4081,22 @@ async function emAnalizarTicket(slot){
 function emResugerir(){ const t=emActiveThread(); if(!t){ toast('Selecciona una conversacion'); return; } t.draftEdited=false; emPedirSugerencia(emFocus); }
 // Re-sugiere la respuesta en AMBOS paneles a la vez: el chat y el correo, segun cuales tengan
 // una conversacion abierta. Las genera en secuencia (coherentes entre canales via dirCoher).
+/* ENVIAR AMBOS: responde el chat y el correo abiertos en una sola accion.
+   Cada panel pasa por emResponder, asi que conserva el revisor de calidad, el aviso del
+   checklist del CRM y el envio real al canal que corresponda (telegram-out / correo-out).
+   Secuencial a proposito: son dos clientes distintos y cada uno tiene su propio confirm. */
+async function emEnviarAmbos(){
+  const c=EMBANDEJA.find(function(x){return x.id===emSelChat;});
+  const m=EMBANDEJA.find(function(x){return x.id===emSelMail;});
+  if(!c && !m){ toast('Abre una conversacion en el chat y/o el correo primero'); return; }
+  const cTxt=((($('emChatSug')||{}).value)||'').trim();
+  const mTxt=((($('emMailSug')||{}).value)||'').trim();
+  if(!(c&&cTxt) && !(m&&mTxt)){ toast('Escribe o genera una respuesta primero'); return; }
+  let n=0;
+  if(c && cTxt){ await emResponder('chat'); n++; }
+  if(m && mTxt){ await emResponder('mail'); n++; }
+  if(n===2) toast('Enviados los dos: chat y correo');
+}
 async function emResugerirAmbos(){
   const c=EMBANDEJA.find(function(x){return x.id===emSelChat;});
   const m=EMBANDEJA.find(function(x){return x.id===emSelMail;});
@@ -4179,7 +4204,7 @@ async function emResponder(slot){
   }catch(e){}
   // GUIA CRM: si el analisis pidio comprobar datos en el CRM y quedan casillas sin marcar, se confirma
   // antes de enviar (la respuesta al cliente debe ir con datos COMPROBADOS, no supuestos).
-  var _pendCrm=emChecklistItems(t).filter(function(it,i){ return !(t.crmChk&&t.crmChk[i]); });
+  var _pendCrm=EM_CRMCHK_ON?emChecklistItems(t).filter(function(it,i){ return !(t.crmChk&&t.crmChk[i]); }):[];   // con las casillas desactivadas no se avisa
   if(_pendCrm.length){ const _segCrm=await appConfirm('Aún no marcaste como comprobado en el CRM:\n\n· '+_pendCrm.join('\n· ')+'\n\n¿Ya verificaste que los datos de la respuesta son correctos?',{okText:'Sí, enviar',cancelText:'Revisar CRM'}); if(!_segCrm) return; }
   if(!t.tomado_por && me){ t.tomado_por=me.id; t.tomado_email=(myProfile&&myProfile.full_name)||me.email; t.tomado_at=new Date().toISOString(); }
   // METRICA: tiempo de respuesta = desde el PRIMER mensaje del cliente sin contestar hasta este envio.
@@ -4191,8 +4216,10 @@ async function emResponder(slot){
   }catch(_){}
   t.mensajes.push({from:'agente',text:txt,t:Date.now(),trespMs:_trMs}); t.estado='respondido'; t.draft=''; t.aprendido=true; sug.value=''; emBotPausaConv(t); emSave(); emPush(t);
   if(_trMs!=null){ try{ logAudit('tiempo_respuesta',{ms:_trMs, canal:(t.canal==='mensaje'?'chat':'correo'), conv:''+t.id}); }catch(_){}; toast('Enviado · tiempo de respuesta: '+fmtMs(_trMs)); }
-  // Conversacion de canal REAL (WhatsApp 'wa-<tel>' / Telegram 'tg-<chat>'): la respuesta tambien sale al dispositivo del cliente
-  const _outCanal=(''+t.id).indexOf('wa-')===0?{url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'}:(''+t.id).indexOf('tg-')===0?{url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'}:null;
+  // Conversacion de canal REAL (WhatsApp 'wa-<tel>' / Telegram 'tg-<chat>' / correo): la respuesta sale al cliente.
+  // El correo se envia por Gmail desde n8n (correo-out); el destinatario lo resuelve el workflow leyendo
+  // la conversacion en la base, por eso aqui solo viaja el id y el texto.
+  const _outCanal=(''+t.id).indexOf('wa-')===0?{url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'}:(''+t.id).indexOf('tg-')===0?{url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'}:(t.canal!=='mensaje'?{url:CORREO_OUT_WEBHOOK,nom:'correo'}:null);
   if(_outCanal){ try{ const {data:{session}}=await sb.auth.getSession(); fetch(_outCanal.url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({id:t.id,texto:txt})}).then(function(r){return r.json();}).then(function(j){ if(!(j&&j.ok)) toast(_outCanal.nom+': no se envio al cliente ('+((j&&j.error)||'error')+')'); else toast('Enviado al '+_outCanal.nom+' del cliente'); }).catch(function(){ toast(_outCanal.nom+': no se pudo enviar'); }); }catch(e){} }
   if(slot==='mail')emSelMail=null; else emSelChat=null; emSaveSel();   // al responder se quita del panel; queda en la bandeja por si lo buscas
   emRenderList(); emRenderSlot(slot); emRenderInterno();
@@ -4232,8 +4259,18 @@ async function emVaciar(){
   // Borra en la nube SIEMPRE que haya cliente (aunque emCloudReady este caido); si falla, NO se limpia
   // lo local para no ocultar el fallo (antes el catch vacio hacia que las conversaciones "resucitaran").
   if(sb){
-    try{ const {error}=await sb.from('inbox_conversaciones').delete().eq('tenant',CONFIG.tenant); if(error) throw error; }
-    catch(e){ toast('No se pudo vaciar en la nube: '+((e&&e.message)||'sin conexion')+'. No se borró nada.'); return; }
+    try{
+      var _delCount=0;
+      while(true){
+        const {data:_del,error:e1}=await sb.from('inbox_conversaciones').select('id').eq('tenant',CONFIG.tenant).limit(500);
+        if(e1) throw e1;
+        if(!_del||!_del.length) break;
+        const ids=_del.map(function(r){return r.id;});
+        const {error:e2}=await sb.from('inbox_conversaciones').delete().in('id',ids);
+        if(e2) throw e2;
+        _delCount+=ids.length;
+      }
+    } catch(e){ toast('No se pudo vaciar en la nube: '+((e&&e.message)||'sin conexion')+'. No se borró nada.'); return; }
     // marca de vaciado: otras pestañas y dispositivos descartan sus copias locales viejas (no resucitan)
     const _ahora=new Date().toISOString();
     try{ const {error:e2}=await sb.from('inbox_config').upsert({tenant:CONFIG.tenant,vaciado_at:_ahora,updated_at:_ahora}); if(e2) throw e2; EM_VACIADO=Date.parse(_ahora); }
@@ -4374,8 +4411,9 @@ async function sendMsg(){
   $('send').disabled=true; $('typing').classList.add('on'); $('chat').scrollTop=$('chat').scrollHeight;
   try{
     const {data:{session}}=await sb.auth.getSession();
-    const res=await fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
+    const res=await fetchWithRetry(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
       body:JSON.stringify({cliente_id:s.cliente?s.cliente.usuario:'', cliente:s.cliente||null, analisis:s.cliente?analizar(s.cliente):null, catalogo:s.cliente?BONOS[s.cliente.pais]:null, sala:s.sala||null, comandos:s.sala?COMANDOS:null, pais:s.cliente?s.cliente.pais:(s.sala?(s.sala.pais||'PA'):''), tenant:CONFIG.tenant, imagenes:getImagenes(), empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, base:getBase(), mensajes:s.mensajes.map(m=>({role:m.role,content:m.content})), adjuntos:imgs, agente:me.email, turno:{pais:turnoPais(),vertical:turnoVert()}, glosario:GLOS})});
+    if(!res)throw new Error('No se pudo contactar al servidor (timeout o red caida)');
     if(!res.ok)throw new Error('Servidor '+res.status);
     const raw=(await res.text()||'').trim();
     if(!raw) throw new Error('el workflow de n8n respondió vacío. En n8n, el webhook "sportium-chat" debe terminar en un nodo «Respond to Webhook» que devuelva {"respuesta":"…"}.');
@@ -4536,12 +4574,12 @@ function initPresence(){
     presChan=sb.channel('online-'+CONFIG.tenant,{config:{presence:{key:me.id}}});
     presChan.on('presence',{event:'sync'},function(){
       PRES={};
-      try{ const st=presChan.presenceState(); Object.keys(st).forEach(function(k){ const m=(st[k]&&st[k][0])||{}; PRES[k]={email:m.email||'',name:m.name||m.email||'agente'}; }); }catch(e){}
+      try{ const st=presChan.presenceState(); Object.keys(st).forEach(function(k){ const m=(st[k]&&st[k][0])||{}; PRES[k]={email:m.email||'',name:m.name||m.email||'agente'}; }); }catch(e){ console.warn('presenceState error:', e); }
       presRender();
     }).subscribe(function(status){
-      if(status==='SUBSCRIBED'){ try{ presChan.track({email:me.email,name:(myProfile&&myProfile.full_name)||me.email}); }catch(e){} }
+      if(status==='SUBSCRIBED'){ try{ presChan.track({email:me.email,name:(myProfile&&myProfile.full_name)||me.email}); }catch(e){ console.warn('presence track error:', e); } }
     });
-  }catch(e){}
+  }catch(e){ console.warn('initPresence error:', e); }
 }
 function presRender(){
   const el=$('presPill'); if(!el)return;
@@ -4791,7 +4829,7 @@ async function loadTeam(){ if(!sb)return; try{ const {data}=await sb.from('team_
 function subTeam(){ if(!sb||tcChan)return; tcChan=sb.channel('team-'+CONFIG.tenant)
   .on('postgres_changes',{event:'INSERT',schema:'public',table:'team_messages',filter:'tenant=eq.'+CONFIG.tenant},payload=>{ const m=payload.new; if(tcMsgsArr.some(x=>x.id===m.id))return; if(m.to_id && !(me&&(m.from_id===me.id||m.to_id===me.id)))return; tcMsgsArr.push(m); const conv=tcConvOfMsg(m); const win=tcWins[conv]; if(win && !win.classList.contains('min')){ tcRenderWin(conv); } else if(!me||m.from_id!==me.id){ tcUnread[conv]=(tcUnread[conv]||0)+1; if(!tcWins[conv]&&!tcHeads[conv]){ tcHeads[conv]=true; } } tcBadges(); })
   .on('postgres_changes',{event:'DELETE',schema:'public',table:'team_messages'},payload=>{ const id=payload.old&&payload.old.id; if(id){ const n=tcMsgsArr.length; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); if(tcMsgsArr.length!==n){ Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); } } })
-  .subscribe(function(status){ if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){ try{ sb.removeChannel(tcChan); }catch(e){} tcChan=null; setTimeout(function(){ subTeam(); }, 3000); } }); }
+  .subscribe(function(status){ if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){ try{ sb.removeChannel(tcChan); }catch(e){ console.warn('subTeam removeChannel:', e); } tcChan=null; if(typeof toast==='function') toast('Chat de equipo: reconectando...'); setTimeout(function(){ subTeam(); }, 3000); } }); }
 async function delTeamMsg(id,mine){ if(!await appConfirm('¿Borrar este mensaje?',{danger:true}))return; try{ if(mine){ await sb.from('team_messages').delete().eq('id',id); } else if(isAdmin()){ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_delete',id})}); } else return; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo borrar: '+(e.message||e)); } }
 async function clearTeam(){ if(!isAdmin())return; if(!await appConfirm('¿Borrar TODO el chat de equipo (general, para todos)?',{danger:true}))return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_clear',tenant:CONFIG.tenant})}); tcMsgsArr=[]; Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo: '+(e.message||e)); } }
 function tcDownscale(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=1280; let w=img.width,h=img.height; if(w>max||h>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);} const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); res(c.toDataURL('image/jpeg',0.6)); }; img.onerror=()=>res(null); img.src=r.result; }; r.onerror=()=>res(null); r.readAsDataURL(file); }); }
@@ -4820,6 +4858,8 @@ setTimeout(function(){
   }catch(e){}
 },10000);
 initAuth();
+/* ---- refresco proactivo de sesion cada 25 min (evita que venza mientras el agente escribe) ---- */
+setInterval(function(){ try{ if(sb) sb.auth.refreshSession().catch(function(e){ console.warn('refreshSession programado fallo:', e&&e.message); }); }catch(e){} }, 1500000);
 </script>
 <script>
 /* Logo SINELI: agujero negro (WebGL) con lente gravitacional. UN solo renderer compartido
@@ -4951,6 +4991,71 @@ initAuth();
   /* arranca cuando la pagina ya cargo (la consola primero, el efecto despues) */
   if(document.readyState==='complete') setTimeout(startMaster,150);
   else addEventListener('load',function(){ setTimeout(startMaster,150); });
+})();
+</script>
+<script>
+(function(){
+var cv=document.getElementById('bhHero');if(!cv)return;
+var gl=cv.getContext('webgl',{alpha:true})||cv.getContext('experimental-webgl',{alpha:true});
+if(!gl){cv.style.display='none';return}
+function resize(){var d=Math.min(window.devicePixelRatio||1,1.5),w=Math.round(window.innerWidth*d),h=Math.round(window.innerHeight*d);if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;gl.viewport(0,0,w,h)}}
+var vs='attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+var fs='precision highp float;uniform vec2 uRes;uniform float uTime;uniform sampler2D uWord;#define PI 3.14159265\n'+
+'vec3 diskC(vec3 pos){float r=length(pos.xz);float t=(r-2.2)/(8.2-2.2);if(t<0.0||t>1.0)return vec3(0.0);\n'+
+'float phi=atan(pos.z,pos.x);float u=phi/(2.0*PI)+0.5+uTime*0.025;\n'+
+'vec2 wuv=vec2(fract(u*3.0),clamp(t*0.62+0.19,0.0,1.0));float letters=texture2D(uWord,wuv).r;\n'+
+'float turb=clamp(0.55+0.45*sin(phi*18.0-r*2.5-uTime*2.2)*0.6+0.4*sin(phi*7.0+uTime*1.1),0.25,1.3);\n'+
+'vec3 hot=vec3(1.0,0.98,0.92),mid=vec3(1.0,0.62,0.26),cool=vec3(0.82,0.26,0.07);\n'+
+'vec3 col=mix(hot,mix(mid,cool,t),t);\n'+
+'vec3 vel=normalize(vec3(-pos.z,0.0,pos.x));vec3 toCam=normalize(vec3(0.0,1.7,14.0)-pos);\n'+
+'float dop=dot(vel,toCam);float beam=pow(clamp(1.0+0.6*dop,0.0,2.2),3.0);\n'+
+'col=mix(col,col*vec3(0.82,0.9,1.25),clamp(dop,0.0,1.0)*0.55);\n'+
+'float bright=(0.22+1.5*letters)*turb*beam;\n'+
+'float edge=smoothstep(0.0,0.09,t)*smoothstep(1.0,0.82,t);return col*bright*edge;}\n'+
+'vec3 stars(vec3 d){vec2 uv=vec2(atan(d.z,d.x),asin(clamp(d.y,-1.,1.)));uv*=vec2(40.0,40.0);\n'+
+'vec2 g=floor(uv);float h=fract(sin(dot(g,vec2(12.9898,78.233)))*43758.5453);\n'+
+'float h2=fract(sin(dot(g,vec2(63.7,11.7)))*24634.6);float d2=length(fract(uv)-0.5);\n'+
+'float s=smoothstep(0.985,1.0,h)*smoothstep(0.35,0.0,d2);return s*(0.4+0.6*h2);}\n'+
+'void main(){vec2 uv=(gl_FragCoord.xy-0.5*uRes)/uRes.y;\n'+
+'vec3 ro=vec3(0.0,1.7,14.0),ta=vec3(0.0);\n'+
+'vec3 f=normalize(ta-ro),rr=normalize(cross(f,vec3(0,1,0))),uu=cross(rr,f);\n'+
+'vec3 rd=normalize(uv.x*rr+uv.y*uu+1.5*f);\n'+
+'vec3 pos=ro,vel=rd;vec3 color=vec3(0.0);float tr=1.0;bool hz=false;\n'+
+'for(int i=0;i<300;i++){float r=length(pos);if(r<1.0){hz=true;break;}if(r>32.0)break;\n'+
+'float dt=clamp(r*0.055,0.02,0.34);\n'+
+'vec3 h=cross(pos,vel);float h2=dot(h,h);vec3 acc=-1.5*h2*pos/pow(dot(pos,pos),2.5);\n'+
+'vec3 np=pos+vel*dt;if(pos.y*np.y<0.0){float k=pos.y/(pos.y-np.y);vec3 cp=mix(pos,np,k);color+=tr*diskC(cp);tr*=0.80;}\n'+
+'vel+=acc*dt;pos=np;if(tr<0.02)break;}\n'+
+'vec3 bg=vec3(0.0);if(!hz)bg=vec3(stars(normalize(vel)));\n'+
+'vec3 c=color+tr*bg;c=c/(1.0+c);c=pow(c,vec3(0.85));\n'+
+'gl_FragColor=vec4(c,0.55);}';
+function sh(t,s){var o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o;}
+var pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pr);
+if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){cv.style.display='none';return}
+gl.useProgram(pr);
+var bf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+var lp=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(lp);gl.vertexAttribPointer(lp,2,gl.FLOAT,false,0,0);
+var uRes=gl.getUniformLocation(pr,'uRes'),uTime=gl.getUniformLocation(pr,'uTime'),uWord=gl.getUniformLocation(pr,'uWord');
+var wc=document.createElement('canvas');wc.width=1024;wc.height=256;var wx=wc.getContext('2d');
+function drawWord(){wx.fillStyle='#000';wx.fillRect(0,0,1024,256);wx.fillStyle='#fff';wx.textAlign='center';wx.textBaseline='middle';
+  wx.font='700 150px "Space Grotesk","Manrope",system-ui,sans-serif';wx.fillText('SINELI',410,128);
+  wx.font='700 120px "Space Grotesk","Manrope",system-ui,sans-serif';wx.fillText('\u00b7',900,128);}
+drawWord();
+var tx=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tx);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,wc);
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+var t0=performance.now(),reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame(){resize();gl.useProgram(pr);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tx);gl.uniform1i(uWord,0);
+  gl.uniform2f(uRes,cv.width,cv.height);gl.uniform1f(uTime,(performance.now()-t0)/1000.0);
+  gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,3);
+  if(!reduce)requestAnimationFrame(frame);}
+if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){drawWord();gl.bindTexture(gl.TEXTURE_2D,tx);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,wc);frame();});}
+setTimeout(function(){if(!t0)frame();},400);
+/* stop rendering when dark mode is off */
+var obs=new MutationObserver(function(){cv.style.display=document.documentElement.getAttribute('data-theme')==='dark'?'block':'none';});
+obs.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 })();
 </script>
 </body>

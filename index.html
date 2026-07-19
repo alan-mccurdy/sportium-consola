@@ -1012,6 +1012,16 @@ body{background:transparent}
   <div class="sec"><small style="color:var(--txt-2)">Métricas de hoy. El supervisor puede bloquear/desbloquear agentes; crear/invitar es solo del administrador.</small></div>
 </aside>
 
+<!-- ===== LLAMADA (panel PROPIO: gestionar una llamada no es lo mismo que responder un chat) ===== -->
+<div class="overlay" id="llamadaOverlay" onclick="cerrarLlamada()"></div>
+<aside class="panel wide" id="llamadaPanel">
+  <div class="phead"><b>Llamada — asistir al bot</b>
+    <button class="btn ghost mini" id="llTomar" onclick="llamadaTomar()" style="margin-left:auto">Tomar</button>
+    <button class="btn ghost mini" onclick="emAbrirLlamada(LL_SEL)">Actualizar</button>
+    <span class="rm" onclick="cerrarLlamada()" style="cursor:pointer;margin-left:8px">×</span></div>
+  <div class="sec" id="llBody"><small style="color:var(--txt-2)">Selecciona una llamada.</small></div>
+</aside>
+
 <!-- ===== CASO ESCALADO (supervisor: pestaña dedicada via ?caso=<id>) ===== -->
 <div class="overlay" id="casoOverlay" onclick="closeCaso()"></div>
 <aside class="panel wide" id="casoPanel">
@@ -3967,10 +3977,12 @@ function emAutoPendInject(t){
   if(p.faq) t._apFaq=true;
   emSave();
 }
-function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const wasNuevo=((t.estado||'nuevo')==='nuevo'); emAutoPais(t); if(t.canal!=='mensaje') emConsolidarCliente(t); if(wasNuevo){ t.estado='leido'; emSave(); emPush(t); } /* La LLAMADA se abre en el panel de CHAT, no en el de correo: asistir al bot en vivo se parece
-   mucho mas a conversar que a redactar un correo, y el panel de correo es demasiado limitado
-   para el ida y vuelta rapido que necesita una llamada en curso. */
-const slot=(t.canal==='mensaje'||t.canal==='voz')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emAutoPendInject(t); emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } if(t.ticketImg && !t._tkAnalizado && typeof emAnalizarTicket==='function'){ t._tkAnalizado=true; emAnalizarTicket(slot); } }
+function emSelect(id){ const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; const wasNuevo=((t.estado||'nuevo')==='nuevo'); emAutoPais(t); if(t.canal!=='mensaje') emConsolidarCliente(t); if(wasNuevo){ t.estado='leido'; emSave(); emPush(t); } /* La LLAMADA tiene PANEL PROPIO. Los datos si se cruzan entre canales (mismo cliente, misma KB,
+   mismo historial) porque eso mejora las respuestas; pero la GESTION no: en una llamada el agente
+   no le escribe al cliente, le dicta al bot. Mezclarla con los chats haria que los mismos botones
+   signifiquen cosas distintas segun la fila seleccionada. */
+if(t.canal==='voz'){ emAbrirLlamada(id); return; }
+const slot=(t.canal==='mensaje')?'chat':'mail'; if(slot==='chat')emSelChat=id; else emSelMail=id; emAutoPendInject(t); emRenderList(); emRenderSlot(slot); emFocusSet(slot); emTryLink(t); if(wasNuevo && !t.iaRaw && !(t.mensajes||[]).some(function(m){return m.from==='agente';})){ emPedirSugerencia(slot); } if(t.ticketImg && !t._tkAnalizado && typeof emAnalizarTicket==='function'){ t._tkAnalizado=true; emAnalizarTicket(slot); } }
 function emAddManual(){
   const de=($('emDe')&&$('emDe').value||'').trim();
   const asunto=($('emAsunto')&&$('emAsunto').value||'').trim();
@@ -4378,8 +4390,10 @@ async function emPedirTiempo(slot){
   t.mensajes.push({from:'agente',text:txt,t:Date.now(),espera:true,por:'Pedir tiempo'});
   t._espAviso=Date.now();
   emSave(); emPush(t); emRenderSlot(slot); emRenderList();
-  const out=(''+t.id).indexOf('wa-')===0?{url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'}:(''+t.id).indexOf('tg-')===0?{url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'}:(t.canal!=='mensaje'?{url:CORREO_OUT_WEBHOOK,nom:'correo'}:null);
+  const out=emCanalSalida(t);
   if(!out){ toast('Aviso agregado al hilo (esta conversacion no tiene canal de salida)'); return; }
+  /* En una LLAMADA el "pedir tiempo" lo tiene que decir el bot, no se manda por otro canal. */
+  if(out.voz){ await emPasarAlBot(t, txt, 'Pedir tiempo'); return; }
   try{
     const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(out.url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({id:t.id,texto:txt})});
@@ -4401,8 +4415,9 @@ function emTextoAcuse(t){
 async function emAcuseAsignacion(t, slot){
   if(!t || t._acuse) return;                                             // ya se le aviso
   if((t.mensajes||[]).some(function(m){ return m && m.from==='agente'; })) return;   // ya hubo respuesta: no hace falta acuse
-  const out=(''+t.id).indexOf('wa-')===0?{url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'}:(''+t.id).indexOf('tg-')===0?{url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'}:(t.canal!=='mensaje'?{url:CORREO_OUT_WEBHOOK,nom:'correo'}:null);
+  const out=emCanalSalida(t);
   if(!out) return;                                                       // sin canal de salida: no se inventa nada
+  if(out.voz) return;   // en una llamada el bot YA esta hablando con el cliente: un acuse sobraria
   const txt=emTextoAcuse(t);
   t._acuse=Date.now();
   t.mensajes.push({from:'agente',text:txt,t:Date.now(),acuse:true,por:'Acuse de asignación'});
@@ -4413,6 +4428,88 @@ async function emAcuseAsignacion(t, slot){
     let j=null; try{ j=await r.json(); }catch(_){}
     if(!(j&&j.ok)) toast(out.nom+': no se pudo enviar el acuse'+((j&&j.error)?(' ('+j.error+')'):''));
   }catch(e){ toast(out.nom+': no se pudo enviar el acuse'); }
+}
+/* ===== PANEL PROPIO DE LLAMADA =====
+   Una llamada se gestiona distinto a un chat o un correo: aqui el agente NO le escribe al cliente,
+   le dicta al BOT, que es quien habla. Por eso tiene su propio panel y sus propios botones, en vez
+   de reusar los del inbox donde los mismos controles significarian otra cosa.
+   Los DATOS si se comparten con el resto de canales (mismo cliente, misma KB, mismo historial). */
+var LL_SEL=null;
+function cerrarLlamada(){ vozDetener(); $('llamadaOverlay').classList.remove('on'); $('llamadaPanel').classList.remove('on'); LL_SEL=null; }
+async function emAbrirLlamada(id){
+  if(!id||!sb) return;
+  LL_SEL=id;
+  $('llamadaOverlay').classList.add('on'); $('llamadaPanel').classList.add('on');
+  const box=$('llBody'); box.innerHTML='<small style="color:var(--txt-2)">Cargando llamada…</small>';
+  try{
+    const {data,error}=await sb.from('inbox_conversaciones').select('id,de,pais,estado,mensajes,ia_raw,ayuda_pedida,tomado_por,tomado_email').eq('id',id).single();
+    if(error) throw error;
+    const ms=Array.isArray(data.mensajes)?data.mensajes:[];
+    const bt=$('llTomar');
+    if(bt){ const mio=(data.tomado_por===(me&&me.id)); bt.textContent=data.tomado_por?(mio?'Liberar':'Tomada por '+(data.tomado_email||'otro')):'Tomar'; bt.disabled=!!(data.tomado_por&&!mio); }
+    const turnos=ms.map(function(m){
+      const esBot=(m.from==='agente');
+      const quien=esBot?(m.auto?'Bot':'Agente'):'Cliente';
+      const btn=esBot?('<button class="btn ghost mini" onclick="vozDecir(this.getAttribute(\'data-t\'),this)" data-t="'+escapeHtml(m.text||'')+'">▶</button>'):'';
+      return '<div style="margin:4px 0;padding:5px 7px;border-left:3px solid '+(esBot?'var(--accent)':'var(--txt-2)')+';background:rgba(127,127,127,.06);border-radius:3px">'+
+             '<b style="font-size:11px">'+quien+'</b> '+btn+'<div style="font-size:12px;margin-top:2px">'+escapeHtml(m.text||'')+'</div></div>';
+    }).join('');
+    const todoBot=ms.filter(function(m){return m.from==='agente';}).map(function(m){return m.text;}).join('. ');
+    box.innerHTML=
+      '<div class="fld">'+escapeHtml(data.de||id)+' · '+escapeHtml(data.pais||'')+' · '+escapeHtml(data.estado||'')+
+        (data.ayuda_pedida?' <span class="em-badge nuevo">el bot pide ayuda</span>':'')+'</div>'+
+      '<div style="margin:4px 0"><button class="btn ghost mini" onclick="vozDecir(this.getAttribute(\'data-t\'),this)" data-t="'+escapeHtml(todoBot)+'">▶ Escuchar al bot</button> '+
+        '<button class="btn ghost mini" onclick="vozDetener()">▮ Detener</button></div>'+
+      '<div style="max-height:300px;overflow:auto">'+(turnos||'<small>Sin turnos todavía.</small>')+'</div>'+
+      (data.ia_raw?('<div class="em-crmchk" style="margin-top:6px"><b>Análisis del bot:</b><div style="font-size:12px;white-space:pre-wrap">'+escapeHtml(String(data.ia_raw).slice(0,900))+'</div></div>'):'')+
+      '<div class="fld" style="margin-top:8px">Dictarle al bot</div>'+
+      '<textarea id="llAyuda" rows="3" placeholder="Escribile el dato que le falta. NO se le manda al cliente: lo dice el bot en su próxima frase."></textarea>'+
+      '<button class="btn" onclick="llamadaDictar()" style="margin-top:4px">Enviar al bot</button> '+
+      '<button class="btn ghost" onclick="llamadaPedirTiempo()" style="margin-top:4px">Pedir tiempo</button>';
+  }catch(e){ box.innerHTML='<small style="color:var(--err,#c0392b)">No se pudo abrir la llamada.</small>'; }
+}
+async function llamadaDictar(){
+  if(!LL_SEL) return;
+  const ta=$('llAyuda'); const txt=(ta&&ta.value||'').trim();
+  if(!txt){ toast('Escribe la indicación para el bot'); return; }
+  const t=EMBANDEJA.find(function(x){return x.id===LL_SEL;})||{id:LL_SEL};
+  if(await emPasarAlBot(t, txt, 'Dictado al bot')){ ta.value=''; emAbrirLlamada(LL_SEL); emRenderList(); }
+}
+async function llamadaPedirTiempo(){
+  if(!LL_SEL) return;
+  const t=EMBANDEJA.find(function(x){return x.id===LL_SEL;})||{id:LL_SEL,canal:'voz'};
+  await emPasarAlBot(t, 'Digale al cliente que seguimos revisando su caso y que en un momento le confirmamos, sin inventar ningun dato.', 'Pedir tiempo');
+  emAbrirLlamada(LL_SEL);
+}
+async function llamadaTomar(){
+  if(!LL_SEL||!sb) return;
+  const t=EMBANDEJA.find(function(x){return x.id===LL_SEL;});
+  try{
+    if(t && t.tomado_por===(me&&me.id)){ await sb.from('inbox_conversaciones').update({tomado_por:null,tomado_email:null,updated_at:new Date().toISOString()}).eq('id',LL_SEL); toast('Llamada liberada'); }
+    else { await sb.from('inbox_conversaciones').update({tomado_por:(me&&me.id),tomado_email:(me&&me.email),tomado_at:new Date().toISOString(),estado:'leido',updated_at:new Date().toISOString()}).eq('id',LL_SEL); toast('Llamada tomada'); }
+    await emCloudLoad(); emRenderList(); emAbrirLlamada(LL_SEL);
+  }catch(e){ toast('No se pudo cambiar la asignación'); }
+}
+/* Canal de SALIDA real de una conversacion, decidido en UN solo lugar. La LLAMADA no tiene salida
+   directa al cliente: lo que escribe el agente se le pasa al BOT como indicacion. Sin este caso,
+   los botones de una llamada intentaban mandarle un CORREO al numero de telefono. */
+function emCanalSalida(t){
+  if(!t) return null;
+  if((''+t.id).indexOf('wa-')===0) return {url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'};
+  if((''+t.id).indexOf('tg-')===0) return {url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'};
+  if(t.canal==='voz') return {voz:true,nom:'bot de voz'};
+  if(t.canal!=='mensaje') return {url:CORREO_OUT_WEBHOOK,nom:'correo'};
+  return null;
+}
+/* Le pasa un texto al bot de voz como indicacion; el bot lo usa con prioridad y limpia la bandera.
+   Mismo mecanismo que las casillas del CRM: el humano aporta el dato, el bot lo dice. */
+async function emPasarAlBot(t, txt, etiqueta){
+  try{
+    const {error}=await sb.from('inbox_conversaciones').update({ayuda_texto:txt, ayuda_pedida:false, updated_at:new Date().toISOString()}).eq('id',t.id);
+    if(error) throw error;
+    toast((etiqueta||'Enviado al bot')+': lo dirá en su próxima respuesta al cliente');
+    return true;
+  }catch(e){ toast('No se pudo pasarle la indicación al bot'); return false; }
 }
 async function emResponder(slot){
   slot=slot||emFocus; const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); const sug=$(isMail?'emMailSug':'emChatSug'); if(!t||!sug){ toast('Selecciona una conversacion'); return; }
@@ -4457,7 +4554,7 @@ async function emResponder(slot){
     emRenderList(); emRenderSlot(slot); emRenderInterno();
     return;
   }
-  const _outCanal=(''+t.id).indexOf('wa-')===0?{url:WHATSAPP_OUT_WEBHOOK,nom:'WhatsApp'}:(''+t.id).indexOf('tg-')===0?{url:TELEGRAM_OUT_WEBHOOK,nom:'Telegram'}:(t.canal!=='mensaje'?{url:CORREO_OUT_WEBHOOK,nom:'correo'}:null);
+  const _outCanal=emCanalSalida(t);
   if(_outCanal){ try{ const {data:{session}}=await sb.auth.getSession(); fetch(_outCanal.url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({id:t.id,texto:txt})}).then(function(r){return r.json();}).then(function(j){ if(!(j&&j.ok)) toast(_outCanal.nom+': no se envio al cliente ('+((j&&j.error)||'error')+')'); else toast('Enviado al '+_outCanal.nom+' del cliente'); }).catch(function(){ toast(_outCanal.nom+': no se pudo enviar'); }); }catch(e){} }
   if(slot==='mail')emSelMail=null; else emSelChat=null; emSaveSel();   // al responder se quita del panel; queda en la bandeja por si lo buscas
   emRenderList(); emRenderSlot(slot); emRenderInterno();

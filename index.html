@@ -1022,7 +1022,7 @@ body{background:transparent}
     <span class="rm" onclick="simColgar()" style="cursor:pointer;margin-left:8px">×</span></div>
   <div class="sec">
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-      <button class="btn" id="simMic" onclick="simEscuchar()">🎙 Hablar</button>
+      <button class="btn" id="simMic" onclick="simEscuchar()">Hablar</button>
       <button class="btn ghost" onclick="vozDetener()">▮ Callar al bot</button>
       <button class="btn ghost" onclick="simColgar()">Colgar</button>
     </div>
@@ -3877,7 +3877,7 @@ async function emDevolverAlBot(slot){ slot=slot||emFocus; const id=(slot==='mail
 // Pausa del bot POR CONVERSACION al intervenir un humano: si el bot estaba reactivado (bot_on=true),
 // tomar o responder manualmente lo apaga para que no choque con el agente.
 function emBotPausaConv(t){ if(!t||t.canal!=='mensaje'||t.bot_on!==true)return; t.bot_on=false; try{ if(sb) sb.from('inbox_conversaciones').update({bot_on:false,updated_at:new Date().toISOString()}).eq('id',t.id).then(function(){}); }catch(e){} }
-function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':(t.canal==='voz'?'voz':'email'));   /* la voz es su propia bandeja: antes caia en 'email' y las llamadas salian rotuladas como CORREO */ var est=(t.estado||'nuevo'); var fok=(emFiltro==='todos')?true:(emFiltro==='metoca')?(est!=='respondido' && (!t.tomado_por || t.ayuda_pedida===true)):(emFiltro==='encurso')?(est!=='respondido' && (!!t.tomado_por || est==='espera')):(emFiltro==='cerradas')?(est==='respondido'):(est===emFiltro);   /* tres cubos por QUIEN TIENE LA PELOTA, en vez de siete estados internos: el agente que entra a un turno necesita saber que atender AHORA */ var aok=(emModo!=='auto')||((t.mensajes||[]).some(function(m){return m&&m.auto===true;})||(typeof EM_APEND!=='undefined'&&EM_APEND.some(function(p){return p.conv_id===t.id;}))); /* modo auto: hilos con respuesta pendiente o ya respondidos por la IA */ if(emModo==='auto'&&emFiltro==='metoca')fok=true; /* la vista Automatico muestra tambien lo respondido por el bot */ var bok=(emFiltro==='todos')?true:(ch===emBandeja); /* "Todos" = TODO de verdad, incluido el otro canal: antes solo abria el filtro por ESTADO y seguia limitando a la bandeja activa, por eso los correos no aparecian */ return bok && fok && aok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':(t.canal==='voz'?'Llamada':'Correo')); /* preview = ULTIMO mensaje del hilo (no el primero), para que se note cuando llega uno nuevo. Prefijo Tú:/IA: si el ultimo es del agente/bot. */ var _lm=null; for(var _li=(t.mensajes||[]).length-1;_li>=0;_li--){ var _lc=t.mensajes[_li]; if(_lc&&_lc.from!=='espera'){ _lm=_lc; break; } } var body=_lm?((_lm.from==='agente'?((_lm.auto?'IA: ':'Tú: ')):'')+(_lm.text||'')):''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='espera'?'espera':(est==='leido'?'leido':'nuevo'))); var bl=(est==='espera'?'en espera':est); var _ua=null; for(var _i=(t.mensajes||[]).length-1;_i>=0;_i--){ var _mm=t.mensajes[_i]; if(_mm&&_mm.from==='agente'){ _ua=_mm; break; } } var _ia=(_ua&&_ua.auto===true)?'<span class="em-badge ia" title="La última respuesta la envió el bot (auto-FAQ)">IA</span>':''; return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+(est==='espera'?' esp':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags">'+((emFiltro==='todos')?('<span class="em-badge" title="Canal">'+cn+'</span>'):'')+_ia+'<span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+(function(){var _ms=emTiempoResp(t);return _ms!=null?('<div class="em-claimline">respondida en '+fmtMs(_ms)+'</div>'):'';})()+'</div>'; }).join('')||('<div class="em-empty">'+(emModo==='auto'?'Sin actividad automática de la IA en este filtro.':'Sin conversaciones en este filtro.')+'</div>'); }
+function emRenderList(){ const el=$('emItems'); if(!el)return; var items=EMBANDEJA.filter(function(t){ var ch=(t.canal==='mensaje'?'mensaje':(t.canal==='voz'?'voz':'email'));   /* la voz es su propia bandeja: antes caia en 'email' y las llamadas salian rotuladas como CORREO */ var est=(t.estado||'nuevo'); var fok=(emFiltro==='todos')?true:(emFiltro==='metoca')?(est!=='respondido' && (t.ayuda_pedida===true || (!t.tomado_por && est!=='respondiendo')))   /* 'respondiendo' = la lleva el bot solo: no ocupa la cola del agente hasta que pida ayuda */:(emFiltro==='encurso')?(est!=='respondido' && (!!t.tomado_por || est==='espera' || est==='respondiendo')):(emFiltro==='cerradas')?(est==='respondido'):(est===emFiltro);   /* tres cubos por QUIEN TIENE LA PELOTA, en vez de siete estados internos: el agente que entra a un turno necesita saber que atender AHORA */ var aok=(emModo!=='auto')||((t.mensajes||[]).some(function(m){return m&&m.auto===true;})||(typeof EM_APEND!=='undefined'&&EM_APEND.some(function(p){return p.conv_id===t.id;}))); /* modo auto: hilos con respuesta pendiente o ya respondidos por la IA */ if(emModo==='auto'&&emFiltro==='metoca')fok=true; /* la vista Automatico muestra tambien lo respondido por el bot */ var bok=(emFiltro==='todos')?true:(ch===emBandeja); /* "Todos" = TODO de verdad, incluido el otro canal: antes solo abria el filtro por ESTADO y seguia limitando a la bandeja activa, por eso los correos no aparecian */ return bok && fok && aok; }); el.innerHTML=items.map(function(t){ var cn=(t.canal==='mensaje'?'Mensaje':(t.canal==='voz'?'Llamada':'Correo')); /* preview = ULTIMO mensaje del hilo (no el primero), para que se note cuando llega uno nuevo. Prefijo Tú:/IA: si el ultimo es del agente/bot. */ var _lm=null; for(var _li=(t.mensajes||[]).length-1;_li>=0;_li--){ var _lc=t.mensajes[_li]; if(_lc&&_lc.from!=='espera'){ _lm=_lc; break; } } var body=_lm?((_lm.from==='agente'?((_lm.auto?'IA: ':'Tú: ')):'')+(_lm.text||'')):''; var sub=(t.canal==='mensaje')?'':(t.asunto||'(sin asunto)'); var est=t.estado||'nuevo'; var bc=(est==='respondido'?'resp':(est==='espera'?'espera':(est==='leido'?'leido':'nuevo'))); var bl=(est==='espera'?'en espera':est); var _ua=null; for(var _i=(t.mensajes||[]).length-1;_i>=0;_i--){ var _mm=t.mensajes[_i]; if(_mm&&_mm.from==='agente'){ _ua=_mm; break; } } var _ia=(_ua&&_ua.auto===true)?'<span class="em-badge ia" title="La última respuesta la envió el bot (auto-FAQ)">IA</span>':''; return '<div class="em-item'+((t.id===emSelChat||t.id===emSelMail)?' sel':'')+(est==='espera'?' esp':'')+'" onclick="emSelect(\''+t.id+'\')"><div class="em-de"><span class="em-name">'+escapeHtml(t.de||'cliente')+'</span><span class="em-tags">'+((emFiltro==='todos')?('<span class="em-badge" title="Canal">'+cn+'</span>'):'')+_ia+'<span class="em-badge '+bc+'">'+bl+'</span></span></div>'+(sub?('<div class="em-as">'+escapeHtml(sub)+'</div>'):'')+'<div class="em-fr">'+escapeHtml(body.slice(0,160))+'</div>'+(t.tomado_email?('<div class="em-claimline" style="color:'+(t.tomado_por===(me&&me.id)?'var(--ok)':'var(--accent)')+'">'+(t.tomado_por===(me&&me.id)?'la tomaste tú':('atiende: '+escapeHtml(t.tomado_email)))+'</div>'):'')+(function(){var _ms=emTiempoResp(t);return _ms!=null?('<div class="em-claimline">respondida en '+fmtMs(_ms)+'</div>'):'';})()+'</div>'; }).join('')||('<div class="em-empty">'+(emModo==='auto'?'Sin actividad automática de la IA en este filtro.':'Sin conversaciones en este filtro.')+'</div>'); }
 // Ficha FIJA de datos del cliente en el inbox (contador de mensajes/correos + KYC + saldo + más detalles).
 function emClienteInfoHTML(t, slot){
   if(!t) return '';
@@ -3945,6 +3945,10 @@ function _emRenderBody(slot, t){
   }
   const _tkImg=$(isMail?'emMailTicketImg':'emChatTicketImg');
   if(_tkImg){ _tkImg.innerHTML = emTicketThumb(t.ticketImg); emResolveImgs(_tkImg); }
+  /* Los botones se recalculan AQUI, en el render que corre al abrir una conversacion. Antes solo se
+     llamaba desde emRenderThread, que corre en las actualizaciones en vivo pero NO cuando el agente
+     hace clic: por eso al abrir una llamada quedaban los botones de chat y "Colgar" nunca aparecia. */
+  if(!isMail) emBotonesPorCanal(t);
 }
 function emRenderSlot(slot){
   const isMail=(slot==='mail');
@@ -4002,7 +4006,7 @@ function emRenderThread(slot){
    el CSAT (se manda por link, y no hay donde clickear en una llamada). */
 /* Sello de version visible: si la consola quedo cacheada, este numero delata que build se esta
    viendo. Sin esto no hay forma de distinguir "no se desplego" de "el navegador tiene lo viejo". */
-const BUILD_SINELI='2026-07-19 · llamadas v8';
+const BUILD_SINELI='2026-07-19 · llamadas v9';
 try{ document.addEventListener('DOMContentLoaded', function(){ var b=document.getElementById('buildStamp'); if(b) b.textContent=BUILD_SINELI; }); }catch(e){}
 /* Colgar. Cierra la llamada del lado de la consola: marca la conversacion como respondida para que
    el contador pare y deje de contar como llamada viva. La telefonia real cortara la linea cuando se
@@ -4078,10 +4082,25 @@ function emCrmChkToggle(on){
 }
 /* Marcar una casilla ahora SE COMPARTE: sube a la conversacion (crm_chk) para que el equipo
    vea lo ya verificado y para que la IA redacte con esos datos confirmados por un humano. */
+var _EM_CRM_T=null;
 function emCrmChk(id,i,on){
   var t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return;
   t.crmChk=t.crmChk||{}; t.crmChk[i]=!!on;
   emSave(); emPush(t); emRenderInterno();
+  /* La casilla tiene que CAMBIAR la respuesta, si no es solo una lista decorativa. Lo marcado se le
+     da a la IA como verificado por un humano (no lo vuelve a pedir) y lo NO marcado es justamente lo
+     que le falta al cliente, asi que la respuesta se reescribe para pedirle eso.
+     Va con retardo: el agente suele marcar tres o cuatro casillas seguidas y no tiene sentido
+     regenerar en cada clic. Y no pisa lo que el agente escribio a mano. */
+  clearTimeout(_EM_CRM_T);
+  _EM_CRM_T=setTimeout(function(){
+    var tt=EMBANDEJA.find(function(x){return x.id===id;}); if(!tt)return;
+    var slot=emSlotDe(tt.canal);
+    if((slot==='mail'?emSelMail:emSelChat)!==id) return;          // el agente ya se fue a otra
+    if(tt.draftEdited){ toast('Marcaste datos del CRM. Pulsa "Regenerar" para rehacer la respuesta con eso (no la piso porque la editaste).'); return; }
+    tt._crmPreservar=true;                                        // no borrar lo ya verificado al regenerar
+    emPedirSugerencia(slot, false, true);   // forzar IA: saltar el atajo de FAQ, aqui importa el CRM
+  }, 1200);
 }
 function emChecklistHTML(t){
   var items=emChecklistItems(t); if(!items.length)return '';
@@ -4342,7 +4361,7 @@ async function emPedirSugerencia(slot, _retrySesion, _forzarIA){
     }
     // IA CAIDA: NO pisar el borrador con un texto de error (podria enviarse al cliente). Avisar y salir.
     if((j.ok===false)||j.chainFailed||!_iaTxt){ toast('La IA no está disponible ahora (proveedores saturados). No generé sugerencia; escribe la respuesta o reintenta.'); emSave(); emRenderSlot(slot); return; }
-    t.iaRaw=_iaTxt; t.crmChk={}; emRaw=t.iaRaw; t.draft=(vert==='retail')?(extraerSugerida(t.iaRaw)||t.iaRaw):extraerSugerida(t.iaRaw); t.draftEdited=false;
+    t.iaRaw=_iaTxt; if(!t._crmPreservar) t.crmChk={}; t._crmPreservar=false;   /* si la regeneracion la disparo el checklist, lo ya verificado NO se borra */ emRaw=t.iaRaw; t.draft=(vert==='retail')?(extraerSugerida(t.iaRaw)||t.iaRaw):extraerSugerida(t.iaRaw); t.draftEdited=false;
     var _lk=(vert==='retail')?[]:emEnlaces((t.mensajes||[]).map(function(m){return m.text;}).join(' '), pais);   // sin enlaces de autoservicio para personal de sala
     if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n' + _lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); }
     emSave(); emPush(t);
@@ -4392,7 +4411,7 @@ async function emAnalizarTicket(slot){
     // = SOLO la parte del cliente. Si NO trae seccion cliente (error/solo interno), va al panel interno
     // y el borrador del correo queda VACIO (nunca metemos texto interno en la respuesta al cliente).
     const tieneCli = /respuesta\s+(?:sugerida\s+)?al\s+cliente/i.test(r);
-    t.iaRaw = tieneCli ? r : ('Para ti (interno): '+r); t.crmChk={};
+    t.iaRaw = tieneCli ? r : ('Para ti (interno): '+r); if(!t._crmPreservar) t.crmChk={}; t._crmPreservar=false;   /* si la regeneracion la disparo el checklist, lo ya verificado NO se borra */
     // Si el thread tiene una respuesta automatica pendiente (auto_pendientes), no se pisa el borrador
     // — la respuesta encolada es la que se va a enviar. El analisis va al interno para el agente.
     const tieneAutoPend = Array.isArray(EM_APEND) && EM_APEND.some(function(ap){return ap.conv_id===t.id;});
@@ -4629,12 +4648,37 @@ function simEscuchar(){
   if(SIM_OCUPADO){ toast('Esperá a que el bot termine de responder'); return; }
   try{
     vozDetener();
-    SIM_REC=new SR(); SIM_REC.lang='es-MX'; SIM_REC.continuous=false; SIM_REC.interimResults=false; SIM_REC.maxAlternatives=1;
-    const b=$('simMic'); if(b) b.textContent='● Escuchando…';
-    simEstado('escuchando…');
-    SIM_REC.onresult=function(ev){ const txt=(ev.results&&ev.results[0]&&ev.results[0][0]&&ev.results[0][0].transcript)||''; if(txt) simEnviar(txt); };
-    SIM_REC.onerror=function(ev){ simEstado('micrófono: '+(ev&&ev.error||'error')); const b2=$('simMic'); if(b2) b2.textContent='🎙 Hablar'; };
-    SIM_REC.onend=function(){ const b2=$('simMic'); if(b2) b2.textContent='🎙 Hablar'; };
+    SIM_REC=new SR(); SIM_REC.lang='es-MX'; SIM_REC.continuous=false; SIM_REC.maxAlternatives=1;
+    /* interimResults: sin esto el cuadro se queda mudo mientras hablas y parece que no escucha. Ver
+       las palabras aparecer es la unica confirmacion de que el microfono esta tomando audio. */
+    SIM_REC.interimResults=true;
+    const b=$('simMic'); if(b) b.textContent='Escuchando…';
+    simEstado('escuchando… hablá normal y hacé una pausa al terminar');
+    var _final='';
+    SIM_REC.onresult=function(ev){
+      var parcial='';
+      for(var i=ev.resultIndex;i<ev.results.length;i++){
+        var tr=ev.results[i][0].transcript;
+        if(ev.results[i].isFinal) _final+=tr; else parcial+=tr;
+      }
+      if(parcial) simEstado('te escucho: "'+parcial.trim()+'"');
+      if(_final.trim()) simEstado('entendí: "'+_final.trim()+'"');
+    };
+    SIM_REC.onerror=function(ev){
+      var e=(ev&&ev.error)||'error';
+      /* Mensajes concretos: "micrófono: not-allowed" no le dice a nadie que tiene que dar permiso. */
+      var txt = (e==='not-allowed'||e==='service-not-allowed') ? 'El navegador bloqueó el micrófono. Tocá el candado en la barra de direcciones y permití el micrófono para este sitio.'
+              : (e==='no-speech') ? 'No escuché nada. Acercate al micrófono y volvé a pulsar Hablar.'
+              : (e==='audio-capture') ? 'No hay micrófono disponible en esta computadora.'
+              : 'Micrófono: '+e;
+      simEstado(txt); toast(txt);
+      const b2=$('simMic'); if(b2) b2.textContent='Hablar';
+    };
+    SIM_REC.onend=function(){
+      const b2=$('simMic'); if(b2) b2.textContent='Hablar';
+      if(_final.trim()) simEnviar(_final.trim());     // se envia al terminar, con la frase completa
+      else simEstado('no se entendió nada — probá de nuevo o escribí el mensaje');
+    };
     SIM_REC.start();
   }catch(e){ simEstado('no se pudo abrir el micrófono'); }
 }
@@ -4738,7 +4782,9 @@ function emCanalSalida(t){
    Mismo mecanismo que las casillas del CRM: el humano aporta el dato, el bot lo dice. */
 async function emPasarAlBot(t, txt, etiqueta){
   try{
-    const {error}=await sb.from('inbox_conversaciones').update({ayuda_texto:txt, ayuda_pedida:false, updated_at:new Date().toISOString()}).eq('id',t.id);
+    /* El bot RETOMA la conversacion: pasa a 'respondiendo' y sale de la cola del agente. Solo volvera
+       a 'nuevo' si mas adelante necesita otra vez a un humano (dato de CRM, caso sensible). */
+    const {error}=await sb.from('inbox_conversaciones').update({ayuda_texto:txt, ayuda_pedida:false, estado:'respondiendo', updated_at:new Date().toISOString()}).eq('id',t.id);
     if(error) throw error;
     toast((etiqueta||'Enviado al bot')+': lo dirá en su próxima respuesta al cliente');
     return true;

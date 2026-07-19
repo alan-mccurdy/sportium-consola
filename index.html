@@ -3312,7 +3312,7 @@ function emTryLink(t){ if(!t || !emClienteKeys(t).length)return; const tIsChat=(
   if(!other)return;
   t._linkOtro=other.id; other._linkOtro=t.id;   // CRUCE: la IA usara el contexto de AMBOS canales para responder coherente
   const oslot=emSlotDe(other.canal); const cur=(oslot==='mail')?emSelMail:emSelChat;
-  if(cur!==other.id){ if(oslot==='chat')emSelChat=other.id; else emSelMail=other.id; emRenderList(); emRenderSlot(oslot); emFocusSetemSlotDe(t.canal)); }   // trae el otro canal pero deja el foco donde estabas
+  if(cur!==other.id){ if(oslot==='chat')emSelChat=other.id; else emSelMail=other.id; emRenderList(); emRenderSlot(oslot); emFocusSet(emSlotDe(t.canal)); }   // trae el otro canal pero deja el foco donde estabas
   toast('Mismo cliente: traje su '+(oslot==='mail'?'correo':'chat')+' al otro panel; la IA respondera COHERENTE entre ambos canales.'); }
 // Pais automatico: si la conversacion no tiene pais marcado, lo deduce del cliente enganchado o de pistas del texto.
 function emAutoPais(t){ if(!t || t.pais) return; if(t.cliente && t.cliente.pais){ t.pais=t.cliente.pais; return; }

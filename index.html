@@ -1379,7 +1379,7 @@ body{background:transparent}
             <div class="em-q em-conv"><div class="em-coltitle" id="emChatColTitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emChatTicketImg"></span></div></div>
             <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" id="emChatTomarBtn" onclick="event.stopPropagation();emTomarToggle('chat')">Tomar</button><button class="btn ghost" id="emChatCopiar" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn ghost" id="emChatEspera" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('chat')">En espera</button><button class="btn ghost" id="emChatColgar" title="Termina la llamada: el bot se despide y la conversacion se cierra" style="display:none;border-color:var(--bad,#e66);color:var(--bad,#e66)" onclick="event.stopPropagation();emColgar()">Colgar llamada</button><button class="btn ghost" id="emChatCsat" title="Envía la encuesta de satisfacción (CSAT) al cliente, cierra la conversación y abre el siguiente chat en espera" onclick="event.stopPropagation();emCerrarConCsat('chat')">Cerrar y enviar CSAT</button><button class="btn" id="emChatResp" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
           </div>
-          <div class="em-q em-ana" id="emChatAna"><div class="em-coltitle">Interno (mensaje)</div><div class="em-analisis" id="emChatAnalisis"></div></div>
+          <div class="em-q em-ana" id="emChatAna"><div class="em-coltitle">Interno (chat y correo)</div><div class="em-analisis" id="emChatAnalisis"></div></div>
         </div>
       </div>
       <div class="em-slot" id="emSlotMail" onclick="emFocusSet('mail')">
@@ -1387,7 +1387,6 @@ body{background:transparent}
         <div class="em-claim" id="emMailClaim" style="display:none"></div>
         <div class="em-quad em-mailonly">
           <div class="em-q em-conv"><div class="em-coltitle">Correo del cliente</div><div class="em-mailhead" id="emMailHead"></div><div class="em-mailbody" id="emMailBody"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emMailTicketImg"></span></div></div>
-          <div class="em-q em-ana" id="emMailAna"><div class="em-coltitle">Interno (correo)</div><div class="em-analisis" id="emMailAnalisis"></div></div>
           <div class="em-q em-resp"><div class="em-coltitle">Respuesta al correo</div><div class="em-mailfields"><input id="emPara" placeholder="Para"><input id="emAsuntoOut" placeholder="Asunto"></div><textarea class="em-sug" id="emMailSug" placeholder="Respuesta sugerida del correo..."></textarea><div class="em-gen" id="emMailGen"></div><div class="em-respacts"><button class="btn ghost" id="emMailTomarBtn" onclick="event.stopPropagation();emTomarToggle('mail')">Tomar</button><button class="btn ghost" onclick="event.stopPropagation();emCopiar('mail')">Copiar respuesta</button><button class="btn ghost" title="Resumir la conversacion del chat del cliente y armar el cuerpo del correo" onclick="event.stopPropagation();emResumirChatACorreo()">Resumir chat → correo</button><button class="btn ghost" onclick="event.stopPropagation();emOutlook()">Abrir en Outlook</button><button class="btn ghost" title="Copia el enlace para que el cliente califique la atención y lo agrega al final del correo" onclick="event.stopPropagation();emCsatLink()">Link CSAT</button><button class="btn ghost" id="emMailEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('mail',true)">Funcionaron</button><button class="btn ghost" id="emMailEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('mail',false)">No funcionaron, escalar</button><button class="btn ghost" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('mail')">En espera</button><button class="btn ghost" title="Agrega la encuesta de satisfacción (CSAT) al final del correo, cierra la conversación y abre el siguiente en espera" onclick="event.stopPropagation();emCerrarConCsat('mail')">Cerrar y enviar CSAT</button><button class="btn" onclick="event.stopPropagation();emResponder('mail')">Marcar respondido</button></div></div>
         </div>
       </div>
@@ -4384,25 +4383,25 @@ function emChecklistHTML(t){
   }).join('')+'<div class="em-crmchk-hint">'+hint+'</div></div>';
 }
 function emRenderInterno(){
-  // PANEL INTERNO SEPARADO POR CANAL: el interno del chat va a emChatAnalisis (dentro del slot de
-  // mensaje) y el del correo va a emMailAnalisis (dentro del slot de correo). Asi cada panel en foco
-  // muestra SOLO su propio analisis y el boton "Re-sugerir (panel activo)" no arrastra lo del otro.
-  const chBox=$('emChatAnalisis'); if(chBox){
-    const ct=EMBANDEJA.find(function(x){return x.id===emSelChat;});
-    let h='';
-    if(ct && (ct.iaInterno||ct.iaRaw)){ const ci=renderContent(ct.iaInterno||emInterno(ct.iaRaw)); if(ci) h += ci; }
-    if(ct) h += emChecklistHTML(ct);
-    if(ct) h += emCalidadHTML(ct);
-    chBox.innerHTML = h || '<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
+  const box=$('emChatAnalisis'); if(!box)return;
+  const ct=EMBANDEJA.find(function(x){return x.id===emSelChat;});
+  const mt=EMBANDEJA.find(function(x){return x.id===emSelMail;});
+  // MISMO CLIENTE en los dos canales: se muestra UN solo bloque de cada cosa. Antes el texto
+  // interno si se deduplicaba, pero la checklist y el bloque de calidad NO: salian las mismas
+  // casillas y el mismo score dos veces, uno debajo del otro.
+  const sameClient = !!((ct && ct.cliente && mt.cliente && ct.cliente.usuario===mt.cliente.usuario) || (ct && mt && ct.de && (ct.de||'').toLowerCase()===(mt.de||'').toLowerCase()));
+  const dosBloques = !!(mt && mt!==ct && !sameClient);
+  let html='';
+  if(ct && (ct.iaInterno||ct.iaRaw)){ const ci=renderContent(ct.iaInterno||emInterno(ct.iaRaw)); if(ci) html += ci; }
+  if(mt && (mt.iaInterno||mt.iaRaw) && !sameClient){
+    const mi=renderContent(mt.iaInterno||emInterno(mt.iaRaw));
+    if(mi) html += '<div class="em-coltitle" style="margin-top:10px">Interno del correo ('+escapeHtml(mt.de||'cliente')+')</div>'+mi;
   }
-  const mBox=$('emMailAnalisis'); if(mBox){
-    const mt=EMBANDEJA.find(function(x){return x.id===emSelMail;});
-    let h='';
-    if(mt && (mt.iaInterno||mt.iaRaw)){ const mi=renderContent(mt.iaInterno||emInterno(mt.iaRaw)); if(mi) h += mi; }
-    if(mt) h += emChecklistHTML(mt);
-    if(mt) h += emCalidadHTML(mt);
-    mBox.innerHTML = h || '<small style="color:var(--txt-2)">El analisis interno del correo aparece al generar la respuesta.</small>';
-  }
+  if(ct) html += emChecklistHTML(ct);
+  if(dosBloques) html += emChecklistHTML(mt);
+  if(ct) html += emCalidadHTML(ct);
+  if(dosBloques) html += emCalidadHTML(mt);
+  box.innerHTML = html || '<small style="color:var(--txt-2)">El analisis interno aparece al generar la respuesta.</small>';
   emRenderLink();
 }
 function emAutoPendInject(t){
@@ -5065,12 +5064,12 @@ async function emPasarAlBot(t, txt, etiqueta){
   }catch(e){ toast('No se pudo pasarle la indicación al bot'); return false; }
 }
 async function emResponder(slot){
-  slot=slot||emFocus; const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;});   const sug=$(isMail?'emMailSug':'emChatSug'); if(!t||!sug){ toast('Selecciona una conversacion'); return; }
+  slot=slot||emFocus; const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;});   const sug=$(isMail?'emMailSug':'emChatSug'); if(!t){ toast('Selecciona una conversacion'); return; }
   /* El texto de verdad vive en t.draft (lo guarda el oninput del textarea al escribir, y la IA
-     al generar). Si el textarea visible esta vacio porque el panel del correo no se renderizo en
-     este ciclo (p.ej. al pulsar "Enviar AMBOS" con el foco en el chat), usamos el borrador
-     guardado en vez de dedu Cir que no hay respuesta y no enviar nunca el correo. */
-  let txt=(sug.value||'').trim(); if(!txt && t.draft){ txt=(''+(t.draft||'')).trim(); }
+     al generar). Si el textarea visible no esta montado o esta vacio porque el panel del correo no
+     se renderizo en este ciclo (p.ej. al pulsar "Enviar AMBOS" con el foco en el chat), usamos el
+     borrador guardado en vez de deducir que no hay respuesta y no enviar nunca el correo. */
+  let txt=(sug?(sug.value||''):'').trim(); if(!txt && t.draft){ txt=(''+(t.draft||'')).trim(); }
   if(!txt){ toast('Escribe o genera una respuesta primero'); return; }
   if(!emPuedeResponder(t)){ toast('La está atendiendo '+(t.tomado_email||'otro agente')+'. Pulsa "Tomar" si te la asignas (o pide al admin).'); return; }
   // REVISOR DE CALIDAD (tiempo real): revisa ANTES de enviar; si detecta algo grave, avisa y deja decidir.

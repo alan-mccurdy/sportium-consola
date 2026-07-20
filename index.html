@@ -1379,7 +1379,7 @@ body{background:transparent}
             <div class="em-q em-conv"><div class="em-coltitle" id="emChatColTitle">Mensaje del cliente</div><div class="em-thread" id="emChatThread"></div><div class="em-ticketrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px"><span id="emChatTicketImg"></span></div></div>
             <div class="em-q em-resp"><div class="em-coltitle">Respuesta sugerida</div><textarea class="em-sug" id="emChatSug" placeholder="Respuesta sugerida del chat..."></textarea><div class="em-gen" id="emChatGen"></div><div class="em-respacts"><button class="btn ghost" id="emChatTomarBtn" onclick="event.stopPropagation();emTomarToggle('chat')">Tomar</button><button class="btn ghost" id="emChatCopiar" onclick="event.stopPropagation();emCopiar('chat')">Copiar respuesta</button><button class="btn ghost" id="emChatEscOk" style="display:none" title="Los pasos funcionaron: mensaje de cierre a sala" onclick="event.stopPropagation();emEscalar('chat',true)">Funcionaron</button><button class="btn ghost" id="emChatEscNo" style="display:none" title="No funcionaron: la IA decide escalar a N2 o SAT" onclick="event.stopPropagation();emEscalar('chat',false)">No funcionaron, escalar</button><button class="btn ghost" id="emChatEspera" title="No se puede cerrar aun: falta info de un compañero/sala. Queda identificado para el siguiente turno." onclick="event.stopPropagation();emEnEspera('chat')">En espera</button><button class="btn ghost" id="emChatColgar" title="Termina la llamada: el bot se despide y la conversacion se cierra" style="display:none;border-color:var(--bad,#e66);color:var(--bad,#e66)" onclick="event.stopPropagation();emColgar()">Colgar llamada</button><button class="btn ghost" id="emChatCsat" title="Envía la encuesta de satisfacción (CSAT) al cliente, cierra la conversación y abre el siguiente chat en espera" onclick="event.stopPropagation();emCerrarConCsat('chat')">Cerrar y enviar CSAT</button><button class="btn" id="emChatResp" onclick="event.stopPropagation();emResponder('chat')">Marcar respondido</button></div></div>
           </div>
-          <div class="em-q em-ana" id="emChatAna"><div class="em-coltitle">Interno (chat y correo)</div><div class="em-analisis" id="emChatAnalisis"></div></div>
+          <div class="em-q em-ana" id="emChatAna" onclick="emFocusSet('interno')"><div class="em-coltitle">Interno (chat y correo)<button class="btn ghost em-reint" title="Regenerar solo el analisis interno sin borrar los checks del CRM ni la respuesta al cliente" onclick="event.stopPropagation();emResugerirInterno()">Re-sugerir</button></div><div class="em-analisis" id="emChatAnalisis"></div></div>
         </div>
       </div>
       <div class="em-slot" id="emSlotMail" onclick="emFocusSet('mail')">
@@ -3516,7 +3516,7 @@ function emThreadVert(t){ return (t&&t.vertical) || (t&&t.cliente&&t.cliente.ver
 function emToggleList(){ const sh=$('emShell'); if(!sh)return; const col=!sh.classList.contains('listcol'); sh.classList.toggle('listcol',col); try{ localStorage.setItem('inbox-listcol', col?'1':'0'); }catch(e){} }
 function emSetThreadVert(slot,val){ const id=(slot==='mail')?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return; t.vertical=val; t.vertAuto=true; emSave(); emPush(t); emRenderSlot(slot); toast(val==='retail'?'Marcado como PERSONAL DE SALA (retail): la IA dará pasos internos, sin respuesta de cliente.':'Marcado como CLIENTE.'); }
 function emSaveSel(){ try{ localStorage.setItem('inbox-sel', JSON.stringify({chat:emSelChat,mail:emSelMail,focus:emFocus})); }catch(e){} }
-function emFocusSet(slot){ emFocus=slot; const sc=$('emSlotChat'), sm=$('emSlotMail'); if(sc)sc.classList.toggle('focus',slot==='chat'); if(sm)sm.classList.toggle('focus',slot==='mail'); emSaveSel(); emRenderClaimTop(); }
+function emFocusSet(slot){ emFocus=slot; const sc=$('emSlotChat'), sm=$('emSlotMail'), sa=$('emChatAna'); if(sc)sc.classList.toggle('focus',slot==='chat'); if(sm)sm.classList.toggle('focus',slot==='mail'); if(sa)sa.classList.toggle('focus',slot==='interno'); emSaveSel(); emRenderClaimTop(); }
 function emReflectCanal(){ const e=$('emCanalEmail'), m=$('emCanalMsg'), as=$('emAsunto'); if(e)e.classList.toggle('sel',emAddCanal==='email'); if(m)m.classList.toggle('sel',emAddCanal==='mensaje'); if(as)as.style.display=emAddCanal==='email'?'':'none'; const de=$('emDe'); if(de)de.placeholder=emAddCanal==='email'?'De: cliente@correo.com':'De: nombre del cliente'; const cu=$('emCuerpo'); if(cu)cu.placeholder=emAddCanal==='email'?'Cuerpo del correo del cliente...':'Mensaje del cliente...'; }
 function emSetCanal(c){ emAddCanal=c; emReflectCanal(); }
 function emCliFiltro(){ const inp=$('emCliInput'), box=$('emCliBox'); if(!inp||!box)return; const q=(inp.value||'').trim().toLowerCase(); if(!q){ box.classList.remove('on'); box.innerHTML=''; return; } const sn=norm(q); const cm=CLIENTES.filter(function(c){ return c.usuario.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)||c.nombre.toLowerCase().includes(q)||(sn.length>2&&norm(c.cedula).includes(sn)); }).slice(0,6); if(!cm.length){ box.classList.remove('on'); box.innerHTML=''; return; } box.innerHTML=cm.map(function(c){ return '<div class="acitem" onclick="emAttachCliente(\''+c.usuario+'\')"><div class="acico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg></div><div><b>'+escapeHtml(c.nombre)+'</b> <small>'+escapeHtml(c.usuario)+' · '+c.pais+'</small></div></div>'; }).join(''); box.classList.add('on'); }
@@ -4714,6 +4714,41 @@ async function emAnalizarTicket(slot){
     toast('Ticket analizado');
   }catch(e){ toast('No se pudo analizar el ticket'); }
   finally{ if(gen)gen.textContent=''; }
+}
+/* Re-sugerir INTERNO a mano: regenera SOLO el "Para ti (interno)" + "Verificar en el CRM"
+   sin tocar la respuesta al cliente (t.draft) y SIN borrar los checks del CRM ya marcados.
+   Es el boton manual del panel interno que Alan pidio para cuando la regeneracion automatica
+   falla o quiere refinar el interno sabiendo que ya verifico ciertos datos.
+   Reutiliza el patron de emEnriquecerFaq (fetch propio que no pisa la respuesta al cliente). */
+async function emResugerirInterno(){
+  const t=emActiveThread(); if(!t){ toast('Selecciona una conversacion'); return; }
+  emFocus='interno'; const sa=$('emChatAna'); if(sa)sa.classList.add('focus');
+  const pregunta=(t.mensajes||[]).filter(function(m){return m.from==='cliente';}).map(function(m){return m.text;}).join('\n');
+  const respCli=(t.draft&&t.draft.trim())?t.draft:extraerSugerida(t.iaRaw||'');
+  if(!respCli){ toast('Primero genera la respuesta o el interno una vez'); return; }
+  // PRESERVAR los checks ya marcados: la IA los recibe como DATOS YA VERIFICADOS y pide revisar lo que falta.
+  t._crmPreservar=true;
+  const pais=emThreadPais(t);
+  const _crmItems=EM_CRMCHK_ON?emChecklistItems(t):[];
+  const _crmOk=_crmItems.filter(function(it,i){ return !!(t.crmChk&&t.crmChk[i]); });
+  const dirCrm=(_crmOk.length)?('DATOS YA VERIFICADOS por el agente humano (los comprobo en el CRM o sistema interno): '+_crmOk.join(' | ')+'. Dalos por CIERTOS: no los vuelvas a pedir. Pide revisar SOLAMENTE lo que aun falte confirmar para descartar otras causas y resolver el caso.'):'';
+  const dirFaq='Regenera SOLO el contexto interno del agente. Devuelve DOS secciones EXACTAS, cada una en su propia linea con el encabezado tal cual: "Para ti (interno):" el diagnostico, causa y los pasos que el agente debe revisar antes de enviar la respuesta (datos internos: IPs, comandos, multicuenta, montos de referencia; NUNCA contrasenas reales de POS/SSBT). "Verificar en el CRM:" 2 a 4 verificaciones concretas, cada una en su propia linea con formato "- [Campo del CRM] -> que confirmar y que valor esperas". '+(dirCrm?dirCrm+' ':'')+'No incluyas ninguna seccion de respuesta al cliente. PAIS: usa solo informacion de '+pais+'; si no tienes el dato, dilo.';
+  try{
+    const {data:{session}}=await sb.auth.getSession(); if(!session){ toast('Tu sesion expiro: vuelve a iniciar sesion.'); return; }
+    const res=await fetchWithRetry(WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
+      body:JSON.stringify({mensajes:[{role:'system',content:dirFaq},{role:'user',content:'CONSULTA DEL CLIENTE:\n'+(pregunta||'')+'\n\nRESPUESTA APROBADA QUE SE LE DARA:\n'+respCli}], canal:(t.canal==='mensaje'?'mensaje':'email'), audiencia:'cliente', instruccion:dirFaq, pais:pais, turno:{pais:pais,vertical:(typeof emThreadVert==='function'?emThreadVert(t):'online')}, tenant:CONFIG.tenant, empresa:{nombre:CONFIG.cliente}, contexto:ctxCache, glosario:GLOS})});
+    if(!res||!res.ok) return;
+    let j={}; try{ j=JSON.parse((await res.text())||'{}'); }catch(e){ return; }
+    const r=(j.respuesta||'').trim();
+    if(!r || j.ok===false || j.chainFailed || /sesi[oó]n no v[aá]lida/i.test(r)) return;
+    const interno=r.replace(/Respuesta sugerida al cliente:[\s\S]*$/i,'').trim();
+    if(!/para ti \(interno\):/i.test(interno)) return;
+    const respMantener=(t.draft&&t.draft.trim())?t.draft:extraerSugerida(t.iaRaw||'');
+    t.iaRaw=interno+'\nRespuesta sugerida al cliente: '+respMantener;
+    const _split=emSplitIa(t.iaRaw); t.iaCliente=_split.cliente; t.iaInterno=_split.interno;
+    // t.crmChk NO se resetea: _crmPreservar=true arriba lo protege en caso de que otro flujo lo toque.
+    emSave(); emPush(t); emRenderSlot(emFocus);
+  }catch(e){ console.warn('emResugerirInterno error:', e); toast('No se pudo regenerar el interno. Reintenta.'); }
 }
 /* Re-sugerir NO requiere tomar la conversacion: el agente puede tantear que responder sin
    asignarsela y sin interferir con el flujo del bot (esto solo escribe el borrador local). */

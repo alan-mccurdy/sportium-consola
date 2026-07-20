@@ -2704,7 +2704,18 @@ function renderMeter(){ const el=$('useMeter'); if(!el)return; const m=iaUsage.l
 let autocopy=lsGet('sptm-autocopy')==='1';
 function applyAutocopy(){ $('copyToggle').classList.toggle('on',autocopy); $('copyToggle').title=autocopy?'Auto-copiar: ACTIVADO':'Auto-copiar: desactivado'; }
 function toggleAutocopy(){ autocopy=!autocopy; lsSet('sptm-autocopy',autocopy?'1':'0'); applyAutocopy(); }
-function extraerSugerida(t){ const m=(t||'').match(/Respuesta\s+(?:sugerida\s+)?al\s+cliente\s*:?\s*([\s\S]*?)(?:\n\s*Para ti|\n\s*Verificar|$)/i); return (m?m[1]:(t||'')).trim(); }
+/* Extrae SOLO la respuesta al cliente. CORTA ESTRICTO en la primera marca conocida
+   (Para ti / Verificar / otra "Respuesta al cliente"). Si el texto NO trae una seccion
+   de cliente delimitada, devuelve '' (nunca se traga el texto interno). Esto mata BUG B:
+   el texto interno (Para ti / Verificar) no puede colarse en la respuesta al cliente. */
+function extraerSugerida(t){
+  const s=(t||'');
+  const head=s.search(/Respuesta\s+(?:sugerida\s+)?al\s+cliente\s*:/i);
+  if(head<0) return '';                                  // sin seccion cliente -> nada para el cliente
+  let body=s.slice(head).replace(/Respuesta\s+(?:sugerida\s+)?al\s+cliente\s*:/i,'');
+  body=body.replace(/\n\s*(Para ti\s*\(interno\)|Verificar en el (?:CRM|sistema)|Respuesta\s+(?:sugerida\s+)?al\s+cliente)\s*:[\s\S]*$/i,'');
+  return body.trim();
+}
 applyAutocopy();
 
 /* ---- base de conocimientos (persistente en Supabase) ---- */
@@ -3543,6 +3554,14 @@ function emInterno(raw){ if(!raw)return ''; let s=''+raw;
   s=s.replace(/\n{3,}/g,'\n\n').replace(/^\s*[-·•]\s*$/gm,'');
   return s.trim();
 }
+/* Split a shared iaRaw (3-section string) into independent client + internal fields.
+   Used so the client textarea and the internal "Para ti" panel are stored separately
+   (kills BUG B: internal text leaking into the client response via fragile parsing). */
+function emSplitIa(raw){
+  const cliente = extraerSugerida(raw);
+  const interno = emInterno(raw);
+  return { cliente: cliente||'', interno: interno||'' };
+}
 function emTryLink(t){ if(!t || !emClienteKeys(t).length)return; const tIsChat=(t.canal==='mensaje');
   const other=EMBANDEJA.find(function(x){ if(x.id===t.id)return false; if(((x.canal==='mensaje'))===tIsChat)return false; return emMismoCliente(t,x); });
   if(!other)return;
@@ -3665,11 +3684,11 @@ async function emAutoPendEditar(pid){ const p=EM_APEND.find(function(x){return x
   if(!t){ toast('Abriendo... si no aparece, actualiza la bandeja'); emAutoPendLoad(); return; }
   t.draft=p.texto||''; t.draftEdited=true;
   t.mensajes=(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}); /* solo la vista previa; los mensajes que el bot YA envió se conservan */
-  t.iaRaw=''; t._apInjected=false; emBotPausaConv(t); emSave(); emPush(t);
+  t.iaRaw=''; t.iaCliente=''; t.iaInterno=''; t._apInjected=false; emBotPausaConv(t); emSave(); emPush(t);
   emSetModo('manual'); emSelect(t.id);
   var slot=emSlotDe(t.canal); var sug=$(slot==='mail'?'emMailSug':'emChatSug'); if(sug)sug.value=t.draft;
   toast('Respuesta de la IA cargada: corrígela y responde. El envío automático se canceló.'); emAutoPendLoad(); }
-async function emAutoPendCancelar(pid){ if(!sb)return; try{ const {error}=await sb.from('auto_pendientes').update({estado:'cancelado',por:(me&&me.email)||'agente',updated_at:new Date().toISOString()}).eq('id',pid).eq('estado','pendiente'); if(error)throw error; const p=EM_APEND.find(function(x){return x.id===pid;}); if(p){ const t=EMBANDEJA.find(function(x){return x.id===p.conv_id;}); if(t){ t.mensajes=(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}); t.iaRaw=''; t._apInjected=false; emSave(); } } toast('Respuesta automatica cancelada: el caso queda para un agente'); }catch(e){ toast('No se pudo cancelar: '+((e&&e.message)||'error')); } emAutoPendLoad(); }
+async function emAutoPendCancelar(pid){ if(!sb)return; try{ const {error}=await sb.from('auto_pendientes').update({estado:'cancelado',por:(me&&me.email)||'agente',updated_at:new Date().toISOString()}).eq('id',pid).eq('estado','pendiente'); if(error)throw error; const p=EM_APEND.find(function(x){return x.id===pid;}); if(p){ const t=EMBANDEJA.find(function(x){return x.id===p.conv_id;}); if(t){ t.mensajes=(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}); t.iaRaw=''; t.iaCliente=''; t.iaInterno=''; t._apInjected=false; emSave(); } } toast('Respuesta automatica cancelada: el caso queda para un agente'); }catch(e){ toast('No se pudo cancelar: '+((e&&e.message)||'error')); } emAutoPendLoad(); }
 async function emAutoPendYa(pid){ if(!sb)return; try{ const {error}=await sb.from('auto_pendientes').update({envia_at:new Date(Date.now()-1000).toISOString(),updated_at:new Date().toISOString()}).eq('id',pid).eq('estado','pendiente'); if(error)throw error; toast('Se enviará en unos segundos'); }catch(e){ toast('No se pudo adelantar: '+((e&&e.message)||'error')); } emAutoPendLoad(); }
 function emAutoPendStart(){ emAutoPendStop(); emAutoPendLoad(); _emApT=setInterval(emAutoPendLoad,5000); _emApTick=setInterval(emAutoPendRender,1000); }
 function emAutoPendStop(){ if(_emApT){clearInterval(_emApT);_emApT=null;} if(_emApTick){clearInterval(_emApTick);_emApTick=null;} EM_APEND=[]; emAutoPendRender(); }
@@ -3698,8 +3717,8 @@ async function emSignPath(path, ttl){ ttl=ttl||3600; if(!_emEsRef(path)) return 
 function emResolveImgs(root){ if(!root||!root.querySelectorAll) return; root.querySelectorAll('img[data-imgpath]').forEach(function(el){ const p=el.getAttribute('data-imgpath'); el.removeAttribute('data-imgpath'); if(!p) return; emSignPath(p).then(function(u){ if(u) el.src=u; }); }); }
 function emMsgImg(m){ var v=m&&(m.img||m.image_url); if(!v) return ''; var st='max-width:150px;border-radius:8px;margin-top:4px;cursor:pointer'; if(_emEsRef(v)) return '<br><img data-imgpath="'+escapeHtml(v)+'" alt="adjunto" style="'+st+'" onclick="event.stopPropagation();emVerImg(this.src)">'; return '<br><img src="'+v+'" style="'+st+'" onclick="event.stopPropagation();emVerImg(this.src)">'; }
 function emTicketThumb(v){ if(!v) return ''; var st='max-width:60px;max-height:60px;border-radius:6px;vertical-align:middle;cursor:pointer'; if(_emEsRef(v)) return '<img data-imgpath="'+escapeHtml(v)+'" title="Ver ticket" style="'+st+'" onclick="event.stopPropagation();emVerImg(this.src)">'; return '<img src="'+v+'" title="Ver ticket" style="'+st+'" onclick="event.stopPropagation();emVerImg(this.src)">'; }
-function emRowToThread(r){ return { _cloud:true, iaDegradada:!!r.ia_degradada,   /* vino de la nube: si mañana ya no esta, es que la BORRARON, no que falta subirla */ id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), paisAuto:!!r.pais, vertical:r.vertical||'', vertAuto:!!r.vertical, estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', ticketImg:r.ticket_img||'', bot_on:(r.bot_on===true), tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, escalado:!!r.escalado, escalado_motivo:r.escalado_motivo||'', escalado_estado:r.escalado_estado||null, escalado_at:r.escalado_at||null, crmChk:(r.crm_chk&&typeof r.crm_chk==='object'&&!Array.isArray(r.crm_chk))?r.crm_chk:{}, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
-function emThreadToRow(t){ return { id:t.id, tenant:CONFIG.tenant, canal:t.canal, de:t.de||'cliente', asunto:t.asunto||'', pais:emThreadPais(t), vertical:t.vertical||null, estado:t.estado||'nuevo', mensajes:(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}) /* las vistas previas pendientes NO se suben: aun no se enviaron */, cliente:t.cliente||null, draft:t.draft||'', ia_raw:t.iaRaw||'', ticket_img:t.ticketImg||'', tomado_por:t.tomado_por||null, tomado_email:t.tomado_email||'', tomado_at:t.tomado_at||null, crm_chk:(t.crmChk&&typeof t.crmChk==='object'&&!Array.isArray(t.crmChk))?t.crmChk:{}, updated_by:me?me.id:null, updated_at:new Date().toISOString() }; }
+function emRowToThread(r){ return { _cloud:true, iaDegradada:!!r.ia_degradada,   /* vino de la nube: si mañana ya no esta, es que la BORRARON, no que falta subirla */ id:r.id, canal:r.canal||'email', de:r.de||'cliente', asunto:r.asunto||'', pais:r.pais||turnoPais(), paisAuto:!!r.pais, vertical:r.vertical||'', vertAuto:!!r.vertical, estado:r.estado||'nuevo', mensajes:Array.isArray(r.mensajes)?r.mensajes:[], cliente:r.cliente||null, draft:r.draft||'', iaRaw:r.ia_raw||'', iaCliente:(r.ia_cliente!=null&&r.ia_cliente!=='')?r.ia_cliente:(r.ia_raw?emSplitIa(r.ia_raw).cliente:''), iaInterno:(r.ia_interno!=null&&r.ia_interno!=='')?r.ia_interno:(r.ia_raw?emSplitIa(r.ia_raw).interno:''), ticketImg:r.ticket_img||'', bot_on:(r.bot_on===true), tomado_por:r.tomado_por||null, tomado_email:r.tomado_email||'', tomado_at:r.tomado_at||null, escalado:!!r.escalado, escalado_motivo:r.escalado_motivo||'', escalado_estado:r.escalado_estado||null, escalado_at:r.escalado_at||null, crmChk:(r.crm_chk&&typeof r.crm_chk==='object'&&!Array.isArray(r.crm_chk))?r.crm_chk:{}, t:r.creado_en?Date.parse(r.creado_en):Date.now() }; }
+function emThreadToRow(t){ return { id:t.id, tenant:CONFIG.tenant, canal:t.canal, de:t.de||'cliente', asunto:t.asunto||'', pais:emThreadPais(t), vertical:t.vertical||null, estado:t.estado||'nuevo', mensajes:(t.mensajes||[]).filter(function(m){return !(m&&m.pend);}) /* las vistas previas pendientes NO se suben: aun no se enviaron */, cliente:t.cliente||null, draft:t.draft||'', ia_raw:t.iaRaw||'', ia_cliente:t.iaCliente||'', ia_interno:t.iaInterno||'', ticket_img:t.ticketImg||'', tomado_por:t.tomado_por||null, tomado_email:t.tomado_email||'', tomado_at:t.tomado_at||null, crm_chk:(t.crmChk&&typeof t.crmChk==='object'&&!Array.isArray(t.crmChk))?t.crmChk:{}, updated_by:me?me.id:null, updated_at:new Date().toISOString() }; }
 async function emCloudLoad(){ if(!sb||!me)return false; try{ const {data,error}=await sb.from('inbox_conversaciones').select('*').eq('tenant',CONFIG.tenant).order('updated_at',{ascending:false}); if(error)throw error; emCloudReady=true; await emAutoCfgLoad(); /* refresca EM_VACIADO/EM_AUTOFAQ antes de fusionar */ if(Array.isArray(data)&&data.length){ const _mx=Date.parse(data[0].updated_at)||0; if(_mx>_emLastSeenUpd)_emLastSeenUpd=_mx; } if(Array.isArray(data)){ const incoming=data.map(emRowToThread); const localById={}; EMBANDEJA.forEach(function(x){ localById[x.id]=x; }); incoming.forEach(function(n){ const l=localById[n.id]; if(!l) return; const isOpen=(n.id===emSelChat||n.id===emSelMail); if(_emActive && !_emAdopt){ /* solo la pestaña ACTIVA conserva su trabajo; las pasivas ADOPTAN la nube (espejo) */ if(isOpen || l.draftEdited){ if(l.draft!=null) n.draft=l.draft; if(l.draftEdited) n.draftEdited=true; if(l.iaRaw && !n.iaRaw) n.iaRaw=l.iaRaw; } else if(l.draft && !n.draft){ n.draft=l.draft; if(l.iaRaw && !n.iaRaw) n.iaRaw=l.iaRaw; } } if(l.vertical && !n.vertical) n.vertical=l.vertical; /* la vertical fresca de la nube (detectada por el bot) gana */ }); const _inc={}; incoming.forEach(function(n){ _inc[n.id]=1; }); EMBANDEJA.forEach(function(l){ if(_inc[l.id]) return; if(EM_VACIADO && (l.t||0)<=EM_VACIADO) return; /* vaciado por el admin: NO resucita desde esta copia local */
         /* Si la conversacion YA vivio en la nube y ahora no esta, es que se BORRO. Reinsertarla la
            resucitaba y ademas la volvia a subir: borrar del servidor no servia de nada y las
@@ -3804,7 +3823,7 @@ async function emTomar(slot){ slot=slot||emFocus; const id=(slot==='mail')?emSel
   // no se re-sugiere para no pisar la respuesta encolada. Un fallo de sesion guardado por error en
   // iaRaw NO cuenta como sugerencia: se limpia y se regenera.
   if(emModo!=='auto'){
-    if(t.iaRaw && /sesi[oó]n no v[aá]lida/i.test(t.iaRaw)){ t.iaRaw=''; if(!t.draftEdited) t.draft=''; }
+    if(t.iaRaw && /sesi[oó]n no v[aá]lida/i.test(t.iaRaw)){ t.iaRaw=''; t.iaCliente=''; t.iaInterno=''; if(!t.draftEdited) t.draft=''; }
     const _yaResp=(t.mensajes||[]).some(function(m){return m.from==='agente' && !m.auto;});
     // Al TOMAR se REGENERA siempre, salvo que el borrador lo hayas escrito tu (draftEdited) o que
     // ya se le haya respondido al cliente. Antes bastaba con que existiera un borrador viejo de la
@@ -3829,7 +3848,7 @@ async function emTomarMismoCliente(t){
   emSave(); emPush(otro);
   if(oslot==='mail')emSelMail=otro.id; else emSelChat=otro.id; emSaveSel();
   emRenderList(); emRenderSlot(oslot);
-  if(otro.iaRaw && /sesi[oó]n no v[aá]lida/i.test(otro.iaRaw)){ otro.iaRaw=''; if(!otro.draftEdited) otro.draft=''; }
+  if(otro.iaRaw && /sesi[oó]n no v[aá]lida/i.test(otro.iaRaw)){ otro.iaRaw=''; otro.iaCliente=''; otro.iaInterno=''; if(!otro.draftEdited) otro.draft=''; }
   var _yaResp=(otro.mensajes||[]).some(function(m){return m.from==='agente' && !m.auto;});
   // MISMO criterio que emTomar: se regenera aunque ya exista un borrador VIEJO de la IA, para que
   // la respuesta del otro canal tambien salga con los requisitos y con lo verificado en el CRM.
@@ -4217,7 +4236,7 @@ function emRenderSlot(slot){
   }
   _emRenderBody(slot, t);
   if(sug){
-    if(!t.draftEdited && document.activeElement!==sug){ sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):''); }
+     if(!t.draftEdited && document.activeElement!==sug){ sug.value = (t.draft!=null)?t.draft:(t.iaCliente||(t.iaRaw?extraerSugerida(t.iaRaw):'')); }
     const _tid=t.id;
     sug.oninput=function(){ const tt=EMBANDEJA.find(function(x){return x.id===_tid;}); if(tt){ tt.draft=sug.value; tt.draftEdited=true; emSave(); emPushDebounced(tt); } };
   }
@@ -4230,7 +4249,7 @@ function emRenderThread(slot){
   _emRenderBody(slot, t);
   const sug=$((slot==='mail')?'emMailSug':'emChatSug');
   if(sug && !t.draftEdited && document.activeElement!==sug){
-    sug.value = (t.draft!=null)?t.draft:(t.iaRaw?extraerSugerida(t.iaRaw):'');
+    sug.value = (t.draft!=null)?t.draft:(t.iaCliente||(t.iaRaw?extraerSugerida(t.iaRaw):''));
   }
   /* LLAMADA: mismo lugar, otra gestion. Se deja claro en la propia caja que lo que se escribe va
      al BOT y no al cliente, para que nadie mande al aire una respuesta pensando que la lee alguien. */
@@ -4373,9 +4392,9 @@ function emRenderInterno(){
   const sameClient = !!((ct && ct.cliente && mt && mt.cliente && ct.cliente.usuario===mt.cliente.usuario) || (ct && mt && ct.de && (ct.de||'').toLowerCase()===(mt.de||'').toLowerCase()));
   const dosBloques = !!(mt && mt!==ct && !sameClient);
   let html='';
-  if(ct && ct.iaRaw){ const ci=renderContent(emInterno(ct.iaRaw)); if(ci) html += ci; }
-  if(mt && mt.iaRaw && !sameClient){
-    const mi=renderContent(emInterno(mt.iaRaw));
+  if(ct && (ct.iaInterno||ct.iaRaw)){ const ci=renderContent(ct.iaInterno||emInterno(ct.iaRaw)); if(ci) html += ci; }
+  if(mt && (mt.iaInterno||mt.iaRaw) && !sameClient){
+    const mi=renderContent(mt.iaInterno||emInterno(mt.iaRaw));
     if(mi) html += '<div class="em-coltitle" style="margin-top:10px">Interno del correo ('+escapeHtml(mt.de||'cliente')+')</div>'+mi;
   }
   if(ct) html += emChecklistHTML(ct);
@@ -4472,7 +4491,7 @@ async function emEnriquecerFaq(t, slot, pregunta, respFaq){
     if(t.iaRaw!==marca) return;   // el agente re-genero o cambio de caso mientras tanto: no pisar
     const interno=r.replace(/Respuesta sugerida al cliente:[\s\S]*$/i,'').trim();
     if(!/para ti \(interno\):/i.test(interno)) return;
-    t.iaRaw=interno+'\nRespuesta sugerida al cliente: '+respFaq;
+    t.iaRaw=interno+'\nRespuesta sugerida al cliente: '+respFaq; const _splitFaq2=emSplitIa(t.iaRaw); t.iaCliente=_splitFaq2.cliente; t.iaInterno=_splitFaq2.interno;
     t.crmChk={};
     emSave(); emPush(t); emRenderSlot(slot);
   }catch(e){ console.warn('emEnriquecerFaq error:', e); }
@@ -4491,7 +4510,7 @@ async function emPedirSugerencia(slot, _retrySesion, _forzarIA){
   // de que al re-sugerir cambiara solo el "Para ti" y la respuesta quedara igual e incoherente.
   // Con _forzarIA se salta el atajo y se genera TODO junto, coherente entre si.
   if(_forzarIA) _faq=null;
-  if(_faq){ var _pais=emThreadPais(t); t.iaRaw='Para ti (interno): Respuesta tomada de una correccion guardada (FAQ), sin IA.\nRespuesta sugerida al cliente: '+_faq.respuesta;
+  if(_faq){ var _pais=emThreadPais(t); t.iaRaw='Para ti (interno): Respuesta tomada de una correccion guardada (FAQ), sin IA.\nRespuesta sugerida al cliente: '+_faq.respuesta; const _splitFaq=emSplitIa(t.iaRaw); t.iaCliente=_splitFaq.cliente; t.iaInterno=_splitFaq.interno;
     // FORMATO DE CALIDAD: la FAQ cruda se entrega como mensaje terminado (saludo/firma segun canal y continuidad).
     var _cuerpoFaq=extraerSugerida(t.iaRaw); var _lk=emEnlaces(_lastCli,_pais);
     if(_lk.length){ _cuerpoFaq += '\n\nPara que lo revises tu mismo:\n'+_lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); }
@@ -4610,7 +4629,7 @@ async function emPedirSugerencia(slot, _retrySesion, _forzarIA){
     }
     // IA CAIDA: NO pisar el borrador con un texto de error (podria enviarse al cliente). Avisar y salir.
     if((j.ok===false)||j.chainFailed||!_iaTxt){ toast('La IA no está disponible ahora (proveedores saturados). No generé sugerencia; escribe la respuesta o reintenta.'); emSave(); emRenderSlot(slot); return; }
-    t.iaRaw=_iaTxt; if(!t._crmPreservar) t.crmChk={}; t._crmPreservar=false;   /* si la regeneracion la disparo el checklist, lo ya verificado NO se borra */ emRaw=t.iaRaw; t.draft=(vert==='retail')?(extraerSugerida(t.iaRaw)||t.iaRaw):extraerSugerida(t.iaRaw); t.draftEdited=false;
+    t.iaRaw=_iaTxt; if(!t._crmPreservar) t.crmChk={}; t._crmPreservar=false;   /* si la regeneracion la disparo el checklist, lo ya verificado NO se borra */ emRaw=t.iaRaw; const _split=emSplitIa(_iaTxt); t.iaCliente=_split.cliente; t.iaInterno=_split.interno; t.draft=(vert==='retail')?(extraerSugerida(t.iaRaw)||t.iaRaw):extraerSugerida(t.iaRaw); t.draftEdited=false;
     var _lk=(vert==='retail')?[]:emEnlaces((t.mensajes||[]).map(function(m){return m.text;}).join(' '), pais);   // sin enlaces de autoservicio para personal de sala
     if(_lk.length){ t.draft += '\n\nPara que lo revises tu mismo:\n' + _lk.map(function(l){return '- '+l.label+': '+l.url;}).join('\n'); }
     emSave(); emPush(t);
@@ -4660,7 +4679,7 @@ async function emAnalizarTicket(slot){
     // = SOLO la parte del cliente. Si NO trae seccion cliente (error/solo interno), va al panel interno
     // y el borrador del correo queda VACIO (nunca metemos texto interno en la respuesta al cliente).
     const tieneCli = /respuesta\s+(?:sugerida\s+)?al\s+cliente/i.test(r);
-    t.iaRaw = tieneCli ? r : ('Para ti (interno): '+r); if(!t._crmPreservar) t.crmChk={}; t._crmPreservar=false;   /* si la regeneracion la disparo el checklist, lo ya verificado NO se borra */
+    t.iaRaw = tieneCli ? r : ('Para ti (interno): '+r); const _splitAna=emSplitIa(t.iaRaw); t.iaCliente=_splitAna.cliente; t.iaInterno=_splitAna.interno; if(!t._crmPreservar) t.crmChk={}; t._crmPreservar=false;   /* si la regeneracion la disparo el checklist, lo ya verificado NO se borra */
     // Si el thread tiene una respuesta automatica pendiente (auto_pendientes), no se pisa el borrador
     // — la respuesta encolada es la que se va a enviar. El analisis va al interno para el agente.
     const tieneAutoPend = Array.isArray(EM_APEND) && EM_APEND.some(function(ap){return ap.conv_id===t.id;});

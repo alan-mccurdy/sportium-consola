@@ -4711,9 +4711,14 @@ async function emEnviarAmbos(){
   const c=EMBANDEJA.find(function(x){return x.id===emSelChat;});
   const m=EMBANDEJA.find(function(x){return x.id===emSelMail;});
   if(!c && !m){ toast('Abre una conversacion en el chat y/o el correo primero'); return; }
-  const cTxt=((($('emChatSug')||{}).value)||'').trim();
-  const mTxt=((($('emMailSug')||{}).value)||'').trim();
+  // El texto fuente de verdad es el draft guardado (t.draft): el textarea visible puede estar vacio
+  // si el panel no se renderizo en este ciclo. Caemos al draft para no perder el correo en "Enviar AMBOS".
+  const cTxt=((($('emChatSug')||{}).value)||'').trim() || (c&&c.draft?(''+(c.draft||'')).trim():'');
+  const mTxt=((($('emMailSug')||{}).value)||'').trim() || (m&&m.draft?(''+(m.draft||'')).trim():'');
   if(!(c&&cTxt) && !(m&&mTxt)){ toast('Escribe o genera una respuesta primero'); return; }
+  // Si el panel del correo no se ha renderizado (el textarea esta vacio), lo pintamos con el draft
+  // para que emResponder lo encuentre y lo envie de verdad.
+  if(m && mTxt && !((($('emMailSug')||{}).value)||'').trim()){ emRenderSlot('mail'); }
   let n=0;
   if(c && cTxt){ await emResponder('chat'); n++; }
   if(m && mTxt){ await emResponder('mail'); n++; }
@@ -5059,8 +5064,13 @@ async function emPasarAlBot(t, txt, etiqueta){
   }catch(e){ toast('No se pudo pasarle la indicación al bot'); return false; }
 }
 async function emResponder(slot){
-  slot=slot||emFocus; const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;}); const sug=$(isMail?'emMailSug':'emChatSug'); if(!t||!sug){ toast('Selecciona una conversacion'); return; }
-  const txt=(sug.value||'').trim(); if(!txt){ toast('Escribe o genera una respuesta primero'); return; }
+  slot=slot||emFocus; const isMail=(slot==='mail'); const id=isMail?emSelMail:emSelChat; const t=EMBANDEJA.find(function(x){return x.id===id;});   const sug=$(isMail?'emMailSug':'emChatSug'); if(!t||!sug){ toast('Selecciona una conversacion'); return; }
+  /* El texto de verdad vive en t.draft (lo guarda el oninput del textarea al escribir, y la IA
+     al generar). Si el textarea visible esta vacio porque el panel del correo no se renderizo en
+     este ciclo (p.ej. al pulsar "Enviar AMBOS" con el foco en el chat), usamos el borrador
+     guardado en vez de dedu Cir que no hay respuesta y no enviar nunca el correo. */
+  let txt=(sug.value||'').trim(); if(!txt && t.draft){ txt=(''+(t.draft||'')).trim(); }
+  if(!txt){ toast('Escribe o genera una respuesta primero'); return; }
   if(!emPuedeResponder(t)){ toast('La está atendiendo '+(t.tomado_email||'otro agente')+'. Pulsa "Tomar" si te la asignas (o pide al admin).'); return; }
   // REVISOR DE CALIDAD (tiempo real): revisa ANTES de enviar; si detecta algo grave, avisa y deja decidir.
   try{

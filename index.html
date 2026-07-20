@@ -4335,7 +4335,7 @@ function emChecklistItems(t){
   if(!t||!t.iaRaw)return [];
   var m=t.iaRaw.match(/Verificar en el (?:CRM|sistema):([\s\S]*?)(?:Respuesta sugerida al (?:cliente|personal de sala):|$)/i);
   if(!m)return [];
-  return m[1].split('\n').map(function(l){return l.replace(/^\s*[-·•\d.)\s]+/,'').trim();}).filter(function(l){return l.length>3;}).slice(0,6);
+  return m[1].split('\n').map(function(l){return l.replace(/^\s*[-·•*\d.)]\s*/,'').replace(/^\[req\]\s*/i,'').trim();}).filter(function(l){return l.length>3;}).slice(0,6);
 }
 /* Interruptor PERSONAL de las casillas: cada agente las activa o desactiva para si mismo.
    NO vive en inbox_config porque esa tabla es de escritura solo-admin por RLS; ponerlo ahi
@@ -4370,6 +4370,22 @@ function emCrmChk(id,i,on){
     emPedirSugerencia(slot, false, true);   // forzar IA: saltar el atajo de FAQ, aqui importa el CRM
   }, 1200);
 }
+function emCrmChkAll(id){
+  var t=EMBANDEJA.find(function(x){return x.id===id;}); if(!t)return;
+  var items=emChecklistItems(t); if(!items.length)return;
+  t.crmChk=t.crmChk||{};
+  for(var i=0;i<items.length;i++) t.crmChk[i]=true;
+  emSave(); emPush(t); emRenderInterno();
+  clearTimeout(_EM_CRM_T);
+  _EM_CRM_T=setTimeout(function(){
+    var tt=EMBANDEJA.find(function(x){return x.id===id;}); if(!tt)return;
+    var slot=emSlotDe(tt.canal);
+    if((slot==='mail'?emSelMail:emSelChat)!==id) return;
+    if(tt.draftEdited){ toast('Marcaste datos del CRM. Pulsa "Regenerar" para rehacer la respuesta con eso (no la piso porque la editaste).'); return; }
+    tt._crmPreservar=true;
+    emPedirSugerencia(slot, false, true);
+  }, 1200);
+}
 function emChecklistHTML(t){
   var items=emChecklistItems(t); if(!items.length)return '';
   var sw='<label class="em-crmchk-sw" title="Activa o desactiva las casillas (solo para ti)"><input type="checkbox" '+(EM_CRMCHK_ON?'checked':'')+' onchange="emCrmChkToggle(this.checked)"> usar casillas</label>';
@@ -4378,7 +4394,8 @@ function emChecklistHTML(t){
   var n=items.filter(function(it,i){return !!chk[i];}).length;
   var hint=n?('Verificado '+n+' de '+items.length+' · pulsa Re-sugerir para que la respuesta use lo confirmado')
             :'Marca lo que confirmaste en el CRM y la respuesta se redactará con esos datos';
-  return '<div class="em-crmchk"><b>Comprueba en el CRM antes de enviar:</b> '+sw+items.map(function(it,i){
+  var _markAll='<button type="button" class="em-crmchk-all" onclick="emCrmChkAll(\''+t.id+'\')">Marcar todos</button>';
+  return '<div class="em-crmchk"><b>Comprueba en el CRM antes de enviar:</b> '+sw+_markAll+items.map(function(it,i){
     return '<label><input type="checkbox" '+(chk[i]?'checked':'')+' onchange="emCrmChk(\''+t.id+'\','+i+',this.checked)"> '+escapeHtml(it)+'</label>';
   }).join('')+'<div class="em-crmchk-hint">'+hint+'</div></div>';
 }

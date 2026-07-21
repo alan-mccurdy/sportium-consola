@@ -1035,20 +1035,28 @@ body{background:transparent}
 <!-- ===== SIMULADOR DE LLAMADA: hablarle al bot con el microfono y oir la respuesta ===== -->
 <div class="overlay" id="simOverlay" onclick="simColgar()" style="z-index:80"></div>
 <aside class="panel wide" id="simPanel" style="z-index:81">
-  <div class="phead"><b>Llamada de prueba con el bot</b>
+  <div class="phead"><b>Probar voz · roleplay</b>
     <span id="simEstado" style="margin-left:auto;font-size:12px;color:var(--txt-2)"></span>
     <span class="rm" onclick="simColgar()" style="cursor:pointer;margin-left:8px">×</span></div>
   <div class="sec">
+    <div style="display:flex;gap:4px;margin-bottom:6px">
+      <button class="btn mini" id="simRolCliente" onclick="simSetRol('cliente')" style="flex:1;font-size:11px">Soy Cliente</button>
+      <button class="btn ghost mini" id="simRolAgente" onclick="simSetRol('agente')" style="flex:1;font-size:11px">Soy Agente</button>
+    </div>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
       <button class="btn" id="simMic" onclick="simEscuchar()">Hablar</button>
-      <button class="btn ghost" onclick="vozDetener()">▮ Callar al bot</button>
+      <button class="btn ghost" onclick="vozDetener()">▮ Callar</button>
       <button class="btn ghost" onclick="simColgar()">Colgar</button>
     </div>
     <div style="margin-top:6px;display:flex;gap:6px">
       <input id="simTexto" placeholder="…o escribí lo que diría el cliente y dale Enter" style="flex:1">
       <button class="btn ghost" onclick="simEnviarTexto()">Enviar</button>
     </div>
-    <div id="simTrans" style="margin-top:8px;max-height:320px;overflow:auto"></div>
+    <div style="margin-top:4px;font-size:11px;color:var(--txt-3);line-height:1.4">
+      <b>Soy Cliente:</b> hablás como cliente, el bot responde como agente (flujo actual).
+      <b>Soy Agente:</b> practicás como agente, la IA simula un cliente con problemas reales. Las sesiones se guardan para mejorar el bot de voz.
+    </div>
+    <div id="simTrans" style="margin-top:6px;max-height:280px;overflow:auto"></div>
   </div>
 </aside>
 
@@ -4945,28 +4953,50 @@ async function emAcuseAsignacion(t, slot){
    El webhook se llama con el JWT del agente (no con el secreto interno) para no escribir ningun
    secreto en el front-end. */
 const VOZ_TURNO_WEBHOOK = "https://laptop-38oeljea.tailc68292.ts.net/webhook/voz-turno";
-var SIM_ID=null, SIM_REC=null, SIM_OCUPADO=false;
+const ROLEPLAY_CLIENTE_WEBHOOK = "https://laptop-38oeljea.tailc68292.ts.net/webhook/roleplay-cliente";
+var SIM_ID=null, SIM_REC=null, SIM_OCUPADO=false, SIM_ROL='cliente', SIM_HISTORIAL=[];
 function simEstado(t){ const e=$('simEstado'); if(e)e.textContent=t||''; }
-function simPinta(quien, txt){
+function simPinta(quien, txt, txtReal){
   const c=$('simTrans'); if(!c)return;
-  const bot=(quien==='bot');
+  const bot=(quien==='bot'||quien==='cliente_ai');
+  const esClienteAI=(quien==='cliente_ai');
+  // Labels according to role:
+  //   Soy Cliente: user=Vos (cliente), response=Bot
+  //   Soy Agente:  user=Vos (agente),  response=Cliente
+  const etiqueta= bot ? (esClienteAI||SIM_ROL==='agente'?'Cliente':'Bot') : (SIM_ROL==='agente'?'Vos (agente)':'Vos (cliente)');
   c.innerHTML += '<div style="margin:4px 0;padding:5px 7px;border-left:3px solid '+(bot?'var(--accent)':'var(--txt-2)')+';background:rgba(127,127,127,.06);border-radius:3px">'+
-    '<b style="font-size:11px">'+(bot?'Bot':'Vos (cliente)')+'</b><div style="font-size:12px;margin-top:2px">'+escapeHtml(txt)+'</div></div>';
+    '<b style="font-size:11px">'+etiqueta+'</b><div style="font-size:12px;margin-top:2px">'+escapeHtml(txtReal||txt)+'</div></div>';
   c.scrollTop=c.scrollHeight;
 }
-function simIniciar(){
-  SIM_ID='sim-'+Date.now();
+function simIniciar(rol){
+  SIM_ID='sim-'+Date.now(); SIM_HISTORIAL=[];
+  if(rol) SIM_ROL=rol;
   $('simOverlay').classList.add('on'); $('simPanel').classList.add('on');
+  simSetRolUI();
   $('simTrans').innerHTML=''; const ti=$('simTexto'); if(ti){ ti.value=''; ti.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); simEnviarTexto(); } }; }
   simEstado('llamada '+SIM_ID.slice(-6));
-  simPinta('bot','(llamada iniciada — hablá o escribí como si fueras el cliente)');
+  const msg=(SIM_ROL==='agente')?'(modo roleplay: contestá como AGENTE, el cliente IA responde con problemas reales)':'(hablá o escribí como si fueras el cliente)';
+  simPinta('bot', msg);
+}
+function simSetRolUI(){
+  const cb=$('simRolCliente'), ab=$('simRolAgente'), ti=$('simTexto');
+  if(cb) cb.className=(SIM_ROL==='cliente'?'btn mini':'btn ghost mini');
+  if(ab) ab.className=(SIM_ROL==='agente'?'btn mini':'btn ghost mini');
+  if(ti) ti.placeholder=(SIM_ROL==='agente')?'…o escribí lo que diría el AGENTE (el cliente IA responde)':'…o escribí lo que diría el cliente y dale Enter';
+}
+function simSetRol(rol){
+  if(SIM_OCUPADO){ toast('Esperá a que termine la respuesta'); return; }
+  SIM_ROL=rol; SIM_HISTORIAL=[]; simSetRolUI();
+  $('simTrans').innerHTML='';
+  const msg=(rol==='agente')?'(modo roleplay: contestá como AGENTE, el cliente IA responde con problemas reales)':'(hablá o escribí como si fueras el cliente)';
+  simPinta('bot', msg); simEstado('rol: '+(rol==='agente'?'Agente (cliente IA)':'Cliente (bot responde)'));
 }
 function simColgar(){
   try{ if(SIM_REC) SIM_REC.abort(); }catch(e){}
   SIM_REC=null; vozDetener();
   $('simOverlay').classList.remove('on'); $('simPanel').classList.remove('on');
-  if(SIM_ID) toast('Llamada de prueba guardada como voz-'+SIM_ID);
-  SIM_ID=null;
+  if(SIM_ID) toast('Llamada de prueba guardada como '+(SIM_ROL==='agente'?'rp-':'voz-')+SIM_ID);
+  SIM_ID=null; SIM_ROL='cliente'; SIM_HISTORIAL=[];
 }
 function simEscuchar(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -5010,24 +5040,46 @@ function simEscuchar(){
 }
 function simEnviarTexto(){ const ti=$('simTexto'); const t=(ti&&ti.value||'').trim(); if(!t)return; ti.value=''; simEnviar(t); }
 async function simEnviar(texto){
-  if(!SIM_ID){ simIniciar(); }
+  if(!SIM_ID){ SIM_ID='sim-'+Date.now(); SIM_HISTORIAL=[]; }
   if(SIM_OCUPADO) return;
   SIM_OCUPADO=true;
-  simPinta('cliente', texto);
-  simEstado('el bot está pensando…');
+  const esRoleplay=(SIM_ROL==='agente');
+  simPinta(esRoleplay?'agente':'cliente', texto);
+  simEstado('pensando…');
   const t0=Date.now();
+  if(esRoleplay) SIM_HISTORIAL.push({rol:'agente', texto:texto});
   try{
     const {data:{session}}=await sb.auth.getSession();
-    const r=await fetch(VOZ_TURNO_WEBHOOK,{method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},
-      body:JSON.stringify({call_id:SIM_ID, telefono:'simulador', texto:texto, pais:(typeof turnoPais==='function'?turnoPais():'MX')})});
-    const j=await r.json().catch(function(){return null;});
-    const ms=Date.now()-t0;
-    if(!j||!j.ok){ simPinta('bot','(no respondió: '+((j&&j.error)||'error')+')'); simEstado('falló · '+ms+' ms'); }
-    else{
-      simPinta('bot', j.respuesta);
-      simEstado(j.accion+' · '+ms+' ms'+(j.ayuda_pedida?' · pide ayuda al agente':''));
-      vozDecir(j.respuesta, null, SIM_ID);   /* voz fija por llamada, igual que en la revision */
+    const authH={'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')};
+    if(esRoleplay){
+      // MODO ROLEPLAY: usuario=AGENTE, IA=CLIENTE
+      const r=await fetch(ROLEPLAY_CLIENTE_WEBHOOK,{method:'POST', headers:authH,
+        body:JSON.stringify({body:{
+          session_id:SIM_ID, pais:(typeof turnoPais==='function'?turnoPais():'MX'),
+          escenario:'aleatorio', historial:SIM_HISTORIAL
+        }})});
+      const j=await r.json().catch(function(){return null;});
+      const ms=Date.now()-t0;
+      if(!j||!j.ok){ simPinta('cliente_ai','(no respondió: '+((j&&j.error)||'error')+')'); simEstado('falló · '+ms+' ms'); }
+      else{
+        const txt=j.texto||'(sin texto)';
+        SIM_HISTORIAL.push({rol:'cliente', texto:txt});
+        simPinta('cliente_ai', txt);
+        simEstado(j.tema+' · '+ms+' ms');
+        vozDecir(txt, null, SIM_ID);
+      }
+    }else{
+      // MODO CLIENTE: usuario=CLIENTE, IA=AGENTE (flujo original)
+      const r=await fetch(VOZ_TURNO_WEBHOOK,{method:'POST', headers:authH,
+        body:JSON.stringify({call_id:SIM_ID, telefono:'simulador', texto:texto, pais:(typeof turnoPais==='function'?turnoPais():'MX')})});
+      const j=await r.json().catch(function(){return null;});
+      const ms=Date.now()-t0;
+      if(!j||!j.ok){ simPinta('bot','(no respondió: '+((j&&j.error)||'error')+')'); simEstado('falló · '+ms+' ms'); }
+      else{
+        simPinta('bot', j.respuesta);
+        simEstado(j.accion+' · '+ms+' ms'+(j.ayuda_pedida?' · pide ayuda al agente':''));
+        vozDecir(j.respuesta, null, SIM_ID);
+      }
     }
   }catch(e){ simPinta('bot','(error de red)'); simEstado('error de red'); }
   SIM_OCUPADO=false;

@@ -1045,16 +1045,35 @@ body{background:transparent}
     </div>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
       <button class="btn" id="simMic" onclick="simEscuchar()">Hablar</button>
+      <button class="btn ghost" id="simPausa" onclick="simPausar()" style="display:none">Pausar</button>
       <button class="btn ghost" onclick="vozDetener()">▮ Callar</button>
       <button class="btn ghost" onclick="simColgar()">Colgar</button>
     </div>
+    <!-- La conversacion sigue viva aunque dejes de hablar: el microfono se reabre solo tras
+         cada respuesta. Antes se apagaba al terminar cada frase y habia que pulsar Hablar
+         otra vez, lo que hacia sentir que el bot se habia ido de la llamada. -->
+    <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:var(--txt-2);cursor:pointer">
+      <input type="checkbox" id="simContinuo" checked onchange="simSetContinuo(this.checked)">
+      Conversación continua (el micrófono se reabre solo tras cada respuesta)
+    </label>
     <div style="margin-top:6px;display:flex;gap:6px">
       <input id="simTexto" placeholder="…o escribí lo que diría el cliente y dale Enter" style="flex:1">
       <button class="btn ghost" onclick="simEnviarTexto()">Enviar</button>
     </div>
-    <div style="margin-top:4px;font-size:11px;color:var(--txt-3);line-height:1.4">
-      <b>Soy Cliente:</b> hablás como cliente, el bot responde como agente (flujo actual).
-      <b>Soy Agente:</b> practicás como agente, la IA simula un cliente con problemas reales. Las sesiones se guardan para mejorar el bot de voz.
+    <details style="margin-top:6px">
+      <summary style="cursor:pointer;font-size:11px;color:var(--txt-2)">Contexto para esta práctica (opcional)</summary>
+      <textarea id="simContexto" rows="2" style="width:100%;margin-top:4px;font-size:12px"
+        placeholder="Ej.: el cliente ya depositó y no le acreditaron el bono · o: soy de la sala 60106 y el POS no imprime"></textarea>
+      <div style="font-size:10px;color:var(--txt-3);margin-top:2px">
+        En <b>Soy Cliente</b> se le pasa al bot como dato que ya tendría el agente.
+        En <b>Soy Agente</b> define la situación que va a interpretar el cliente IA.
+      </div>
+    </details>
+    <div style="margin-top:6px;font-size:11px;color:var(--txt-3);line-height:1.45">
+      <div><b>Soy Cliente</b> — vos sos el cliente y hablás con el bot, igual que en una llamada real.
+        Sirve para ver qué contesta y cómo lleva la conversación.</div>
+      <div style="margin-top:3px"><b>Soy Agente</b> — vos practicás como agente y la IA hace de cliente
+        con un problema real. Las sesiones se guardan para entrenar al bot.</div>
     </div>
     <div id="simTrans" style="margin-top:6px;max-height:280px;overflow:auto"></div>
   </div>
@@ -1865,7 +1884,10 @@ function vozElegir(clave){
   var grupo=(muj.length && hom.length) ? ((h%2===0)?muj:hom) : vs;
   return { voz:grupo[h%grupo.length], mujer:(muj.length&&hom.length)?(h%2===0):null };
 }
-function vozDecir(txt, btn, clave){
+/* `alTerminar` avisa cuando la voz acabo de sonar. Lo usa la conversacion continua para
+   reabrir el microfono recien entonces: si se abriera antes, el reconocimiento tomaria la
+   propia voz del bot como si fuera la del usuario. */
+function vozDecir(txt, btn, clave, alTerminar){
   if(!window.speechSynthesis){ toast('Este navegador no puede reproducir voz'); return; }
   try{
     speechSynthesis.cancel();
@@ -1878,6 +1900,16 @@ function vozDecir(txt, btn, clave){
        rapido y plano es lo que hace que suene a maquina. */
     u.rate=0.96; u.pitch=(el&&el.mujer===false)?0.96:1.06; u.volume=1;
     if(btn){ var prev=btn.textContent; btn.textContent='▮'; u.onend=function(){ btn.textContent=prev; }; u.onerror=function(){ btn.textContent=prev; }; }
+    if(typeof alTerminar==='function'){
+      var _yaAviso=false;
+      var _avisar=function(){ if(_yaAviso) return; _yaAviso=true; try{ alTerminar(); }catch(e){} };
+      var _prevEnd=u.onend, _prevErr=u.onerror;
+      u.onend=function(){ if(_prevEnd) try{ _prevEnd(); }catch(e){} _avisar(); };
+      u.onerror=function(){ if(_prevErr) try{ _prevErr(); }catch(e){} _avisar(); };
+      /* Red de seguridad: si el navegador nunca dispara onend (pasa cuando se cancela la voz
+         a mitad), la conversacion se quedaria muda para siempre esperando ese evento. */
+      setTimeout(_avisar, Math.min(20000, 1500 + String(limpio).length * 90));
+    }
     speechSynthesis.speak(u);
   }catch(e){ toast('No se pudo reproducir la voz'); }
 }
@@ -4972,11 +5004,18 @@ function simIniciar(rol){
   SIM_ID='sim-'+Date.now(); SIM_HISTORIAL=[];
   if(rol) SIM_ROL=rol;
   $('simOverlay').classList.add('on'); $('simPanel').classList.add('on');
-  simSetRolUI();
+  simSetRolUI(); SIM_PAUSADO=false; SIM_SILENCIOS=0; simBotonesUI();
   $('simTrans').innerHTML=''; const ti=$('simTexto'); if(ti){ ti.value=''; ti.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); simEnviarTexto(); } }; }
   simEstado('llamada '+SIM_ID.slice(-6));
   const msg=(SIM_ROL==='agente')?'(modo roleplay: contestá como AGENTE, el cliente IA responde con problemas reales)':'(hablá o escribí como si fueras el cliente)';
   simPinta('bot', msg);
+  /* La llamada arranca ESCUCHANDO. Antes habia que pulsar Hablar aunque el modo continuo
+     estuviera activo, asi que la primera frase seguia dependiendo de un boton y no se
+     sentia una llamada, sino un walkie-talkie. Ahora se abre el panel y ya te escucha:
+     el unico boton que hace falta es Pausar, y solo si lo querés. */
+  if(SIM_CONTINUO){
+    setTimeout(function(){ if(SIM_ID && SIM_CONTINUO && !SIM_PAUSADO) simEscuchar(); }, 400);
+  }
 }
 function simSetRolUI(){
   const cb=$('simRolCliente'), ab=$('simRolAgente'), ti=$('simTexto');
@@ -4986,14 +5025,61 @@ function simSetRolUI(){
 }
 function simSetRol(rol){
   if(SIM_OCUPADO){ toast('Esperá a que termine la respuesta'); return; }
-  SIM_ROL=rol; SIM_HISTORIAL=[]; simSetRolUI();
+  SIM_ROL=rol; SIM_HISTORIAL=[]; simSetRolUI(); SIM_SILENCIOS=0; simBotonesUI();
   $('simTrans').innerHTML='';
   const msg=(rol==='agente')?'(modo roleplay: contestá como AGENTE, el cliente IA responde con problemas reales)':'(hablá o escribí como si fueras el cliente)';
   simPinta('bot', msg); simEstado('rol: '+(rol==='agente'?'Agente (cliente IA)':'Cliente (bot responde)'));
 }
+/* TRES ESTADOS, no dos. Antes solo existian "hablando" y "colgado": al terminar cada frase
+   el microfono se apagaba y habia que pulsar Hablar otra vez, lo que hacia sentir que el bot
+   se habia ido de la llamada. Ahora:
+     escuchando  el microfono esta abierto y se reabre solo tras cada respuesta
+     en pausa    la llamada SIGUE viva, el microfono no. Para pensar o atender otra cosa
+     colgado     se cierra la llamada
+   `SIM_PAUSADO` es lo unico que impide la reapertura automatica. */
+let SIM_CONTINUO = true;
+let SIM_SILENCIOS = 0;   // silencios seguidos, para no reabrir el microfono infinitamente
+let SIM_PAUSADO = false;
+
+function simSetContinuo(v){
+  SIM_CONTINUO = !!v;
+  if(!SIM_CONTINUO){ SIM_PAUSADO=false; }
+  simBotonesUI();
+  simEstado(SIM_CONTINUO ? 'conversación continua activada' : 'modo manual: pulsá Hablar para cada frase');
+}
+
+function simPausar(){
+  SIM_PAUSADO = !SIM_PAUSADO;
+  if(SIM_PAUSADO){
+    try{ if(SIM_REC) SIM_REC.abort(); }catch(e){}
+    SIM_REC=null; vozDetener();
+    simEstado('en pausa — la llamada sigue abierta, el micrófono no');
+  }else{
+    simEstado('reanudando…');
+    simEscuchar();
+  }
+  simBotonesUI();
+}
+
+function simBotonesUI(){
+  const p=$('simPausa'), m=$('simMic');
+  if(p){ p.style.display = SIM_CONTINUO ? '' : 'none'; p.textContent = SIM_PAUSADO ? 'Reanudar' : 'Pausar'; }
+  if(m) m.style.display = (SIM_CONTINUO && !SIM_PAUSADO) ? 'none' : '';
+}
+
+/* Reabre el microfono tras la respuesta del bot. Se llama DESPUES de que termina de hablar:
+   si se reabriera antes, el reconocimiento se escucharia a si mismo y tomaria la voz del bot
+   como si fuera la del usuario. */
+function simSeguirEscuchando(){
+  if(!SIM_CONTINUO || SIM_PAUSADO || !SIM_ID) return;
+  if(SIM_OCUPADO) return;
+  setTimeout(function(){ if(SIM_CONTINUO && !SIM_PAUSADO && SIM_ID && !SIM_OCUPADO) simEscuchar(); }, 350);
+}
+
 function simColgar(){
   try{ if(SIM_REC) SIM_REC.abort(); }catch(e){}
   SIM_REC=null; vozDetener();
+  SIM_PAUSADO=false;
   $('simOverlay').classList.remove('on'); $('simPanel').classList.remove('on');
   if(SIM_ID) toast('Llamada de prueba guardada como '+(SIM_ROL==='agente'?'rp-':'voz-')+SIM_ID);
   SIM_ID=null; SIM_ROL='cliente'; SIM_HISTORIAL=[];
@@ -5010,7 +5096,7 @@ function simEscuchar(){
     SIM_REC.interimResults=true;
     const b=$('simMic'); if(b) b.textContent='Escuchando…';
     simEstado('escuchando… hablá normal y hacé una pausa al terminar');
-    var _final='';
+    var _final=''; SIM_SILENCIOS = SIM_SILENCIOS || 0;
     SIM_REC.onresult=function(ev){
       var parcial='';
       for(var i=ev.resultIndex;i<ev.results.length;i++){
@@ -5032,12 +5118,31 @@ function simEscuchar(){
     };
     SIM_REC.onend=function(){
       const b2=$('simMic'); if(b2) b2.textContent='Hablar';
-      if(_final.trim()) simEnviar(_final.trim());     // se envia al terminar, con la frase completa
-      else simEstado('no se entendió nada — probá de nuevo o escribí el mensaje');
+      if(_final.trim()){
+        SIM_SILENCIOS=0;
+        simEnviar(_final.trim());     // se envia al terminar, con la frase completa
+        return;
+      }
+      /* Silencio: en modo continuo NO se corta la llamada, porque quedarse pensando unos
+         segundos es normal y antes eso apagaba el microfono hasta pulsar Hablar otra vez.
+         Se reabre, pero con tope: si el microfono estuviera roto esto seria un bucle. */
+      if(SIM_CONTINUO && !SIM_PAUSADO && SIM_ID && !SIM_OCUPADO){
+        SIM_SILENCIOS++;
+        if(SIM_SILENCIOS<=12){
+          simEstado('te escucho… (pausá si necesitás un momento)');
+          setTimeout(function(){ if(SIM_CONTINUO && !SIM_PAUSADO && SIM_ID && !SIM_OCUPADO) simEscuchar(); }, 250);
+          return;
+        }
+        SIM_PAUSADO=true; simBotonesUI();
+        simEstado('sin audio hace rato — quedó en pausa. Tocá Reanudar cuando quieras seguir.');
+        return;
+      }
+      simEstado('no se entendió nada — probá de nuevo o escribí el mensaje');
     };
     SIM_REC.start();
   }catch(e){ simEstado('no se pudo abrir el micrófono'); }
 }
+function simContextoTxt(){ const e=$('simContexto'); return (e&&e.value||'').trim().slice(0,600); }
 function simEnviarTexto(){ const ti=$('simTexto'); const t=(ti&&ti.value||'').trim(); if(!t)return; ti.value=''; simEnviar(t); }
 async function simEnviar(texto){
   if(!SIM_ID){ SIM_ID='sim-'+Date.now(); SIM_HISTORIAL=[]; }
@@ -5056,7 +5161,9 @@ async function simEnviar(texto){
       const r=await fetch(ROLEPLAY_CLIENTE_WEBHOOK,{method:'POST', headers:authH,
         body:JSON.stringify({body:{
           session_id:SIM_ID, pais:(typeof turnoPais==='function'?turnoPais():'MX'),
-          escenario:'aleatorio', historial:SIM_HISTORIAL
+          /* El contexto que escribe el agente define la situacion que interpreta el cliente
+             IA. Si esta vacio se elige un escenario al azar, como antes. */
+          escenario:(simContextoTxt() || 'aleatorio'), historial:SIM_HISTORIAL
         }})});
       const j=await r.json().catch(function(){return null;});
       const ms=Date.now()-t0;
@@ -5066,19 +5173,21 @@ async function simEnviar(texto){
         SIM_HISTORIAL.push({rol:'cliente', texto:txt});
         simPinta('cliente_ai', txt);
         simEstado(j.tema+' · '+ms+' ms');
-        vozDecir(txt, null, SIM_ID);
+        vozDecir(txt, null, SIM_ID, simSeguirEscuchando);
       }
     }else{
       // MODO CLIENTE: usuario=CLIENTE, IA=AGENTE (flujo original)
       const r=await fetch(VOZ_TURNO_WEBHOOK,{method:'POST', headers:authH,
-        body:JSON.stringify({call_id:SIM_ID, telefono:'simulador', texto:texto, pais:(typeof turnoPais==='function'?turnoPais():'MX')})});
+        /* `contexto` es lo que un agente ya sabria de este caso. El cerebro de voz lo trata
+           igual que una indicacion escrita por un humano: manda sobre lo que el bot deduzca. */
+        body:JSON.stringify({call_id:SIM_ID, telefono:'simulador', texto:texto, contexto:simContextoTxt(), pais:(typeof turnoPais==='function'?turnoPais():'MX')})});
       const j=await r.json().catch(function(){return null;});
       const ms=Date.now()-t0;
       if(!j||!j.ok){ simPinta('bot','(no respondió: '+((j&&j.error)||'error')+')'); simEstado('falló · '+ms+' ms'); }
       else{
         simPinta('bot', j.respuesta);
         simEstado(j.accion+' · '+ms+' ms'+(j.ayuda_pedida?' · pide ayuda al agente':''));
-        vozDecir(j.respuesta, null, SIM_ID);
+        vozDecir(j.respuesta, null, SIM_ID, simSeguirEscuchando);
       }
     }
   }catch(e){ simPinta('bot','(error de red)'); simEstado('error de red'); }

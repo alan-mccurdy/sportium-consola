@@ -1334,7 +1334,7 @@ body{background:transparent}
       <button class="ubtn" id="emAutoFaqBtn" onclick="emAutoFaqBtnClick()" title="Interruptor GENERAL: enciende o pausa TODAS las respuestas automaticas del bot">Bot automático</button>
       <button class="ubtn" id="emAutoChatBtn" onclick="emAutoCanalBtnClick('chat')" title="Enciende o pausa el bot SOLO en el canal de chat (Telegram/WhatsApp); el correo no se toca">Bot chat</button>
       <button class="ubtn" id="emAutoCorreoBtn" onclick="emAutoCanalBtnClick('correo')" title="Enciende o pausa el bot SOLO en el canal de correo (aplica cuando el bot de correo este activo)">Bot correo</button>
-      <label class="em-gen" style="white-space:nowrap" title="Cuanto espera cada respuesta del bot antes de enviarse; en ese lapso puedes corregirla, cancelarla o adelantarla desde el hilo, donde también ves los pasos internos del bot en tiempo real">Pausa de revisión <select id="emAutoPausa" onchange="emAutoPausaChange()"><option value="15">15 s</option><option value="30">30 s</option><option value="60">1 min</option><option value="90">1.5 min</option><option value="120">2 min</option></select></label>
+      <label class="em-gen" style="white-space:nowrap" title="Cuanto espera cada respuesta del bot antes de enviarse; en ese lapso puedes corregirla, cancelarla o adelantarla desde el hilo, donde también ves los pasos internos del bot en tiempo real. Desactivada = el bot responde sin esperar; el filtro de fugas sigue actuando igual">Pausa de revisión <select id="emAutoPausa" onchange="emAutoPausaChange()"><option value="0">Desactivada</option><option value="15">15 s</option><option value="30">30 s</option><option value="60">1 min</option><option value="90">1.5 min</option><option value="120">2 min</option></select></label>
     </div>
     <span class="em-gen" id="emTurnoHint"></span>
     <!-- Aviso de IA caida. Va en la barra del inbox, no en un toast: un toast se pierde y esto tiene
@@ -3644,7 +3644,11 @@ function emAutoBarReflect(){ const bar=$('emAutoBar'); if(!bar)return; bar.style
 async function emAutoCfgLoad(){ emAutoBarReflect(); if(!sb||!me)return; try{ const {data,error}=await sb.from('inbox_config').select('auto_faq,auto_chat,auto_correo,auto_pausa_s,vaciado_at').eq('tenant',CONFIG.tenant).maybeSingle(); if(error)throw error; if(data){ EM_AUTOFAQ=(data.auto_faq!==false); EM_AUTOCHAT=(data.auto_chat!==false); EM_AUTOCORREO=(data.auto_correo!==false); EM_PAUSA=Math.min(300,Math.max(5,Number(data.auto_pausa_s)||30)); EM_VACIADO=data.vaciado_at?Date.parse(data.vaciado_at):0; } emAutoBarReflect(); }catch(e){} }
 // Pausa de revision configurable: cuanto espera cada respuesta del bot en la cola antes de enviarse.
 async function emAutoPausaChange(){ const ps=$('emAutoPausa'); if(!ps)return; if(!(typeof isAdmin==='function'&&isAdmin())){ toast('Solo el administrador puede cambiar la pausa de revisión'); ps.value=String(EM_PAUSA); return; } if(!sb){ toast('Sin conexion con la nube — no se pudo cambiar'); ps.value=String(EM_PAUSA); return; }
-  const nuevo=Math.min(300,Math.max(5,Number(ps.value)||30));
+  /* 0 = pausa desactivada: el bot responde sin esperar a que nadie lo lea. Hay que dejar
+     pasar el 0 explicitamente, porque el `||30` de antes lo convertia en 30 (0 es falsy)
+     y elegir "Desactivada" no habria hecho nada. Lo que protege al cliente cuando no hay
+     pausa es el filtro de fugas del auto-sender, que actua siempre. */
+  const _v=Number(ps.value); const nuevo=Number.isFinite(_v)?Math.min(300,Math.max(0,_v)):30;
   try{ const {error}=await sb.from('inbox_config').upsert({tenant:CONFIG.tenant,auto_pausa_s:nuevo,updated_at:new Date().toISOString()}); if(error)throw error; EM_PAUSA=nuevo; toast('Pausa de revisión: '+nuevo+' s (aplica a las próximas respuestas del bot)'); }
   catch(e){ toast('No se pudo guardar la pausa: '+((e&&e.message)||'error')); ps.value=String(EM_PAUSA); } }
 /* ===== DISPONIBILIDAD DEL AGENTE + AUTOASIGNACION (uno a la vez) =====

@@ -694,11 +694,17 @@
      justamente lo que produce las bandas en pantallas de 8 bits. Menos intensidad y mas
      recorrido atacan las dos cosas a la vez. */
   background:
-    radial-gradient(1100px 780px at 4% -14%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 74%),
-    radial-gradient(980px 860px at 116% 4%, color-mix(in srgb, #6E7A93 5%, transparent), transparent 74%),
-    radial-gradient(1040px 880px at 98% 118%, color-mix(in srgb, #7E8698 5%, transparent), transparent 74%),
-    radial-gradient(900px 780px at 22% 124%, color-mix(in srgb, #8A8F9C 5%, transparent), transparent 74%),
-    radial-gradient(820px 720px at 50% 38%, color-mix(in srgb, #9AA8BE 3%, transparent), transparent 78%),
+    /* SEGUNDA BAJADA. Al 5-6 % todavia se leian como nubes azul-grisaceas sobre las
+       superficies blancas. Ahora ~2.5 %, que es el umbral en el que el fondo deja de
+       tener "algo" y solo tiene profundidad.
+       Y se ELIMINA la nube central (50% 38%): las otras cuatro nacen fuera de la pantalla
+       y solo entra su borde, pero esa estaba entera en medio del area de trabajo, justo
+       donde el contenido es blanco y cualquier tinte canta. Era la que se veia en la foto.
+       Si algun dia el fondo se ve demasiado plano, se sube de aqui, pero de una en una. */
+    radial-gradient(1200px 860px at 4% -18%, color-mix(in srgb, var(--accent) 3%, transparent), transparent 76%),
+    radial-gradient(1060px 940px at 118% 2%, color-mix(in srgb, #6E7A93 2.5%, transparent), transparent 76%),
+    radial-gradient(1120px 960px at 100% 120%, color-mix(in srgb, #7E8698 2.5%, transparent), transparent 76%),
+    radial-gradient(980px 860px at 20% 126%, color-mix(in srgb, #8A8F9C 2.5%, transparent), transparent 76%),
     var(--bg);
   background-attachment:fixed;}
 /* GRANO CONTRA EL BANDEADO.
@@ -3622,10 +3628,19 @@ let AVISO={texto:'',updated_at:''};
 async function loadAviso(){ if(!sb)return; try{ const {data}=await sb.from('avisos_agentes').select('texto,updated_at').eq('tenant',CONFIG.tenant).maybeSingle(); AVISO={texto:(data&&data.texto)||'',updated_at:(data&&data.updated_at)||''}; }catch(e){ AVISO={texto:'',updated_at:''}; } renderAviso(); }
 function renderAviso(){ const b=$('avisoBanner'); if(!b)return; const tx=(AVISO.texto||'').trim(); const e=$('avisoEdit'), c=$('avisoClose'), tEl=$('avisoTexto');
   if(isAdmin()){ b.style.display='flex'; if(tEl)tEl.textContent= tx || 'Sin plan de accion. Toca Agregar para dejar uno que vean los agentes.'; if(e){ e.style.display=''; e.textContent= tx?'Editar':'Agregar'; } if(c)c.style.display='none'; }
-  else { const dismissed = (lsGet('aviso-dismiss')===(AVISO.updated_at||'')); if(tx && !dismissed){ b.style.display='flex'; if(tEl)tEl.textContent=tx; if(e)e.style.display='none'; if(c)c.style.display=''; } else b.style.display='none'; }
+  else {
+    /* El agente puede MINIMIZAR el plan, pero no cerrarlo: es lo que le han pedido cumplir,
+       no un anuncio. Antes tenia boton de ocultar y al pulsarlo desaparecia hasta que el
+       admin lo editara -- podia pasarse dias sin verlo sin darse cuenta.
+       Minimizado sigue visible como pastilla, y se abre con un clic. */
+    if(tx){ b.style.display='flex'; if(tEl)tEl.textContent=tx; if(e)e.style.display='none'; if(c)c.style.display='none'; }
+    else b.style.display='none';
+  }
   b.classList.toggle('min', lsGet('aviso-min')==='1'); }
 function toggleAviso(){ const b=$('avisoBanner'); if(!b)return; const min=!b.classList.contains('min'); b.classList.toggle('min',min); try{ lsSet('aviso-min', min?'1':'0'); }catch(e){} }
 async function editAviso(){ if(!isAdmin())return; const nuevo=await appPrompt('Plan de accion / feedback para los agentes (lo veran en su pantalla principal):',{value:AVISO.texto,multiline:true}); if(nuevo===null)return; try{ const iso=new Date().toISOString(); await sb.from('avisos_agentes').upsert({tenant:CONFIG.tenant,texto:nuevo,updated_at:iso,updated_by:me.id}); AVISO={texto:nuevo,updated_at:iso}; renderAviso(); toast('Plan de accion guardado'); }catch(e){ toast('No se pudo guardar (falta crear la tabla avisos_agentes?): '+(e.message||e)); } }
+/* Se conserva por si el admin la usa desde la paleta, pero el boton ya no se le ofrece al
+   agente: minimizar si, cerrar no. */
 function dismissAviso(){ try{ lsSet('aviso-dismiss', AVISO.updated_at||''); }catch(e){} const b=$('avisoBanner'); if(b)b.style.display='none'; }
 let _rec=null, _recOn=false, _recWant=false;
 function transVivo(){

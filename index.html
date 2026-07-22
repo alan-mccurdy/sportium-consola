@@ -1408,7 +1408,13 @@ body{background:transparent}
   <div class="am-card">
     <div class="am-title" id="amTitle"></div>
     <div class="am-msg" id="amMsg"></div>
-    <input class="am-field" id="amInput" type="text" autocomplete="off">
+    <div style="position:relative">
+      <input class="am-field" id="amInput" type="text" autocomplete="off">
+      <!-- Un PIN o un codigo se teclean delante de gente: por defecto van tapados, con la
+           opcion de destaparlos si te equivocas al escribir. -->
+      <button type="button" id="amVer" onclick="amAlternarVer()" title="Mostrar u ocultar"
+              style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--txt-2);cursor:pointer;font-size:11px">ver</button>
+    </div>
     <textarea class="am-field am-ta" id="amTa" rows="4"></textarea>
     <div class="am-row"><button class="btn ghost" id="amCancel">Cancelar</button><button class="btn" id="amOk">Aceptar</button></div>
   </div>
@@ -1866,9 +1872,9 @@ function _pinGuardado(){
   catch(e){ return PIN_AGENTE_POR_DEFECTO; }
 }
 async function pinAgenteCambiar(){
-  const a = await appPrompt('PIN actual:',{placeholder:'6 dígitos'}); if(a===null) return;
+  const a = await appPromptSecreto('PIN actual:',{placeholder:'6 dígitos'}); if(a===null) return;
   if(await _sha256((a||'').trim()) !== _pinGuardado()){ toast('PIN incorrecto.'); return; }
-  const n = await appPrompt('PIN nuevo (6 dígitos):',{placeholder:'6 dígitos'}); if(n===null) return;
+  const n = await appPromptSecreto('PIN nuevo (6 dígitos):',{placeholder:'6 dígitos'}); if(n===null) return;
   const limpio=(n||'').replace(/\D/g,'');
   if(limpio.length<6){ toast('El PIN tiene que tener al menos 6 dígitos.'); return; }
   try{ localStorage.setItem('sineli-pin-'+(me&&me.id), await _sha256(limpio)); toast('PIN cambiado en este navegador.'); }
@@ -1890,7 +1896,7 @@ async function modoEntrarAdmin(){
   else modoMsg('Código incorrecto. Probá de nuevo o entrá como agente.', true);
 }
 async function modoEntrarAgente(){
-  const pin = await appPrompt('Tu PIN de agente:',{placeholder:'6 dígitos'});
+  const pin = await appPromptSecreto('Tu PIN de agente:',{placeholder:'6 dígitos'});
   if(pin===null) return;
   if(await _sha256((pin||'').replace(/\D/g,'')) !== _pinGuardado()){ modoMsg('PIN incorrecto.', true); return; }
   /* mfaOk se queda en false a proposito: eso ES el modo agente. La interfaz de
@@ -1908,7 +1914,7 @@ async function mfaDesbloquear(){
   if(!v){ mfaOk=true; mfaBotonUI(); return true; }   // no tiene 2FA configurado
   try{
     for(let i=0;i<3 && !mfaOk;i++){
-      const code=await appPrompt('Verificación en dos pasos: ingresa el código de 6 dígitos de tu app de autenticación:',{placeholder:'123456'});
+      const code=await appPromptSecreto('Verificación en dos pasos: ingresa el código de 6 dígitos de tu app de autenticación:',{placeholder:'123456'});
       if(code===null) break;
       try{ const {data:ch}=await sb.auth.mfa.challenge({factorId:v.id}); const {error}=await sb.auth.mfa.verify({factorId:v.id,challengeId:ch.id,code:(code||'').trim()}); if(!error){ mfaOk=true; toast('2FA verificado'); } else toast('Código incorrecto, reintenta'); }catch(e){ toast('Código incorrecto, reintenta'); }
     }
@@ -2751,6 +2757,10 @@ function appModal(opts){ return new Promise(function(resolve){
   const inp=$('amInput'), ta=$('amTa'); const useTa=!!(opts.input&&opts.multiline);
   inp.style.display=(opts.input&&!opts.multiline)?'':'none'; ta.style.display=useTa?'':'none';
   if(opts.input){ const f=useTa?ta:inp; f.value=opts.value||''; f.placeholder=opts.placeholder||''; }
+  /* opts.secreto: el campo arranca TAPADO y aparece el boton para destaparlo. */
+  const vb=$('amVer');
+  if(inp){ inp.type = (opts.input && opts.secreto && !useTa) ? 'password' : 'text'; }
+  if(vb){ vb.style.display = (opts.input && opts.secreto && !useTa) ? '' : 'none'; vb.textContent='ver'; }
   const ok=$('amOk'), cancel=$('amCancel');
   ok.textContent=opts.okText||'Aceptar'; ok.classList.toggle('danger',!!opts.danger);
   cancel.textContent=opts.cancelText||'Cancelar';
@@ -2760,7 +2770,16 @@ function appModal(opts){ return new Promise(function(resolve){
   ov.classList.add('on'); document.addEventListener('keydown',__amKey);
   setTimeout(function(){ if(opts.input){ const f=useTa?ta:inp; f.focus(); if(f.value) f.select(); } else { ok.focus(); } },40);
 }); }
-function appPrompt(title,opts){ opts=opts||{}; return appModal({title:title,input:true,placeholder:opts.placeholder||'',value:opts.value||'',multiline:!!opts.multiline}); }
+function amAlternarVer(){
+  const i=$('amInput'), b=$('amVer'); if(!i||!b) return;
+  const tapado = i.type==='password';
+  i.type = tapado ? 'text' : 'password';
+  b.textContent = tapado ? 'ocultar' : 'ver';
+  i.focus();
+}
+/* Para PIN y codigos: igual que appPrompt pero tapado por defecto. */
+function appPromptSecreto(title,opts){ opts=opts||{}; opts.secreto=true; return appPrompt(title,opts); }
+function appPrompt(title,opts){ opts=opts||{}; return appModal({title:title,input:true,secreto:!!opts.secreto,placeholder:opts.placeholder||'',value:opts.value||'',multiline:!!opts.multiline}); }
 function appConfirm(message,opts){ opts=opts||{}; return appModal({title:message,danger:!!opts.danger,okText:opts.okText,cancelText:opts.cancelText}); }
 function initials(nm){ return (nm||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?'; }
 function chip(cls,txt){ return '<span class="chip '+cls+'"><span class="dot"></span>'+txt+'</span>'; }
@@ -2913,16 +2932,64 @@ function mAcordeonInit(){
 /* Registro del service worker de la PWA (app instalable); silencioso si no aplica */
 if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
 /* Comandos resaltados: un clic copia el comando al portapapeles */
-document.addEventListener('click',function(e){ var c=e.target&&e.target.closest&&e.target.closest('.cmd'); if(!c)return; try{ navigator.clipboard.writeText(c.innerText.trim()); toast('Comando copiado'); }catch(_){} });
+/* Copiar al hacer clic en un comando ESCRITO EN UNA RESPUESTA (un <b class="cmd">).
+   Se excluyen a proposito las filas del panel de comandos, que tambien llevan la clase
+   "cmd" pero envuelven comando + descripcion + salida: ahi este manejador copiaba las tres
+   cosas. Se reconocen porque tienen dentro un .cmd-l. Esas usan su propio boton, que copia
+   solo el comando. */
+document.addEventListener('click',function(e){
+  var c=e.target&&e.target.closest&&e.target.closest('.cmd'); if(!c)return;
+  if(c.querySelector&&c.querySelector('.cmd-l')) return;   // fila del panel: tiene su boton
+  try{ navigator.clipboard.writeText(c.innerText.trim()); toast('Comando copiado'); }catch(_){}
+});
+/* Copia SOLO el comando, sin descripcion ni salida de ejemplo. */
+function copiarComando(btn, cmd){
+  try{ navigator.clipboard.writeText(String(cmd||'').trim()); toast('Copiado: '+cmd); }catch(e){ toast('No se pudo copiar'); }
+}
 /* Copia SOLO el texto de una seccion (ej. la respuesta sugerida, sin lo interno) */
 function copiarSec(btn){ try{ const b=btn.closest('.blocksec').querySelector('.bs-b'); navigator.clipboard.writeText(b.innerText.trim()); toast('Respuesta copiada'); }catch(e){} }
 /* SCROLL DE LECTURA: si el ultimo mensaje es LARGO (no cabe comodo en pantalla), deja su INICIO arriba
    para leerlo desde el principio sin scrollear hacia arriba; si es corto, baja al final como siempre. */
-function scrollLectura(c, sel){ try{
+/* DESPLAZAMIENTO DE LOS HILOS, como en cualquier mensajeria.
+   Dos reglas, y la segunda es la que faltaba:
+     1. Si estabas ABAJO, el mensaje nuevo te lleva con el, suave.
+     2. Si estabas LEYENDO mas arriba, NO se te mueve la pantalla de golpe. Aparece un
+        aviso "nuevo mensaje" abajo y bajas cuando quieras.
+   Antes se bajaba siempre, tocara o no: si estabas releyendo algo, el hilo te lo arrancaba
+   de delante. Y como se baja al TOPE de un mensaje largo, un mensaje corto del cliente
+   podia quedar fuera de vista y habia que buscarlo a mano. */
+function _cercaDelFondo(c){ return (c.scrollHeight - c.scrollTop - c.clientHeight) < 80; }
+
+function _avisoNuevo(c){
+  var id=(c.id||'hilo')+'-aviso';
+  var a=document.getElementById(id);
+  if(!a){
+    a=document.createElement('button');
+    a.id=id; a.className='btn mini'; a.textContent='nuevo mensaje ↓';
+    a.style.cssText='position:absolute;left:50%;transform:translateX(-50%);bottom:10px;z-index:5;box-shadow:0 2px 10px rgba(0,0,0,.25)';
+    a.onclick=function(){ c.scrollTo({top:c.scrollHeight,behavior:'smooth'}); a.remove(); };
+    /* El contenedor necesita ser el ancla del posicionamiento; si ya lo es, no se toca. */
+    var cs=getComputedStyle(c); if(cs.position==='static') c.style.position='relative';
+    c.appendChild(a);
+  }
+}
+function _quitarAviso(c){ var a=document.getElementById((c.id||'hilo')+'-aviso'); if(a) a.remove(); }
+
+function scrollLectura(c, sel, estabaAbajo){ try{
+  /* `estabaAbajo` se mide ANTES de repintar; si no llega, se asume que si, que es el caso
+     de la primera carga de un hilo. */
+  var seguir = (estabaAbajo === undefined) ? true : !!estabaAbajo;
   const ms=c.querySelectorAll(sel); const last=ms[ms.length-1];
-  if(!last){ c.scrollTop=c.scrollHeight; return; }
-  if(last.offsetHeight > c.clientHeight*0.6){ c.scrollTop += last.getBoundingClientRect().top - c.getBoundingClientRect().top - 6; }
-  else c.scrollTop=c.scrollHeight;
+  if(!last){ c.scrollTop=c.scrollHeight; _quitarAviso(c); return; }
+  if(!seguir){ _avisoNuevo(c); return; }
+  _quitarAviso(c);
+  /* Un mensaje muy largo se posiciona por su PRINCIPIO: bajar hasta el final dejaria al
+     agente leyendo por la mitad sin saber donde empieza. */
+  if(last.offsetHeight > c.clientHeight*0.6){
+    c.scrollTo({ top: c.scrollTop + last.getBoundingClientRect().top - c.getBoundingClientRect().top - 6, behavior:'smooth' });
+  } else {
+    c.scrollTo({ top:c.scrollHeight, behavior:'smooth' });
+  }
 }catch(e){ c.scrollTop=c.scrollHeight; } }
 function renderChat(){
   const c=$('chat'); c.querySelectorAll('.msg').forEach(e=>e.remove());
@@ -3355,7 +3422,16 @@ function renderSalas(q){
   q=(q||'').toLowerCase().trim();
   const m = !q ? SALAS.slice(0,8) : SALAS.filter(s=>s.numero.includes(q)||s.ciudad.toLowerCase().includes(q)||s.nombre.toLowerCase().includes(q)).slice(0,14);
   const el=$('salaResults'); if(!el)return;
-  if(!m.length){ el.innerHTML='<span class="cmd-d">Sin resultados para "'+q+'".</span>'; return; }
+  /* Distinguir "no coincide" de "no hay nada cargado". La tabla `salas` esta VACIA, asi
+     que el buscador devolvia "sin resultados" para todo y parecia roto -- cuando lo que
+     pasa es que nadie ha cargado las salas todavia. Un buscador que no encuentra nada NUNCA
+     hace sospechar del dato, siempre del buscador. */
+  if(!m.length){
+    el.innerHTML = !SALAS.length
+      ? '<span class="cmd-d">No hay salas cargadas todavía.'+(isAdmin()?' Cargalas desde el panel de administración.':' Pediselo a un administrador.')+'</span>'
+      : '<span class="cmd-d">Ninguna sala coincide con "'+escapeHtml(q)+'". Se busca por número, ciudad o nombre.</span>';
+    return;
+  }
   el.innerHTML=m.map(s=>{
     const chips=arr=>arr.map(x=>'<span class="ipchip" onclick="copyIp(\''+x.ip+'\')">'+x.nombre+' '+x.ip+'</span>').join('');
     const editar=isAdmin()?' <span class="ipchip" onclick="editSala(\''+s.numero+'\')">editar</span>':'';
@@ -3398,14 +3474,28 @@ async function delCmd(cmd){ if(!isAdmin())return; const k=(cmd||'').trim().toLow
   renderComandos($('cmdSearch')?$('cmdSearch').value:''); toast('Comando eliminado'); }
 function renderComandos(q){
   const el=$('cmdList'); if(!el)return; q=(q||'').trim().toLowerCase();
-  const match=c=>!q||(((c.cmd||'')+' '+(c.desc||'')+' '+tipoEff(c)).toLowerCase().includes(q));
+  /* Sin acentos y mirando tambien la SALIDA de ejemplo. Antes solo comparaba texto crudo
+     contra comando+descripcion: buscar "impresion" no encontraba "impresión", y buscar por
+     algo que recordabas de la salida del comando ("Reply from", "No space left") no
+     encontraba nada aunque estuviera ahi delante. */
+  const _norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const qn=_norm(q);
+  const match=c=>!qn||_norm((c.cmd||'')+' '+(c.desc||'')+' '+tipoEff(c)+' '+(c.salida||'')).includes(qn);
   const tagOf=t=> t==='pos'?'<span class="cmd-tag pos">POS</span>' : t==='ssbt'?'<span class="cmd-tag ssbt">SSBT</span>' : '<span class="cmd-tag gen">General</span>';
   const sel=c=>{ if(!isAdmin())return ''; const t=tipoEff(c); const o=(v,l)=>'<option value="'+v+'"'+(t===v?' selected':'')+'>'+l+'</option>'; const cc=(c.cmd||'').replace(/'/g,"\\'"); return '<select class="cmd-sel" title="Reclasificar este comando" onclick="event.stopPropagation()" onchange="setCmdTipo(\''+cc+'\',this.value)">'+o('pos','POS')+o('ssbt','SSBT')+o('general','General')+'</select>'; };
-  const cmdHtml=c=>{ const cc=(c.cmd||'').replace(/'/g,"\\'"); return '<div class="cmd" onclick="this.classList.toggle(\'on\')"><div class="cmd-l">$ '+c.cmd+' '+tagOf(tipoEff(c))+sel(c)+(c.nuevo?' <span style="color:var(--accent);font-size:10px">● nuevo</span>':'')+(isAdmin()?' <button title="Eliminar comando" onclick="event.stopPropagation();delCmd(\''+cc+'\')" style="margin-left:6px;background:none;border:0;color:var(--bad);cursor:pointer;font-size:15px;line-height:1">×</button>':'')+'</div><div class="cmd-d">'+c.desc+'</div><div class="cmd-out">'+(c.salida||'').replace(/\\n/g,String.fromCharCode(10))+'</div></div>'; };
+  const cmdHtml=c=>{ const cc=(c.cmd||'').replace(/'/g,"\\'"); return '<div class="cmd" onclick="this.classList.toggle(\'on\')"><div class="cmd-l">$ '+c.cmd+' '+tagOf(tipoEff(c))+sel(c)+(c.nuevo?' <span style="color:var(--accent);font-size:10px">● nuevo</span>':'')+(isAdmin()?' <button title="Eliminar comando" onclick="event.stopPropagation();delCmd(\''+cc+'\')" style="margin-left:6px;background:none;border:0;color:var(--bad);cursor:pointer;font-size:15px;line-height:1">×</button>':'')+' <button class="cmd-copiar" title="Copiar solo el comando, sin la descripción" onclick="event.stopPropagation();copiarComando(this,\''+cc+'\')" style="margin-left:6px;background:none;border:0;color:var(--accent);cursor:pointer;font-size:11px">copiar</button>'
+    +'</div><div class="cmd-d">'+c.desc+'</div>'
+    /* La salida de ejemplo ya existia pero salia sin decir que era. Etiquetarla es la
+       diferencia entre un bloque de texto raro y saber que vas a ver al ejecutarlo. */
+    +((c.salida||'').trim() ? ('<div class="cmd-out"><span style="opacity:.55;font-size:10px;display:block;margin-bottom:2px">lo que verás al ejecutarlo</span>'+(c.salida||'').replace(/\\n/g,String.fromCharCode(10))+'</div>') : '')
+    +'</div>'; };
   const GRUPOS=[['pos','POS · Punto de venta'],['ssbt','SSBT · Autoservicio (acceso con n1)'],['general','Generales (red/sistema)']];
   let html='';
   GRUPOS.forEach(g=>{ const items=COMANDOS.filter(c=>!CMD_HIDDEN[(c.cmd||'').trim().toLowerCase()] && tipoEff(c)===g[0] && match(c)); if(items.length){ html+='<div class="cmd-grp">'+g[1]+'</div>'+items.map(cmdHtml).join(''); } });
-  el.innerHTML=html||'<div class="cmd-d" style="padding:8px 0">Sin comandos para "'+q+'".</div>';
+  el.innerHTML=html||('<div class="cmd-d" style="padding:8px 0">'
+    + (q ? ('Ningún comando coincide con "'+escapeHtml(q)+'". Se busca en el nombre, la descripción y la salida de ejemplo.')
+         : 'No hay comandos cargados todavía.')
+    + '</div>');
 }
 function openRetail(){ if(!me){ gateShow(); return; } $('retailOverlay').classList.add('on'); $('retailPanel').classList.add('on'); setView('retail'); $('retailRole').textContent=isAdmin()?'(admin · puedes editar notas)':'(solo lectura)'; renderSalas(''); renderComandos(); loadSalas(); const ss=$('salaSearch'); if(ss){ ss.value=''; ss.focus(); ss.oninput=()=>renderSalas(ss.value); } const cs=$('cmdSearch'); if(cs){ cs.value=''; cs.oninput=()=>renderComandos(cs.value); } }
 function closeRetail(){ $('retailOverlay').classList.remove('on'); $('retailPanel').classList.remove('on'); setView('chat'); }
@@ -4583,7 +4673,7 @@ function _emRenderBody(slot, t){
     if($('emPara'))$('emPara').value=t.de||'';
     if($('emAsuntoOut'))$('emAsuntoOut').value=(t.asunto&&!/^re:/i.test(t.asunto))?('Re: '+t.asunto):(t.asunto||'');
   } else {
-    const th=$('emChatThread'); if(th){ th.innerHTML=(t.mensajes||[]).filter(function(m){return m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+(m.auto?'<span class="em-badge ia" style="margin-right:4px;cursor:pointer" onclick="event.stopPropagation();emEditarAutoPend()" title="Haz clic para corregir esta respuesta automatica">IA</span>':'')+escapeHtml(m.text||'')+emMsgImg(m)+'</div>'; }).join(''); scrollLectura(th,'.em-b'); emResolveImgs(th); }
+    const th=$('emChatThread'); if(th){ const _abajo=_cercaDelFondo(th); th.innerHTML=(t.mensajes||[]).filter(function(m){return m.from!=='espera';}).map(function(m){ return '<div class="em-b '+(m.from==='agente'?'ag':'cli')+'">'+(m.auto?'<span class="em-badge ia" style="margin-right:4px;cursor:pointer" onclick="event.stopPropagation();emEditarAutoPend()" title="Haz clic para corregir esta respuesta automatica">IA</span>':'')+escapeHtml(m.text||'')+emMsgImg(m)+'</div>'; }).join(''); scrollLectura(th,'.em-b',_abajo); emResolveImgs(th); }
   }
   const _tkImg=$(isMail?'emMailTicketImg':'emChatTicketImg');
   if(_tkImg){ _tkImg.innerHTML = emTicketThumb(t.ticketImg); emResolveImgs(_tkImg); }

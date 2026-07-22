@@ -1550,6 +1550,11 @@ body{background:transparent}
     <b style="flex:1;font-size:15px">Mi jornada</b>
     <button class="ic" title="Cerrar" onclick="cerrarJornada()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
   </div>
+  <!-- El plan de accion vivia SOLO en un aviso que el agente podia cerrar, y una vez
+       cerrado no habia forma de volver a verlo hasta que el admin lo editara. El admin, en
+       cambio, lo tenia siempre delante. Aqui queda permanente para quien tiene que
+       cumplirlo. -->
+  <div class="sec"><div class="fld">Plan de acción del equipo</div><div id="jornadaPlan"></div></div>
   <div class="sec"><div class="fld">Mi horario</div><div id="jornadaHorario"></div></div>
   <div class="sec"><div class="fld">Mis resultados (últimos 7 días)</div><div id="jornadaNumeros"></div></div>
   <div class="sec">
@@ -1788,7 +1793,19 @@ async function mfaGate(){
 async function abrirJornada(){
   const p=$('jornadaPanel'); if(!p) return;
   p.classList.add('on');
-  jornadaHorario(); jornadaNumeros();
+  jornadaPlan(); jornadaHorario(); jornadaNumeros();
+}
+
+/* El plan de accion, SIEMPRE visible para quien tiene que cumplirlo.
+   Como aviso en la pantalla principal se puede cerrar y no vuelve; aqui no se pierde. */
+async function jornadaPlan(){
+  const el=$('jornadaPlan'); if(!el) return;
+  try{ await loadAviso(); }catch(e){}
+  const tx=((AVISO&&AVISO.texto)||'').trim();
+  if(!tx){ el.innerHTML='<small style="color:var(--txt-2)">Tu supervisor todavía no dejó un plan.</small>'; return; }
+  const cuando=(AVISO.updated_at||'').slice(0,16).replace('T',' ');
+  el.innerHTML='<div style="white-space:pre-wrap">'+escapeHtml(tx)+'</div>'
+    +(cuando?'<small style="color:var(--txt-2);display:block;margin-top:4px">actualizado '+escapeHtml(cuando)+'</small>':'');
 }
 function cerrarJornada(){ const p=$('jornadaPanel'); if(p) p.classList.remove('on'); }
 

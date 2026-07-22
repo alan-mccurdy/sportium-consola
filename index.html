@@ -1098,6 +1098,31 @@ body{background:transparent}
       <button class="btn mini" id="simRolCliente" onclick="simSetRol('cliente')" style="flex:1;font-size:11px">Soy Cliente</button>
       <button class="btn ghost mini" id="simRolAgente" onclick="simSetRol('agente')" style="flex:1;font-size:11px">Soy Agente</button>
     </div>
+
+    <!-- LLAMADA INTERNA entre dos personas de verdad. Va aqui, junto al simulador, porque
+         es el mismo gesto mental: probar una llamada. La diferencia es que enfrente hay un
+         compañero en vez de la IA. -->
+    <details style="margin-bottom:8px" ontoggle="if(this.open)liRenderAgentes()">
+      <summary style="cursor:pointer;font-size:12px;color:var(--txt-2)">Llamada interna con un compañero</summary>
+      <div id="liAgentes" style="margin:6px 0;font-size:12px"><small style="color:var(--txt-2)">Abrí esto para ver quién está conectado.</small></div>
+      <div id="liEntrante" style="display:none;padding:6px;border:1px solid var(--ok,#2a7);border-radius:8px;margin-bottom:6px">
+        <div style="font-size:12px;margin-bottom:4px"><b id="liEntranteQuien">Alguien</b> te está llamando</div>
+        <div class="btnrow"><button class="btn mini" onclick="liContestar()">Contestar</button><button class="btn ghost mini" onclick="liRechazar()">Rechazar</button></div>
+      </div>
+      <div id="liPanel" style="display:none">
+        <div style="font-size:12px;margin-bottom:4px">En llamada con <b id="liCon"></b> — <span id="liEstado" style="color:var(--txt-2)"></span></div>
+        <div id="liHilo" style="max-height:120px;overflow:auto;margin-bottom:6px"></div>
+        <!-- Escribir y que al otro le llegue EN VOZ: para probar guiones sin leerlos en alto,
+             y para que quede transcripcion de lo dicho, que en capacitacion vale mas. -->
+        <input class="in" id="liTexto" placeholder="Escribí y al otro le llega en voz…" onkeydown="if(event.key==='Enter')liDecirEscrito()">
+        <div class="btnrow" style="margin-top:4px">
+          <button class="btn mini" onclick="liDecirEscrito()">Decirlo</button>
+          <button class="btn ghost mini" id="liMudo" onclick="liMudo()">Silenciar</button>
+          <button class="btn ghost mini" onclick="liColgar()">Colgar</button>
+        </div>
+      </div>
+      <audio id="liAudio" autoplay></audio>
+    </details>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
       <button class="btn" id="simMic" onclick="simEscuchar()">Hablar</button>
       <!-- Salida manual por si la deteccion automatica no acierta: el bot de voz no se
@@ -6002,6 +6027,7 @@ function initPresence(){
       PRES={};
       try{ const st=presChan.presenceState(); Object.keys(st).forEach(function(k){ const m=(st[k]&&st[k][0])||{}; PRES[k]={email:m.email||'',name:m.name||m.email||'agente'}; }); }catch(e){ console.warn('presenceState error:', e); }
       presRender();
+      try{ liRenderAgentes(); }catch(e){}   // la lista de a quien llamar sale de la misma presencia
     }).subscribe(function(status){
       if(status==='SUBSCRIBED'){ try{ presChan.track({email:me.email,name:(myProfile&&myProfile.full_name)||me.email}); }catch(e){ console.warn('presence track error:', e); } }
     });
@@ -6017,6 +6043,198 @@ function presRender(){
     el.title='Conectados ahora: '+Object.keys(PRES).map(function(k){return PRES[k].name;}).join(', ');
   }
   if(tcOpen && typeof tcRenderList==='function') tcRenderList();
+}
+
+/* ============================================================
+   LLAMADAS INTERNAS ENTRE AGENTES (audio real, navegador a navegador)
+
+   PARA QUE. Practicar y probar en condiciones reales: dos personas hablando, con la
+   opcion de ESCRIBIR lo que se quiere decir y que al otro le llegue en voz. Sirve para
+   capacitacion, para probar guiones sin gastar una llamada real, y para que un supervisor
+   acompañe a un agente nuevo.
+
+   DECISIONES, y por que:
+
+   1) SEÑALIZACION POR SUPABASE REALTIME, no un servidor nuevo.
+      La consola ya tiene canales realtime y presencia (`online-<tenant>`), ya sabe quien
+      esta conectado, y ese dominio ya esta permitido en la CSP. Montar un servidor de
+      señalizacion habria añadido una pieza mas que mantener, desplegar y asegurar, para
+      hacer exactamente lo mismo.
+
+   2) EL AUDIO VA DIRECTO ENTRE LOS DOS NAVEGADORES (WebRTC), no pasa por ningun servidor.
+      Es lo mas barato y lo mas privado: una conversacion entre dos agentes no tiene por
+      que atravesar infraestructura de nadie.
+      LIMITE HONESTO: se usan servidores STUN publicos de Google, que bastan en la misma
+      oficina o en redes domesticas normales. En redes corporativas cerradas hace falta un
+      TURN (retransmite el audio y cuesta dinero o hay que montarlo). Si la llamada se
+      queda en "conectando", es eso.
+
+   3) LO ESCRITO VIAJA COMO TEXTO Y SE PRONUNCIA EN EL OTRO LADO.
+      Lo natural seria generar la voz aqui e inyectarla en la llamada, pero speechSynthesis
+      del navegador NO expone un MediaStream: no hay forma de meter esa voz en el audio de
+      WebRTC sin pasar por un servicio de voz de pago. Mandar el texto y que el otro
+      navegador lo pronuncie da el mismo resultado para quien escucha, no cuesta nada, y
+      ademas deja transcripcion escrita de lo que se dijo, que para capacitacion vale mas.
+
+   4) LA IA PUEDE OCUPAR CUALQUIERA DE LOS DOS LADOS. Eso YA existe y no se rehace aqui:
+      el simulador de llamada tiene "Soy Cliente" (la IA hace de agente, via voz-turno) y
+      "Soy Agente" (la IA hace de cliente realista, via roleplay-cliente). Lo que faltaba
+      era el caso de dos personas de verdad, que es esto.
+   ============================================================ */
+var LI = { pc: null, local: null, remoto: null, chan: null, con: null, entrante: null, mudo: false };
+var LI_STUN = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+
+function liCanal() {
+  /* Un solo canal para toda la empresa. Cada mensaje lleva `para`, y quien no es el
+     destinatario lo ignora. Con un puñado de agentes esto es mas simple y mas robusto que
+     abrir y cerrar un canal por pareja, que obliga a coordinar el nombre antes de poder
+     hablar -- el problema del huevo y la gallina de toda señalizacion. */
+  if (LI.chan || !sb || !me) return LI.chan;
+  LI.chan = sb.channel('llamada-' + CONFIG.tenant, { config: { broadcast: { self: false } } });
+  LI.chan.on('broadcast', { event: 'señal' }, function (msg) {
+    var p = (msg && msg.payload) || {};
+    if (p.para !== me.id) return;
+    liRecibir(p);
+  }).subscribe();
+  return LI.chan;
+}
+
+function liEnviar(para, tipo, datos) {
+  var c = liCanal(); if (!c) return;
+  try { c.send({ type: 'broadcast', event: 'señal', payload: Object.assign({ para: para, de: me.id, deNombre: (myProfile && myProfile.full_name) || me.email, tipo: tipo }, datos || {}) }); }
+  catch (e) { console.warn('llamada interna: no se pudo enviar', tipo, e); }
+}
+
+async function liNuevaConexion(conQuien) {
+  var pc = new RTCPeerConnection({ iceServers: LI_STUN });
+  LI.pc = pc; LI.con = conQuien;
+  /* Los candidatos ICE se mandan segun aparecen (trickle). Esperar a tenerlos todos
+     retrasa la conexion varios segundos sin ganar nada. */
+  pc.onicecandidate = function (ev) { if (ev.candidate) liEnviar(conQuien, 'ice', { ice: ev.candidate }); };
+  pc.ontrack = function (ev) {
+    var a = $('liAudio'); if (!a) return;
+    a.srcObject = ev.streams[0]; a.play().catch(function () { });
+  };
+  pc.onconnectionstatechange = function () {
+    liEstado(pc.connectionState === 'connected' ? 'en llamada'
+      : pc.connectionState === 'failed' ? 'no se pudo conectar (puede hacer falta un TURN)'
+      : pc.connectionState);
+    if (pc.connectionState === 'failed') liColgar(true);
+  };
+  try {
+    LI.local = await navigator.mediaDevices.getUserMedia({ audio: true });
+    LI.local.getTracks().forEach(function (t) { pc.addTrack(t, LI.local); });
+  } catch (e) {
+    /* Sin microfono la llamada sigue teniendo sentido: se puede ESCRIBIR y escuchar al
+       otro. Bloquearla aqui quitaria justo el caso de uso de un supervisor que solo
+       quiere escuchar y apuntar. */
+    liEstado('sin micrófono: podés escribir y escuchar');
+  }
+  return pc;
+}
+
+async function liLlamar(aId, aNombre) {
+  if (LI.pc) { toast('Ya estás en una llamada'); return; }
+  liAbrirPanel(aNombre || 'agente'); liEstado('llamando…');
+  var pc = await liNuevaConexion(aId);
+  var oferta = await pc.createOffer({ offerToReceiveAudio: true });
+  await pc.setLocalDescription(oferta);
+  liEnviar(aId, 'oferta', { sdp: pc.localDescription });
+}
+
+async function liContestar() {
+  var e = LI.entrante; if (!e) return;
+  LI.entrante = null; liOcultarEntrante();
+  liAbrirPanel(e.deNombre || 'agente'); liEstado('conectando…');
+  var pc = await liNuevaConexion(e.de);
+  await pc.setRemoteDescription(e.sdp);
+  var resp = await pc.createAnswer();
+  await pc.setLocalDescription(resp);
+  liEnviar(e.de, 'respuesta', { sdp: pc.localDescription });
+}
+
+function liRechazar() {
+  if (LI.entrante) liEnviar(LI.entrante.de, 'colgar', {});
+  LI.entrante = null; liOcultarEntrante();
+}
+
+async function liRecibir(p) {
+  if (p.tipo === 'oferta') {
+    if (LI.pc) { liEnviar(p.de, 'ocupado', {}); return; }   // ya hablando: no dejar dos llamadas a la vez
+    LI.entrante = p; liMostrarEntrante(p.deNombre || 'Un agente');
+    return;
+  }
+  if (p.tipo === 'respuesta' && LI.pc) { try { await LI.pc.setRemoteDescription(p.sdp); } catch (e) { } return; }
+  if (p.tipo === 'ice' && LI.pc) { try { await LI.pc.addIceCandidate(p.ice); } catch (e) { } return; }
+  if (p.tipo === 'colgar') { liColgar(true); return; }
+  if (p.tipo === 'ocupado') { liEstado('está en otra llamada'); setTimeout(function () { liColgar(true); }, 1500); return; }
+  if (p.tipo === 'dicho') {
+    /* Lo que el otro ESCRIBIO. Se pronuncia aqui y ademas se deja escrito: en una
+       capacitacion, poder releer lo que se dijo vale mas que el audio. */
+    liApuntar((p.deNombre || 'agente') + ' (escrito)', p.texto);
+    try { if (typeof vozDecir === 'function') vozDecir(p.texto); } catch (e) { }
+    return;
+  }
+}
+
+function liDecirEscrito() {
+  var i = $('liTexto'); if (!i) return;
+  var t = (i.value || '').trim(); if (!t || !LI.con) return;
+  i.value = '';
+  liApuntar('vos (escrito)', t);
+  liEnviar(LI.con, 'dicho', { texto: t });
+}
+
+function liMudo() {
+  if (!LI.local) return;
+  LI.mudo = !LI.mudo;
+  LI.local.getAudioTracks().forEach(function (t) { t.enabled = !LI.mudo; });
+  var b = $('liMudo'); if (b) b.textContent = LI.mudo ? 'Activar micrófono' : 'Silenciar';
+}
+
+function liColgar(remoto) {
+  if (LI.con && !remoto) liEnviar(LI.con, 'colgar', {});
+  try { if (LI.pc) LI.pc.close(); } catch (e) { }
+  try { if (LI.local) LI.local.getTracks().forEach(function (t) { t.stop(); }); } catch (e) { }
+  LI.pc = null; LI.local = null; LI.con = null; LI.mudo = false;
+  var a = $('liAudio'); if (a) a.srcObject = null;
+  liCerrarPanel();
+}
+
+/* ---- interfaz ---- */
+function liEstado(t) { var e = $('liEstado'); if (e) e.textContent = t || ''; }
+function liApuntar(quien, t) {
+  var h = $('liHilo'); if (!h) return;
+  var d = document.createElement('div');
+  d.className = 'em-b ' + (quien.indexOf('vos') === 0 ? 'ag' : 'cli');
+  d.textContent = quien + ': ' + t;
+  h.appendChild(d); h.scrollTop = h.scrollHeight;
+}
+function liAbrirPanel(nombre) {
+  var p = $('liPanel'); if (p) p.style.display = '';
+  var q = $('liCon'); if (q) q.textContent = nombre;
+  var h = $('liHilo'); if (h) h.innerHTML = '';
+  var b = $('liMudo'); if (b) b.textContent = 'Silenciar';
+}
+function liCerrarPanel() { var p = $('liPanel'); if (p) p.style.display = 'none'; liEstado(''); }
+function liMostrarEntrante(nombre) {
+  var e = $('liEntrante'); if (!e) return;
+  e.style.display = ''; var q = $('liEntranteQuien'); if (q) q.textContent = nombre;
+}
+function liOcultarEntrante() { var e = $('liEntrante'); if (e) e.style.display = 'none'; }
+
+/* Lista de compañeros conectados, sacada de la presencia que ya existe. */
+function liRenderAgentes() {
+  var el = $('liAgentes'); if (!el || !me) return;
+  var otros = Object.keys(PRES || {}).filter(function (k) { return k !== me.id; });
+  if (!otros.length) { el.innerHTML = '<small style="color:var(--txt-2)">Nadie más conectado ahora mismo.</small>'; return; }
+  el.innerHTML = otros.map(function (k) {
+    var p = PRES[k] || {};
+    var n = (p.name || p.email || 'agente').replace(/</g, '&lt;');
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0">'
+      + '<span>' + n + '</span>'
+      + '<button class="btn mini" onclick="liLlamar(\'' + k + '\',\'' + n.replace(/'/g, "\\'") + '\')">Llamar</button></div>';
+  }).join('');
 }
 
 /* ============================================================

@@ -1045,6 +1045,10 @@ body{background:transparent}
     </div>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
       <button class="btn" id="simMic" onclick="simEscuchar()">Hablar</button>
+      <!-- Salida manual por si la deteccion automatica no acierta: el bot de voz no se
+           puede quedar sin probar esperando a que el navegador se declare. -->
+      <button class="btn" id="simModoOir" onclick="simCambiarModoOir()"
+              title="Cambia entre el reconocimiento del navegador y grabar el audio para transcribirlo. Usá 'grabación' si el micrófono no responde.">modo: auto</button>
       <button class="btn ghost" id="simPausa" onclick="simPausar()" style="display:none">Pausar</button>
       <button class="btn ghost" onclick="vozDetener()">▮ Callar</button>
       <button class="btn ghost" onclick="simColgar()">Colgar</button>
@@ -5074,6 +5078,7 @@ function simPausar(){
 }
 
 function simBotonesUI(){
+  simModoOirUI();
   const p=$('simPausa'), m=$('simMic');
   if(p){ p.style.display = SIM_CONTINUO ? '' : 'none'; p.textContent = SIM_PAUSADO ? 'Reanudar' : 'Pausar'; }
   if(m) m.style.display = (SIM_CONTINUO && !SIM_PAUSADO) ? 'none' : '';
@@ -5113,7 +5118,13 @@ function simColgar(){
    El cambio de modo es automatico y se recuerda para el resto de la sesion: no tiene
    sentido reintentar el nativo en cada turno cuando ya se sabe que ese navegador no lo
    tiene. */
-var SIM_MODO_OIR = null;        // null = aun sin decidir, 'nativo' | 'grabado'
+/* Se recuerda entre sesiones: si este navegador ya demostro no tener reconocimiento
+   nativo, no tiene sentido volver a intentarlo cada vez que se abre la consola. */
+var SIM_MODO_OIR = (function(){ try{ return localStorage.getItem('sineli-voz-modo')||null; }catch(e){ return null; } })();
+/* Marca los cortes DELIBERADOS (pausar, colgar). Sin esto, pulsar Pausar termina el
+   reconocimiento igual de rapido que un navegador que no lo soporta, y se cambiaria de
+   modo por error. */
+var SIM_PARANDO = false;
 var SIM_GRAB = null;            // MediaRecorder en curso
 var SIM_GRAB_STREAM = null;     // el stream del micrófono, para poder soltarlo
 
@@ -5121,6 +5132,8 @@ var SIM_GRAB_STREAM = null;     // el stream del micrófono, para poder soltarlo
    simColgar y simEscuchar tocando solo SIM_REC, asi que en modo grabado el micrófono se
    quedaba abierto (y el puntito rojo del navegador encendido) tras colgar. */
 function simDejarDeOir(){
+  SIM_PARANDO = true;
+  setTimeout(function(){ SIM_PARANDO = false; }, 1200);   // solo cubre el corte en curso
   try{ if(SIM_REC) SIM_REC.abort(); }catch(e){}
   SIM_REC=null;
   try{ if(SIM_GRAB && SIM_GRAB.state!=='inactive'){ SIM_GRAB.onstop=null; SIM_GRAB.stop(); } }catch(e){}
@@ -5231,6 +5244,21 @@ async function simEscucharGrabando(){
   try{ SIM_GRAB.start(); }catch(e){ simEstado('No se pudo empezar a grabar'); simDejarDeOir(); }
 }
 
+/* Rueda entre los tres estados: auto (probar el nativo y caer al grabado si falla),
+   nativo forzado, y grabado forzado. La eleccion se recuerda. */
+function simCambiarModoOir(){
+  SIM_MODO_OIR = (SIM_MODO_OIR===null) ? 'grabado' : (SIM_MODO_OIR==='grabado' ? 'nativo' : null);
+  try{ if(SIM_MODO_OIR) localStorage.setItem('sineli-voz-modo',SIM_MODO_OIR); else localStorage.removeItem('sineli-voz-modo'); }catch(e){}
+  simModoOirUI();
+  toast(SIM_MODO_OIR==='grabado' ? 'Modo grabación: se graba y se transcribe. Funciona en cualquier navegador.'
+      : SIM_MODO_OIR==='nativo' ? 'Modo navegador: reconocimiento nativo. No funciona en Brave ni Firefox.'
+      : 'Modo automático: prueba el del navegador y cambia solo si falla.');
+}
+function simModoOirUI(){
+  var b=$('simModoOir'); if(!b)return;
+  b.textContent = 'modo: ' + (SIM_MODO_OIR==='grabado' ? 'grabación' : SIM_MODO_OIR==='nativo' ? 'navegador' : 'auto');
+}
+
 function simEscuchar(){
   /* Si ya se supo que este navegador no tiene el reconocimiento nativo, se va directo al
      grabado en vez de reintentar y volver a fallar en cada turno. */
@@ -5247,7 +5275,11 @@ function simEscuchar(){
     const b=$('simMic'); if(b) b.textContent='Escuchando…';
     simEstado('escuchando… hablá normal y hacé una pausa al terminar');
     var _final=''; SIM_SILENCIOS = SIM_SILENCIOS || 0;
+    /* Para distinguir "te escuche y no dijiste nada" de "ni siquiera llegue a escuchar".
+       Ver el comentario de onend: es lo que dispara el cambio a modo grabado. */
+    var _arranco=Date.now(), _huboAudio=false;
     SIM_REC.onresult=function(ev){
+      _huboAudio=true;
       var parcial='';
       for(var i=ev.resultIndex;i<ev.results.length;i++){
         var tr=ev.results[i][0].transcript;
@@ -5264,8 +5296,9 @@ function simEscuchar(){
          'service-not-allowed' es la misma historia con otro nombre.
          No es un error que el usuario pueda arreglar tocando permisos, asi que en vez de
          mostrarselo se cambia al modo grabado y se sigue la conversacion. */
-      if(e==='network' || e==='service-not-allowed'){
-        SIM_MODO_OIR='grabado';
+      if((e==='network' || e==='service-not-allowed') && SIM_MODO_OIR!=='nativo'){
+        SIM_MODO_OIR='grabado'; simModoOirUI();
+        try{ localStorage.setItem('sineli-voz-modo','grabado'); }catch(x){}
         try{ if(SIM_REC) SIM_REC.abort(); }catch(x){}
         SIM_REC=null;
         simEstado('este navegador no trae reconocimiento de voz — paso a grabar y transcribir');
@@ -5282,6 +5315,22 @@ function simEscuchar(){
     };
     SIM_REC.onend=function(){
       const b2=$('simMic'); if(b2) b2.textContent='Hablar';
+      /* EL CASO QUE SE ESCAPABA. Atar el cambio de modo solo al error 'network' no bastaba:
+         Brave tambien puede terminar el reconocimiento SIN lanzar ningun error, y entonces
+         esto parecia un silencio normal y se reintentaba en bucle, abriendo el microfono
+         175 ms cada vez. Desde fuera: "no detecta mi micro".
+         La senal fiable no es el error, es la FORMA del fallo: terminar en menos de un
+         segundo sin haber recibido ni una palabra parcial significa que el motor no llego
+         a escuchar. Escuchar de verdad y no oir nada tarda varios segundos.
+         Si se equivoca, cae al modo grabado, que funciona en todos los navegadores: el
+         lado seguro por el que fallar. */
+      if(!_huboAudio && !_final.trim() && !SIM_PARANDO && SIM_MODO_OIR!=='nativo' && (Date.now()-_arranco) < 1000){
+        SIM_MODO_OIR='grabado'; simModoOirUI();
+        try{ localStorage.setItem('sineli-voz-modo','grabado'); }catch(e){}
+        simEstado('este navegador no trae reconocimiento de voz — paso a grabar y transcribir');
+        simEscucharGrabando();
+        return;
+      }
       if(_final.trim()){
         SIM_SILENCIOS=0;
         simEnviar(_final.trim());     // se envia al terminar, con la frase completa

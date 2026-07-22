@@ -213,7 +213,7 @@
   .searchwrap{position:relative;margin-bottom:9px}
   .searchwrap input{width:100%;border:1px solid var(--line);border-radius:12px;padding:9px 12px;font-family:inherit;font-size:13px;color:var(--txt);background:var(--bg)}
   .searchwrap input:focus{outline:none;border-color:var(--accent)}
-  .acbox{position:absolute;bottom:100%;left:0;right:0;margin-bottom:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px -16px rgba(0,0,0,.3);overflow:hidden;display:none;z-index:5}
+  .acbox{position:absolute;bottom:100%;left:0;right:0;margin-bottom:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 5px rgba(0,0,0,.10), 0 8px 16px -8px rgba(0,0,0,.14);overflow:hidden;display:none;z-index:5}
   .acbox.on{display:block}
   .acitem{padding:9px 13px;cursor:pointer;display:flex;align-items:center;gap:9px;font-size:13px}
   .acitem:hover{background:var(--accent-soft)}
@@ -252,7 +252,7 @@
      background:radial-gradient(130% 90% at 0% 0%,var(--accent-soft),transparent 58%),var(--surface)}
   .chero .ch-top{display:flex;align-items:center;gap:13px}
   .chero .avt{width:52px;height:52px;border-radius:15px;display:grid;place-items:center;font-weight:800;font-size:19px;color:#fff;
-     letter-spacing:.5px;flex-shrink:0;background:linear-gradient(135deg,var(--accent),#8a0010);box-shadow:0 9px 22px -9px var(--accent)}
+     letter-spacing:.5px;flex-shrink:0;background:linear-gradient(135deg,var(--accent),#8a0010);box-shadow:0 2px 6px -2px var(--accent)}
   .chero .nm{font-weight:800;font-size:16.5px;letter-spacing:-.3px}
   .chero .us{font-size:12.5px;color:var(--txt-2);display:flex;align-items:center;gap:7px;margin-top:3px}
   .chero .us .flag{width:18px;height:13px;border-radius:3px;border:1px solid rgba(0,0,0,.18)}
@@ -263,7 +263,7 @@
   .tile .tl{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--txt-3);margin-bottom:8px}
   .tile .tv{font-weight:800;font-size:20px;letter-spacing:-.5px;line-height:1.05}
   .tile .tv.sm{font-size:14px}
-  .tile.accent{border-color:transparent;background:linear-gradient(135deg,var(--accent),#a3000f);box-shadow:0 10px 26px -12px var(--accent)}
+  .tile.accent{border-color:transparent;background:linear-gradient(135deg,var(--accent),#a3000f);box-shadow:0 2px 7px -3px var(--accent)}
   .tile.accent .tl{color:rgba(255,255,255,.72)} .tile.accent .tv{color:#fff}
 
   /* chips de estado */
@@ -345,7 +345,7 @@
   .blocklbl .pxi{width:11px;height:11px}
 
   /* SALAS RETAIL — terminal */
-  .retail{position:fixed;inset:0;margin:auto;width:min(940px,96%);height:min(90vh,860px);height:min(90dvh,860px);background:#0b0e12;color:#cfe3d0;border:1px solid #1d2733;border-radius:14px;z-index:30;transform:scale(.96);opacity:0;pointer-events:none;transition:.25s;display:flex;flex-direction:column;font-family:Consolas,'SFMono-Regular','Liberation Mono',monospace;box-shadow:0 30px 80px -20px rgba(0,0,0,.7)}
+  .retail{position:fixed;inset:0;margin:auto;width:min(940px,96%);height:min(90vh,860px);height:min(90dvh,860px);background:#0b0e12;color:#cfe3d0;border:1px solid #1d2733;border-radius:14px;z-index:30;transform:scale(.96);opacity:0;pointer-events:none;transition:.25s;display:flex;flex-direction:column;font-family:Consolas,'SFMono-Regular','Liberation Mono',monospace;box-shadow:0 2px 6px rgba(0,0,0,.28), 0 12px 24px -10px rgba(0,0,0,.34)}
   .retail.on{transform:none;opacity:1;pointer-events:auto}
   .retail-in{padding:16px 18px;display:flex;flex-direction:column;gap:11px;height:100%;overflow:hidden}
   .retail-top{display:flex;align-items:center;justify-content:space-between}
@@ -453,7 +453,7 @@
   .em-autobar input[type=checkbox]:disabled{cursor:not-allowed}
   .em-autobar .ubtn{font-weight:700}
   /* Tarjeta FLOTANTE y centrada: no empuja el layout hacia abajo al aparecer (position fixed) */
-  .em-autopend{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;align-items:center;gap:6px;padding:9px 16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.28);max-width:min(680px,92vw)}
+  .em-autopend{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;align-items:center;gap:6px;padding:9px 16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.12), 0 6px 14px -6px rgba(0,0,0,.16);max-width:min(680px,92vw)}
   .em-autopend>b{text-align:center}
   .em-autopend .apitem{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;flex-wrap:wrap}
   .em-autopend .apitem .aptxt{max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
@@ -653,39 +653,35 @@
   --glass-strong: rgba(246,247,250,.72);
   --glass-brd: rgba(255,255,255,.95);
   --glass-hi: inset 0 1px 0 rgba(255,255,255,.85), inset 0 0 0 1px rgba(255,255,255,.25);
-  /* SOMBRAS EN CAPAS, y esta vez con la prueba delante.
-     Dos fotos del mismo angulo y la misma pantalla: con un panel abierto el area sale
-     LIMPIA; en el area principal aparecen bandas de color. Si fuera moire de la camara
-     saldria en las dos. Lo que el panel tapa es el area donde se pintan las sombras
-     grandes, y ahi esta la causa.
-     Una sombra de 110 px de desenfoque al 60 % es un degradado enorme y suave. En 8 bits
-     un degradado asi solo tiene 256 niveles por canal: los saltos se agrupan en franjas, y
-     como cada canal salta en un punto distinto, las franjas salen DE COLORES. Es el mismo
-     bandeado que se perseguia en el fondo, pero producido por las sombras.
-     Repartirlo en varias capas de POCA opacidad da la misma profundidad con saltos mucho
-     mas pequeños, que es lo que deja de bandear. */
-  --depth-1: 0 1px 1px rgba(32,36,46,.04), 0 2px 4px rgba(32,36,46,.04), 0 8px 16px -6px rgba(32,36,46,.07);
-  --depth-2: 0 1px 1px rgba(32,36,46,.04), 0 3px 6px rgba(32,36,46,.05), 0 10px 20px -6px rgba(32,36,46,.07), 0 22px 40px -18px rgba(32,36,46,.10);
-  --depth-3: 0 2px 4px rgba(24,28,36,.05), 0 10px 20px -8px rgba(24,28,36,.08), 0 28px 52px -22px rgba(24,28,36,.12), 0 52px 90px -44px rgba(24,28,36,.14);
+  /* DESENFOQUES CORTOS. Repartir en capas redujo el bandeado pero no lo quito: mientras
+     una capa siga midiendo 90 px, su degradado sigue siendo largo y sigue teniendo escalones
+     visibles. La longitud del degradado es lo que manda, no solo la opacidad.
+     Ahora ninguna capa pasa de 24 px. Un degradado de 24 px reparte los 256 niveles en muy
+     poca distancia: los escalones quedan por debajo de lo que el ojo separa.
+     La profundidad se pierde un poco y se compensa con el borde, que es una linea nitida y
+     no puede bandear por definicion. Menos efecto, pero limpio. */
+  --depth-1: 0 1px 1px rgba(32,36,46,.05), 0 2px 4px rgba(32,36,46,.05);
+  --depth-2: 0 1px 1px rgba(32,36,46,.05), 0 2px 5px rgba(32,36,46,.06), 0 8px 16px -6px rgba(32,36,46,.08);
+  --depth-3: 0 1px 2px rgba(24,28,36,.06), 0 4px 10px rgba(24,28,36,.07), 0 14px 24px -10px rgba(24,28,36,.10);
   --shadow: var(--depth-1);
   /* Repartido en dos capas. Un halo ROJO al 40 % sobre 30 px es un degradado de color
      bajo cada boton, y un degradado de color bandea con tinte rosado -- que es
      exactamente uno de los colores que se veian. Dos capas de poca opacidad dan el mismo
      brillo con saltos mucho menores. */
-  --accent-glow: 0 2px 5px -2px rgba(226,0,26,.16), 0 10px 22px -12px rgba(226,0,26,.20);
+  --accent-glow: 0 1px 2px rgba(226,0,26,.14), 0 3px 7px -2px rgba(226,0,26,.16);
 }
 :root[data-theme="dark"]{
   --glass: rgba(22,24,29,.56);
   --glass-strong: rgba(22,24,29,.74);
   --glass-brd: rgba(214,222,238,.18);
   --glass-hi: inset 0 1px 0 rgba(214,222,238,.11), inset 0 0 0 1px rgba(214,222,238,.04);
-  /* En oscuro pasa lo mismo y ademas se nota mas, porque el degradado va de negro a negro
-     y los saltos son mas visibles. Misma solucion: mas capas, menos opacidad cada una. */
-  --depth-1: 0 1px 1px rgba(0,0,0,.20), 0 2px 5px rgba(0,0,0,.22), 0 8px 18px -6px rgba(0,0,0,.30);
-  --depth-2: 0 1px 1px rgba(0,0,0,.22), 0 3px 7px rgba(0,0,0,.24), 0 12px 24px -6px rgba(0,0,0,.30), 0 26px 48px -20px rgba(0,0,0,.38);
-  --depth-3: 0 2px 5px rgba(0,0,0,.26), 0 12px 24px -8px rgba(0,0,0,.34), 0 32px 60px -24px rgba(0,0,0,.42), 0 60px 100px -46px rgba(0,0,0,.48);
+  /* En oscuro igual: capas cortas. El degradado de negro a negro es donde mas se ven los
+     escalones, asi que acortarlo importa todavia mas. */
+  --depth-1: 0 1px 1px rgba(0,0,0,.22), 0 2px 5px rgba(0,0,0,.24);
+  --depth-2: 0 1px 1px rgba(0,0,0,.24), 0 2px 6px rgba(0,0,0,.26), 0 8px 18px -6px rgba(0,0,0,.30);
+  --depth-3: 0 1px 3px rgba(0,0,0,.28), 0 5px 12px rgba(0,0,0,.30), 0 16px 28px -10px rgba(0,0,0,.34);
   --shadow: var(--depth-1);
-  --accent-glow: 0 2px 5px -2px rgba(255,90,77,.22), 0 10px 24px -12px rgba(255,90,77,.28);
+  --accent-glow: 0 1px 2px rgba(255,90,77,.20), 0 3px 8px -2px rgba(255,90,77,.24);
   --bh-glow:0 0 30px rgba(232,154,60,.08);
   --bh-border:rgba(232,154,60,.15);
 }
@@ -789,7 +785,7 @@ body{background:transparent}
 .btn{box-shadow:var(--accent-glow)}
 .btn:hover{filter:brightness(1.04)}
 .send{box-shadow:var(--accent-glow)}
-.tile.accent{box-shadow:0 18px 40px -16px var(--accent)}
+.tile.accent{box-shadow:0 3px 10px -4px var(--accent)}
 
 /* Realce de profundidad en controles al pasar el mouse */
 .ic{transition:.2s, box-shadow .2s}

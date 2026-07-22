@@ -754,6 +754,20 @@ body{background:transparent}
 /* El aviso flotante tambien, para que no haya un tercer estilo. Se mantiene mas opaco que
    los modales a proposito: aparece sobre cualquier fondo y tiene que leerse de un vistazo,
    sin que el contenido de detras compita. */
+/* Chat interno: cita, reacciones y acciones por mensaje. Discretas hasta que pasas por
+   encima: un mensaje con cuatro botones siempre visibles se lee peor que uno limpio. */
+.tc-cita{font-size:11px;opacity:.62;border-left:2px solid var(--accent);padding-left:6px;margin-bottom:3px;line-height:1.35}
+.tc-edit{font-size:10px;opacity:.5}
+.tc-acts{display:none;gap:7px;margin-top:3px;font-size:12px;opacity:.65}
+.tcm:hover .tc-acts{display:flex}
+.tc-acts span{cursor:pointer}
+.tc-acts span:hover{opacity:1;color:var(--accent)}
+.tc-reacs{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
+.tc-reac{font-size:11px;padding:1px 6px;border-radius:10px;border:1px solid var(--line);cursor:pointer;line-height:1.5}
+.tc-reac.mia{border-color:var(--accent);color:var(--accent)}
+.fbresp{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;
+  padding:4px 8px;border-top:1px solid var(--line);opacity:.8}
+.fbresp .tc-cancel{cursor:pointer;font-size:14px}
 .toast{border-radius:14px;box-shadow:var(--depth-2),var(--glass-hi);
   -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
 
@@ -6924,7 +6938,7 @@ function tcOpenConv(conv){
   tcUnread[conv]=0; tcBadges();
   if(!tcWins[conv]){
     const el=document.createElement('div'); el.className='fbwin'; el.id='fbwin-'+conv;
-    el.innerHTML='<div class="fbwin-h" onclick="tcToggleMin(\''+conv+'\')"><span class="fbwin-name">'+tcEsc(tcConvName(conv))+'</span><span class="fbwin-acts"><button title="Minimizar" onclick="event.stopPropagation();tcToggleMin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button><button title="Cerrar" onclick="event.stopPropagation();tcCloseWin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span></div><div class="fbwin-msgs" id="fbmsgs-'+conv+'"></div><div class="fbwin-in"><textarea id="fbin-'+conv+'" rows="1" placeholder="Escribe…"></textarea><button class="tc-voz" onclick="tcVozToggle()" title="Si está en ON, lo que escribas le llega hablado al otro además de escrito" style="background:none;border:0;cursor:pointer;font-size:10px;padding:0 6px">'+(TC_VOZ?'voz: ON':'voz: off')+'</button><button class="send" onclick="tcSendWin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>';
+    el.innerHTML='<div class="fbwin-h" onclick="tcToggleMin(\''+conv+'\')"><span class="fbwin-name">'+tcEsc(tcConvName(conv))+'</span><span class="fbwin-acts"><button title="Minimizar" onclick="event.stopPropagation();tcToggleMin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button><button title="Cerrar" onclick="event.stopPropagation();tcCloseWin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span></div><div class="fbwin-msgs" id="fbmsgs-'+conv+'"></div><div class="fbresp" id="fbresp-'+conv+'" style="display:none"></div><div class="fbwin-in"><textarea id="fbin-'+conv+'" rows="1" placeholder="Escribe…"></textarea><button class="tc-voz" onclick="tcVozToggle()" title="Si está en ON, lo que escribas le llega hablado al otro además de escrito" style="background:none;border:0;cursor:pointer;font-size:10px;padding:0 6px">'+(TC_VOZ?'voz: ON':'voz: off')+'</button><button class="send" onclick="tcSendWin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>';
     $('fbwins').appendChild(el); tcWins[conv]=el;
     const ta=el.querySelector('#fbin-'+conv);
     ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); tcSendWin(conv); } });
@@ -6948,8 +6962,147 @@ function tcHeadsRender(){
   }).join('');
 }
 function tcCloseHead(conv){ delete tcHeads[conv]; tcHeadsRender(); }
-function tcRenderWin(conv){ const L=document.getElementById('fbmsgs-'+conv); if(!L)return; L.innerHTML=tcConvMsgs(conv).map(m=>{ const mine=me&&m.from_id===me.id; const img=m.image_url?'<img src="'+m.image_url+'" onclick="window.open(this.src)">':''; const who=(mine||conv!=='team')?'':'<div class="who">'+tcEsc(m.from_name||'agente')+'</div>'; const del=(m.id&&(mine||isAdmin()))?'<span class="tcdel" title="Borrar" onclick="delTeamMsg('+m.id+','+(mine?1:0)+')">×</span>':''; return '<div class="tcm '+(mine?'mine':'their')+'">'+who+tcEsc(m.body||'')+img+del+'</div>'; }).join(''); L.scrollTop=L.scrollHeight; }
-async function tcSendWin(conv,imgData){ if(!me||!sb)return; const ta=document.getElementById('fbin-'+conv); const t=ta?ta.value.trim():''; if(!t&&!imgData)return; if(ta){ ta.value=''; ta.style.height='auto'; } const name=(myProfile&&myProfile.full_name)||me.email; const _to=(conv!=='team')?conv:null; const row={tenant:CONFIG.tenant,from_id:me.id,from_name:name,to_id:_to,body:t,image_url:imgData||null};
+/* FLUIDEZ DEL HILO, igual que en el inbox.
+   Antes se rehacia el hilo ENTERO con innerHTML en cada mensaje. Tres consecuencias, y las
+   tres se notan: la pantalla salta, se pierde la posicion si estabas leyendo mas arriba, y
+   cualquier seleccion de texto o menu abierto se destruye a media accion.
+   Ahora se mide la posicion ANTES de repintar: si estabas abajo, el mensaje nuevo te lleva
+   con el suavemente; si estabas leyendo, no se mueve nada y aparece un aviso. */
+function tcRenderWin(conv){
+  const L=document.getElementById('fbmsgs-'+conv); if(!L)return;
+  const abajo = (L.scrollHeight - L.scrollTop - L.clientHeight) < 80;
+  const msgs = tcConvMsgs(conv);
+  L.innerHTML = msgs.map(m=>{
+    const mine = me && m.from_id===me.id;
+    const img  = m.image_url ? '<img src="'+tcEsc(m.image_url)+'" onclick="window.open(this.src)">' : '';
+    const who  = (mine||conv!=='team') ? '' : '<div class="who">'+tcEsc(m.from_name||'agente')+'</div>';
+    /* A QUE RESPONDE. Media conversacion de Teams se entiende por esto: sin la cita, un
+       "si, dale" veinte mensajes despues no significa nada. */
+    let cita='';
+    if(m.responde_a){
+      const o = msgs.find(x=>String(x.id)===String(m.responde_a));
+      cita = '<div class="tc-cita">'+(o ? (tcEsc(o.from_name||'agente')+': '+tcEsc(String(o.body||'').slice(0,90))) : 'mensaje borrado')+'</div>';
+    }
+    const editado = m.editado_at ? ' <span class="tc-edit">(editado)</span>' : '';
+    const acciones = m.id ? ('<span class="tc-acts">'
+        + '<span title="Responder" onclick="tcResponder('+m.id+')">↩</span>'
+        + '<span title="Reaccionar" onclick="tcReaccionar('+m.id+')">☺</span>'
+        + (mine ? '<span title="Editar" onclick="tcEditar('+m.id+')">✎</span>' : '')
+        + ((mine||isAdmin()) ? '<span class="tcdel" title="Borrar" onclick="delTeamMsg('+m.id+','+(mine?1:0)+')">×</span>' : '')
+        + '</span>') : '';
+    return '<div class="tcm '+(mine?'mine':'theirs')+'" data-id="'+(m.id||'')+'">'
+      + who + cita
+      + '<div class="tcb">'+tcEsc(m.body||'')+editado+'</div>'
+      + img + tcReaccionesHTML(m) + acciones + '</div>';
+  }).join('');
+  if(abajo) L.scrollTo({top:L.scrollHeight, behavior:'smooth'});
+  tcMarcarLeido(conv, msgs);
+}
+
+/* Las reacciones se pintan como pastillas con su conteo. Si ya reaccionaste, la tuya va
+   marcada: saber si tu voto ya cuenta evita el doble clic de "¿lo habre pulsado?". */
+function tcReaccionesHTML(m){
+  const r = m.reacciones||{};
+  const ks = Object.keys(r).filter(k=>Array.isArray(r[k]) && r[k].length);
+  if(!ks.length) return '';
+  return '<div class="tc-reacs">'+ks.map(k=>{
+    const mia = me && r[k].indexOf(me.id)>=0;
+    /* La comilla del emoji va como codigo para no pelearse con las comillas del atributo. */
+    const q=String.fromCharCode(39);
+    return '<span class="tc-reac'+(mia?' mia':'')+'" onclick="tcReaccionar('+m.id+','+q+k+q+')">'+k+' '+r[k].length+'</span>';
+  }).join('')+'</div>';
+}
+
+
+/* ===== RESPONDER, EDITAR, REACCIONAR Y LEIDO =====
+   Las cuatro cosas que separan un chat plano de uno con el que se puede trabajar, y las
+   mismas que habra que mapear si algun dia entra Teams por el puente. */
+
+let TC_RESP = {};   // conversacion -> id del mensaje al que se responde
+
+function tcResponder(id){
+  const conv = tcConvDeMensaje(id); if(!conv) return;
+  TC_RESP[conv] = id;
+  const m = (tcMsgsArr||[]).find(x=>String(x.id)===String(id));
+  const b = document.getElementById('fbresp-'+conv);
+  if(b && m){
+    b.style.display='';
+    b.innerHTML = '<span>Respondiendo a '+tcEsc(m.from_name||'agente')+': '+tcEsc(String(m.body||'').slice(0,60))+'</span>'
+      + '<span class="tc-cancel" onclick="tcCancelarResp(' + Q + conv + Q + ')">×</span>';
+  }
+  const ta=document.getElementById('fbin-'+conv); if(ta) ta.focus();
+}
+function tcCancelarResp(conv){
+  delete TC_RESP[conv];
+  const b=document.getElementById('fbresp-'+conv); if(b){ b.style.display='none'; b.innerHTML=''; }
+}
+function tcConvDeMensaje(id){
+  const m=(tcMsgsArr||[]).find(x=>String(x.id)===String(id));
+  return m ? tcConvOfMsg(m) : null;
+}
+
+async function tcEditar(id){
+  if(!sb) return;
+  const m=(tcMsgsArr||[]).find(x=>String(x.id)===String(id)); if(!m) return;
+  if(!me || m.from_id!==me.id){ toast('Solo podés editar tus mensajes.'); return; }
+  const nuevo = await appPrompt('Editar mensaje:',{value:m.body||'',multiline:true});
+  if(nuevo===null) return;
+  const txt=String(nuevo).trim(); if(!txt){ toast('El mensaje no puede quedar vacío.'); return; }
+  try{
+    /* Se guarda CUANDO se edito y se muestra: un mensaje cambiado en silencio es reescribir
+       la historia, y en un equipo eso importa mas que la comodidad. */
+    const {error}=await sb.from('team_messages').update({body:txt, editado_at:new Date().toISOString()}).eq('id',id);
+    if(error) throw error;
+    m.body=txt; m.editado_at=new Date().toISOString();
+    tcRenderWin(tcConvOfMsg(m));
+  }catch(e){ toast('No se pudo editar: '+((e&&e.message)||e)); }
+}
+
+const TC_EMOJIS=['👍','✅','❤️','😂','👀','🙏'];
+async function tcReaccionar(id, emoji){
+  if(!sb||!me) return;
+  const m=(tcMsgsArr||[]).find(x=>String(x.id)===String(id)); if(!m) return;
+  if(!emoji){
+    const el=await appPrompt('Reaccionar con uno de estos: '+TC_EMOJIS.join('  '),{placeholder:'👍'});
+    if(el===null) return;
+    emoji=String(el).trim(); if(!emoji) return;
+  }
+  const r = Object.assign({}, m.reacciones||{});
+  const lista = Array.isArray(r[emoji]) ? r[emoji].slice() : [];
+  const i = lista.indexOf(me.id);
+  /* Pulsar otra vez la QUITA. Sin eso, una reaccion puesta sin querer no se puede deshacer
+     y la gente deja de usarlas. */
+  if(i>=0) lista.splice(i,1); else lista.push(me.id);
+  if(lista.length) r[emoji]=lista; else delete r[emoji];
+  try{
+    const {error}=await sb.from('team_messages').update({reacciones:r}).eq('id',id);
+    if(error) throw error;
+    m.reacciones=r; tcRenderWin(tcConvOfMsg(m));
+  }catch(e){ toast('No se pudo reaccionar: '+((e&&e.message)||e)); }
+}
+
+/* Marca hasta donde leiste. Se guarda el ULTIMO id por conversacion, no un estado por
+   mensaje: es una fila por conversacion en vez de una por mensaje, y responde lo unico que
+   se pregunta de verdad (cuantos me faltan). */
+let _tcLeidoT=null;
+function tcMarcarLeido(conv, msgs){
+  if(!sb||!me||!msgs||!msgs.length) return;
+  const ultimo = msgs[msgs.length-1]; if(!ultimo||!ultimo.id) return;
+  clearTimeout(_tcLeidoT);
+  /* Se agrupa: abrir un hilo dispara varios repintados y no hace falta escribir en cada uno. */
+  _tcLeidoT=setTimeout(function(){
+    try{
+      sb.from('team_lecturas').upsert({tenant:CONFIG.tenant, user_id:me.id, conv:conv,
+        ultimo_id:ultimo.id, updated_at:new Date().toISOString()}, {onConflict:'user_id,conv'});
+    }catch(e){}
+  }, 900);
+}
+
+async function tcSendWin(conv,imgData){ if(!me||!sb)return; const ta=document.getElementById('fbin-'+conv); const t=ta?ta.value.trim():''; if(!t&&!imgData)return; if(ta){ ta.value=''; ta.style.height='auto'; } const name=(myProfile&&myProfile.full_name)||me.email; const _to=(conv!=='team')?conv:null; const row={tenant:CONFIG.tenant,from_id:me.id,from_name:name,to_id:_to,body:t,image_url:imgData||null,
+    // A que mensaje responde, si elegiste uno. Se limpia justo despues para que el
+    // siguiente mensaje no herede la cita sin querer.
+    responde_a: TC_RESP[conv] || null};
+  try{ tcCancelarResp(conv); }catch(e){}
   /* DECIRLO EN VOZ. Si esta activado y es un chat privado, ademas de escribirse se manda
      por el canal de señalizacion para que el navegador del otro lo PRONUNCIE. Va por ahi y
      no por la tabla a proposito: team_messages no tiene columna para esto y añadirla

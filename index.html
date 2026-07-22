@@ -746,6 +746,9 @@ body{background:transparent}
    sin que el contenido de detras compita. */
 /* Chat interno: cita, reacciones y acciones por mensaje. Discretas hasta que pasas por
    encima: un mensaje con cuatro botones siempre visibles se lee peor que uno limpio. */
+/* Marca de procedencia. Discreta pero siempre visible: si hay que buscarla, no sirve. */
+.tc-origen{font-size:9px;text-transform:uppercase;letter-spacing:.4px;padding:1px 5px;border-radius:6px;
+  border:1px solid var(--accent);color:var(--accent);margin-left:4px;vertical-align:middle}
 .tc-cita{font-size:11px;opacity:.62;border-left:2px solid var(--accent);padding-left:6px;margin-bottom:3px;line-height:1.35}
 .tc-edit{font-size:10px;opacity:.5}
 .tc-acts{display:none;gap:7px;margin-top:3px;font-size:12px;opacity:.65}
@@ -7028,7 +7031,14 @@ function tcRenderWin(conv){
   L.innerHTML = msgs.map(m=>{
     const mine = me && m.from_id===me.id;
     const img  = m.image_url ? '<img src="'+tcEsc(m.image_url)+'" onclick="window.open(this.src)">' : '';
-    const who  = (mine||conv!=='team') ? '' : '<div class="who">'+tcEsc(m.from_name||'agente')+'</div>';
+    /* DE DONDE VIENE. Un mensaje que entra por un puente (Teams u otro) tiene que
+       distinguirse SIEMPRE: quien lo lee necesita saber que esa persona no esta en esta
+       consola, que puede no ver lo que se escriba aqui, y que responderle depende de que el
+       puente funcione en los dos sentidos. Un mensaje externo disfrazado de interno hace
+       que alguien de por enterada a una persona que nunca lo leyo. */
+    const externo = m.origen && m.origen !== 'interno';
+    const marca = externo ? '<span class="tc-origen" title="Llego desde '+tcEsc(m.origen)+', fuera de esta consola">'+tcEsc(m.origen)+'</span>' : '';
+    const who  = (mine||conv!=='team') ? (externo?'<div class="who">'+marca+'</div>':'') : '<div class="who">'+tcEsc(m.from_name||'agente')+' '+marca+'</div>';
     /* A QUE RESPONDE. Media conversacion de Teams se entiende por esto: sin la cita, un
        "si, dale" veinte mensajes despues no significa nada. */
     let cita='';

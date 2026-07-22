@@ -534,11 +534,11 @@
   .aviso-tt{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--accent);margin-bottom:2px}
   .aviso-tx{font-size:13px;line-height:1.5;color:var(--txt);white-space:pre-wrap;word-break:break-word;max-height:calc(100vh - 130px);overflow-y:auto}
   .aviso-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
-  .leftdock{position:fixed;right:14px;top:20px;display:flex;flex-direction:column;gap:9px;z-index:45;padding:9px 8px;background:var(--glass-strong);-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--glass-brd);border-radius:20px;box-shadow:var(--depth-2),var(--glass-hi);transition:opacity .2s ease, transform .25s cubic-bezier(.2,.8,.3,1.1)}
+  .leftdock{position:fixed;right:14px;top:20px;display:flex;flex-direction:column;gap:9px;z-index:48;padding:9px 8px;background:var(--glass-strong);-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--glass-brd);border-radius:20px;box-shadow:var(--depth-2),var(--glass-hi);transition:opacity .2s ease, transform .25s cubic-bezier(.2,.8,.3,1.1)}
   .leftdock:empty{display:none}
   /* Pestaña para recuperar el dock. Discreta pegada al borde: tiene que estar cuando la
      buscas y no llamar la atencion cuando no. */
-  .dock-tirador{position:fixed;right:0;top:20px;z-index:46;width:22px;height:44px;
+  .dock-tirador{position:fixed;right:0;top:20px;z-index:49;width:22px;height:44px;
     border:1px solid var(--glass-brd);border-right:0;border-radius:12px 0 0 12px;
     background:var(--glass-strong);-webkit-backdrop-filter:blur(20px) saturate(160%);
     backdrop-filter:blur(20px) saturate(160%);box-shadow:var(--depth-1);
@@ -554,7 +554,7 @@
      pasar el raton, que es cuando mas se mira. Sin ella el icono se redibuja nitido.
      La animacion sigue siendo barata: es un solo elemento pequeño. */
   .leftdock .ic{border:none;background:transparent;transition:transform .18s cubic-bezier(.2,.7,.3,1.4);transform-origin:right center}
-  .leftdock .ic:hover{transform:scale(1.45);color:var(--accent)}
+  .leftdock .ic:hover{transform:scale(1.7);color:var(--accent)}
   .leftdock .ic:hover+.ic,.leftdock .ic:has(+.ic:hover){transform:scale(1.34)}
   .leftdock .ic:hover+.ic+.ic,.leftdock .ic:has(+.ic+.ic:hover){transform:scale(1.14)}
   @media(max-width:860px){ .leftdock{right:6px;gap:7px;padding:7px 6px} }
@@ -651,18 +651,11 @@
 :root[data-theme="light"]{
   --glass: rgba(246,247,250,.62);
   --glass-strong: rgba(246,247,250,.72);
-  /* Antes .95: un filo blanco casi solido que endurecia el canto. El cristal real
-     tiene un borde SUGERIDO, no dibujado. */
-  --glass-brd: rgba(255,255,255,.62);
+  --glass-brd: rgba(255,255,255,.95);
   --glass-hi: inset 0 1px 0 rgba(255,255,255,.85), inset 0 0 0 1px rgba(255,255,255,.25);
-  /* Sombras EN CAPAS. Una sola sombra grande con mucha opacidad (antes: 70px de desenfoque
-     al 50%) se lee como una mancha gris pegada debajo, no como profundidad. La luz real
-     produce varias sombras superpuestas: uno o dos pixeles de contacto muy tenue, una
-     media, y una amplia y MUY suave. Cada capa va con poca opacidad; el efecto lo da la
-     suma, no la fuerza de ninguna. */
-  --depth-1: 0 1px 1px rgba(32,36,46,.04), 0 2px 4px rgba(32,36,46,.04), 0 8px 16px -6px rgba(32,36,46,.08);
-  --depth-2: 0 1px 1px rgba(32,36,46,.04), 0 3px 6px rgba(32,36,46,.05), 0 10px 20px -6px rgba(32,36,46,.08), 0 24px 48px -16px rgba(32,36,46,.14);
-  --depth-3: 0 2px 4px rgba(24,28,36,.05), 0 12px 24px -8px rgba(24,28,36,.10), 0 32px 64px -20px rgba(24,28,36,.18), 0 64px 120px -40px rgba(24,28,36,.22);
+  --depth-1: 0 1px 2px rgba(32,36,46,.06), 0 14px 36px -16px rgba(32,36,46,.30);
+  --depth-2: 0 4px 10px rgba(32,36,46,.08), 0 34px 70px -24px rgba(32,36,46,.5);
+  --depth-3: 0 50px 110px -28px rgba(24,28,36,.6);
   --shadow: var(--depth-1);
   --accent-glow: 0 12px 30px -12px rgba(226,0,26,.4);
 }
@@ -671,11 +664,9 @@
   --glass-strong: rgba(22,24,29,.74);
   --glass-brd: rgba(214,222,238,.18);
   --glass-hi: inset 0 1px 0 rgba(214,222,238,.11), inset 0 0 0 1px rgba(214,222,238,.04);
-  /* En oscuro la sombra se nota menos, asi que se compensa con una capa mas de contacto,
-     nunca subiendo la opacidad de una sola: al 85% se veia un halo negro duro. */
-  --depth-1: 0 1px 1px rgba(0,0,0,.20), 0 2px 5px rgba(0,0,0,.22), 0 8px 18px -6px rgba(0,0,0,.34);
-  --depth-2: 0 1px 1px rgba(0,0,0,.22), 0 3px 7px rgba(0,0,0,.26), 0 12px 24px -6px rgba(0,0,0,.34), 0 28px 56px -18px rgba(0,0,0,.46);
-  --depth-3: 0 2px 5px rgba(0,0,0,.28), 0 14px 28px -8px rgba(0,0,0,.40), 0 36px 72px -22px rgba(0,0,0,.52), 0 72px 130px -44px rgba(0,0,0,.60);
+  --depth-1: 0 1px 2px rgba(0,0,0,.4), 0 16px 38px -16px rgba(0,0,0,.68);
+  --depth-2: 0 4px 12px rgba(0,0,0,.5), 0 36px 72px -24px rgba(0,0,0,.85);
+  --depth-3: 0 54px 120px -28px rgba(0,0,0,.92);
   --shadow: var(--depth-1);
   --accent-glow: 0 12px 32px -12px rgba(255,90,77,.55);
   --bh-glow:0 0 30px rgba(232,154,60,.08);
@@ -1753,7 +1744,12 @@ async function handleSession(session){
     /* Si eres admin y tienes 2FA puesto pero la sesion aun no lo paso, hay que ELEGIR con
        que permisos entrar. Si no tienes 2FA, mfaGate ya dejo mfaOk=true y no hay nada que
        elegir: entras como siempre. */
-    if(!mfaOk && _mfaFactor) modoGateMostrar();
+    /* Si ya elegiste modo agente en esta pestaña, recargar NO vuelve a preguntar.
+       El modo admin no hace falta recordarlo: si la sesion ya paso el segundo factor,
+       mfaGate() lo detecta solo (aal2) y no se muestra nada. */
+    let _yaElegi=null;
+    try{ _yaElegi = sessionStorage.getItem('sineli-modo-'+(me&&me.id)); }catch(e){}
+    if(!mfaOk && _mfaFactor && _yaElegi!=='agente') modoGateMostrar();
   }   // 2FA: OCULTAR el splash ANTES de pedir el codigo (tapaba el modal y parecia que "no cargaba")
   gateHide(); applyRoleUI();
   $('who').innerHTML=(me.email||'')+(isAdmin()?' · <b>admin</b>':'');
@@ -1960,6 +1956,11 @@ async function modoEntrarAgente(){
   /* mfaOk se queda en false a proposito: eso ES el modo agente. La interfaz de
      administracion no aparece y el servidor rechaza sus acciones igual. */
   modoGateOcultar(); modoMsg('');
+  /* Se recuerda para esta PESTAÑA. sessionStorage sobrevive a recargar (Ctrl+Shift+R
+     incluido) pero NO a cerrar la pestaña ni a abrir otra: recargar mientras trabajas no
+     tiene por que volver a preguntarte, y empezar de cero si. Con localStorage se quedaria
+     para siempre y el modo dejaria de ser una decision. */
+  try{ sessionStorage.setItem('sineli-modo-'+(me&&me.id), 'agente'); }catch(e){}
   try{ mfaBotonUI(); }catch(e){}
   toast('Entraste como agente. Si necesitás administrar, usá el botón de arriba.');
 }
@@ -2099,7 +2100,12 @@ $('authGoogle').onclick=async()=>{
   if(error)authMsg(/not enabled|unsupported provider/i.test(error.message||'')?'El acceso con Google aún no está habilitado. Usa tu correo y el código de 6 dígitos por ahora.':error.message,true);
 };
 $('authEmail').addEventListener('keydown',e=>{if(e.key==='Enter')$('authMagic').click();});
-async function doLogout(){ if(sb) await sb.auth.signOut(); location.reload(); }
+async function doLogout(){
+  // Olvidar el modo elegido: quien entre despues en esta pestaña no hereda tu eleccion.
+  try{ sessionStorage.removeItem('sineli-modo-'+(me&&me.id)); }catch(e){}
+  if(sb) await sb.auth.signOut();
+  location.reload();
+}
 
 /* auditoría ligera */
 async function logAudit(action,detail){ try{ if(sb&&me) await sb.from('audit_log').insert({user_id:me.id,email:me.email,action,detail}); }catch(e){} }

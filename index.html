@@ -3236,7 +3236,16 @@ async function transSubir(){
     const r=await fetch(TRANSCRIBIR_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(session?session.access_token:'')},body:JSON.stringify({audio:dataURL, mime:f.type||'audio/m4a', nombre:f.name})});
     let j={}; try{ j=JSON.parse((await r.text())||'{}'); }catch(e){ j={}; }
     const txt=(j.texto||'').trim();
-    if(!txt){ if(st)st.textContent='No se obtuvo texto (revisa el audio, el formato o el tamano).'; return; }
+    /* Una respuesta VACIA no es lo mismo que una respuesta sin texto. El workflow valida
+       la sesion antes de tocar Groq, y como responde por nodo, al cortar ahi no llega a
+       contestar nada. Distinguir los dos casos evita mandar a alguien a revisar el formato
+       de su audio cuando lo que le pasa es que se le caduco la sesion. */
+    if(!txt){
+      if(st)st.textContent = (!r.ok || !j || !Object.keys(j).length)
+        ? 'No respondio el transcriptor. Suele ser la sesion: recarga la consola y vuelve a entrar.'
+        : 'No se obtuvo texto (revisa el audio, el formato o el tamano).';
+      return;
+    }
     if($('transText'))$('transText').value=txt; if(st)st.textContent='Transcripcion lista. Revisa y quita datos personales antes de indexar.';
   }catch(e){ if(st)st.textContent='Error al transcribir: '+(e.message||e); }
 }
@@ -5055,8 +5064,7 @@ function simSetContinuo(v){
 function simPausar(){
   SIM_PAUSADO = !SIM_PAUSADO;
   if(SIM_PAUSADO){
-    try{ if(SIM_REC) SIM_REC.abort(); }catch(e){}
-    SIM_REC=null; vozDetener();
+    simDejarDeOir(); vozDetener();
     simEstado('en pausa — la llamada sigue abierta, el micrófono no');
   }else{
     simEstado('reanudando…');
@@ -5081,16 +5089,154 @@ function simSeguirEscuchando(){
 }
 
 function simColgar(){
-  try{ if(SIM_REC) SIM_REC.abort(); }catch(e){}
-  SIM_REC=null; vozDetener();
+  simDejarDeOir(); vozDetener();
   SIM_PAUSADO=false;
   $('simOverlay').classList.remove('on'); $('simPanel').classList.remove('on');
   if(SIM_ID) toast('Llamada de prueba guardada como '+(SIM_ROL==='agente'?'rp-':'voz-')+SIM_ID);
   SIM_ID=null; SIM_ROL='cliente'; SIM_HISTORIAL=[];
 }
+/* ===== DOS FORMAS DE OIR, PORQUE UNA NO VALE EN TODOS LOS NAVEGADORES =====
+
+   'nativo'  = SpeechRecognition del navegador. Gratis, instantaneo, con texto parcial
+               mientras hablas. Es lo que se intenta primero.
+   'grabado' = se graba con MediaRecorder y se manda al webhook /transcribir, que ya
+               existe (Groq Whisper, el mismo que usa la pestaña de transcripciones).
+               Mas lento, sin texto parcial, pero funciona en CUALQUIER navegador.
+
+   POR QUE HIZO FALTA. En Brave el micrófono parecia no detectarse. No era el micrófono:
+   Brave SI expone webkitSpeechRecognition, asi que pasaba el chequeo de arriba, pero al
+   arrancar fallaba con error 'network' porque Brave le quita la clave del servicio de
+   voz de Google (lo implementa mandando el audio a servidores de Google, y Brave no lo
+   permite). El usuario veia "Micrófono: network", que suena a problema de micro y no lo
+   es. Lo mismo pasa en Firefox, donde la API directamente no existe.
+
+   El cambio de modo es automatico y se recuerda para el resto de la sesion: no tiene
+   sentido reintentar el nativo en cada turno cuando ya se sabe que ese navegador no lo
+   tiene. */
+var SIM_MODO_OIR = null;        // null = aun sin decidir, 'nativo' | 'grabado'
+var SIM_GRAB = null;            // MediaRecorder en curso
+var SIM_GRAB_STREAM = null;     // el stream del micrófono, para poder soltarlo
+
+/* Corta lo que este oyendo, sea cual sea el modo. Antes esto se repetia en simPausar,
+   simColgar y simEscuchar tocando solo SIM_REC, asi que en modo grabado el micrófono se
+   quedaba abierto (y el puntito rojo del navegador encendido) tras colgar. */
+function simDejarDeOir(){
+  try{ if(SIM_REC) SIM_REC.abort(); }catch(e){}
+  SIM_REC=null;
+  try{ if(SIM_GRAB && SIM_GRAB.state!=='inactive'){ SIM_GRAB.onstop=null; SIM_GRAB.stop(); } }catch(e){}
+  SIM_GRAB=null;
+  try{ if(SIM_GRAB_STREAM) SIM_GRAB_STREAM.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+  SIM_GRAB_STREAM=null;
+}
+
+/* Graba hasta que te callas y manda el audio a transcribir. El corte por silencio es lo
+   que mantiene la conversacion continua: sin el, habria que pulsar un boton para cerrar
+   cada frase, que es justo lo que se quito del flujo. */
+async function simEscucharGrabando(){
+  if(SIM_OCUPADO){ toast('Esperá a que el bot termine de responder'); return; }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){
+    simEstado('este navegador no puede grabar audio — usá el cuadro de texto');
+    toast('Tu navegador no permite grabar. Escribí el mensaje en el cuadro de abajo.'); return;
+  }
+  vozDetener();
+  var stream;
+  try{ stream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){
+    var m = (e && e.name==='NotAllowedError')
+      ? 'El navegador bloqueó el micrófono. Tocá el candado en la barra de direcciones y permitilo para este sitio.'
+      : (e && e.name==='NotFoundError') ? 'No hay micrófono disponible en esta computadora.'
+      : 'No se pudo abrir el micrófono: '+((e&&e.name)||e);
+    simEstado(m); toast(m); return;
+  }
+  SIM_GRAB_STREAM = stream;
+  var mime = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4']
+    .find(function(t){ try{ return MediaRecorder.isTypeSupported(t); }catch(e){ return false; } });
+  var trozos = [];
+  try{ SIM_GRAB = new MediaRecorder(stream, mime?{mimeType:mime}:undefined); }
+  catch(e){ simEstado('No se pudo grabar en este navegador'); simDejarDeOir(); return; }
+  SIM_GRAB.ondataavailable=function(ev){ if(ev.data && ev.data.size) trozos.push(ev.data); };
+
+  var b=$('simMic'); if(b) b.textContent='Escuchando…';
+  simEstado('escuchando… hablá normal y hacé una pausa al terminar');
+
+  /* Deteccion de silencio con el analizador de audio. Se mide el volumen ~15 veces por
+     segundo; tras HABLO_MIN de voz y SILENCIO_MS callado, se corta y se manda.
+     El umbral es deliberadamente bajo (0.012): con uno alto, una voz suave o un micro
+     de portatil no llegaba nunca y la grabacion no terminaba sola. */
+  var ac=null, vigilante=null, huboVoz=false, calladoDesde=0;
+  var SILENCIO_MS=1400, TOPE_MS=20000, UMBRAL=0.012, arrancoEn=Date.now();
+  try{
+    ac = new (window.AudioContext||window.webkitAudioContext)();
+    var src=ac.createMediaStreamSource(stream), an=ac.createAnalyser();
+    an.fftSize=2048; src.connect(an);
+    var buf=new Float32Array(an.fftSize);
+    vigilante=setInterval(function(){
+      if(!SIM_GRAB || SIM_GRAB.state!=='recording') return;
+      an.getFloatTimeDomainData(buf);
+      var suma=0; for(var i=0;i<buf.length;i++) suma+=buf[i]*buf[i];
+      var nivel=Math.sqrt(suma/buf.length);
+      var ahora=Date.now();
+      if(nivel>UMBRAL){ huboVoz=true; calladoDesde=0; }
+      else if(huboVoz){ if(!calladoDesde) calladoDesde=ahora;
+        else if(ahora-calladoDesde>SILENCIO_MS){ try{ SIM_GRAB.stop(); }catch(e){} } }
+      /* Tope duro: si el analizador falla o hay ruido de fondo constante, la grabacion
+         no se puede quedar corriendo para siempre. */
+      if(ahora-arrancoEn>TOPE_MS){ try{ SIM_GRAB.stop(); }catch(e){} }
+    },66);
+  }catch(e){ /* sin analizador queda el tope duro de TOPE_MS */ }
+
+  SIM_GRAB.onstop=async function(){
+    if(vigilante) clearInterval(vigilante);
+    try{ if(ac) ac.close(); }catch(e){}
+    try{ if(SIM_GRAB_STREAM) SIM_GRAB_STREAM.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+    SIM_GRAB_STREAM=null; SIM_GRAB=null;
+    var b2=$('simMic'); if(b2) b2.textContent='Hablar';
+    if(!huboVoz || !trozos.length){
+      /* Mismo trato que el 'no-speech' del modo nativo: en llamada continua no se cuelga
+         por un silencio, se vuelve a abrir el micrófono. */
+      simEstado('no escuché nada — seguí hablando cuando quieras');
+      simSeguirEscuchando(); return;
+    }
+    simEstado('procesando lo que dijiste…');
+    try{
+      var blob=new Blob(trozos,{type:(mime||'audio/webm')});
+      var dataURL=await new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsDataURL(blob); });
+      var ses=await sb.auth.getSession();
+      var tok=(ses&&ses.data&&ses.data.session)?ses.data.session.access_token:'';
+      /* Sin el ";codecs=opus": el workflow usa este valor tal cual como mimeType del
+         binario que sube a Groq, y un mime con parametros puede tumbar esa subida.
+         La extension del nombre se hace coincidir con el formato real por lo mismo. */
+      var mimeLimpio=(mime||'audio/webm').split(';')[0];
+      var ext=(mimeLimpio.indexOf('mp4')>=0)?'mp4':(mimeLimpio.indexOf('ogg')>=0?'ogg':'webm');
+      var r=await fetch(TRANSCRIBIR_WEBHOOK,{method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+        body:JSON.stringify({audio:dataURL, mime:mimeLimpio, nombre:'llamada.'+ext})});
+      var j={}; try{ j=JSON.parse((await r.text())||'{}'); }catch(e){ j={}; }
+      var txt=((j&&j.texto)||'').trim();
+      if(!txt){
+        /* Igual que arriba: vacio = la sesion no paso el filtro del workflow; con cuerpo
+           pero sin texto = Whisper no entendio el audio. Son dos consejos distintos. */
+        simEstado((!r.ok || !j || !Object.keys(j).length)
+          ? 'no respondió el transcriptor — recargá la consola y volvé a entrar'
+          : 'no se entendió — repetilo o escribilo abajo');
+        simSeguirEscuchando(); return;
+      }
+      simEstado('entendí: "'+txt+'"');
+      simEnviar(txt);
+    }catch(e){
+      simEstado('no se pudo transcribir: '+((e&&e.message)||e));
+      simSeguirEscuchando();
+    }
+  };
+  try{ SIM_GRAB.start(); }catch(e){ simEstado('No se pudo empezar a grabar'); simDejarDeOir(); }
+}
+
 function simEscuchar(){
+  /* Si ya se supo que este navegador no tiene el reconocimiento nativo, se va directo al
+     grabado en vez de reintentar y volver a fallar en cada turno. */
+  if(SIM_MODO_OIR==='grabado') return simEscucharGrabando();
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ simEstado('este navegador no reconoce voz — usá el cuadro de texto'); toast('Tu navegador no soporta micrófono. Usá Chrome o Edge, o escribí el mensaje.'); return; }
+  if(!SR){ SIM_MODO_OIR='grabado'; return simEscucharGrabando(); }
   if(SIM_OCUPADO){ toast('Esperá a que el bot termine de responder'); return; }
   try{
     vozDetener();
@@ -5112,6 +5258,20 @@ function simEscuchar(){
     };
     SIM_REC.onerror=function(ev){
       var e=(ev&&ev.error)||'error';
+      /* LA FIRMA DE BRAVE. 'network' aqui no significa que se cayo internet: significa que
+         el navegador expone la API pero no tiene detras el servicio de voz de Google.
+         Brave se lo quita a proposito, porque implementarla asi manda tu audio a Google.
+         'service-not-allowed' es la misma historia con otro nombre.
+         No es un error que el usuario pueda arreglar tocando permisos, asi que en vez de
+         mostrarselo se cambia al modo grabado y se sigue la conversacion. */
+      if(e==='network' || e==='service-not-allowed'){
+        SIM_MODO_OIR='grabado';
+        try{ if(SIM_REC) SIM_REC.abort(); }catch(x){}
+        SIM_REC=null;
+        simEstado('este navegador no trae reconocimiento de voz — paso a grabar y transcribir');
+        simEscucharGrabando();
+        return;
+      }
       /* Mensajes concretos: "micrófono: not-allowed" no le dice a nadie que tiene que dar permiso. */
       var txt = (e==='not-allowed'||e==='service-not-allowed') ? 'El navegador bloqueó el micrófono. Tocá el candado en la barra de direcciones y permití el micrófono para este sitio.'
               : (e==='no-speech') ? 'No escuché nada. Acercate al micrófono y volvé a pulsar Hablar.'

@@ -653,22 +653,39 @@
   --glass-strong: rgba(246,247,250,.72);
   --glass-brd: rgba(255,255,255,.95);
   --glass-hi: inset 0 1px 0 rgba(255,255,255,.85), inset 0 0 0 1px rgba(255,255,255,.25);
-  --depth-1: 0 1px 2px rgba(32,36,46,.06), 0 14px 36px -16px rgba(32,36,46,.30);
-  --depth-2: 0 4px 10px rgba(32,36,46,.08), 0 34px 70px -24px rgba(32,36,46,.5);
-  --depth-3: 0 50px 110px -28px rgba(24,28,36,.6);
+  /* SOMBRAS EN CAPAS, y esta vez con la prueba delante.
+     Dos fotos del mismo angulo y la misma pantalla: con un panel abierto el area sale
+     LIMPIA; en el area principal aparecen bandas de color. Si fuera moire de la camara
+     saldria en las dos. Lo que el panel tapa es el area donde se pintan las sombras
+     grandes, y ahi esta la causa.
+     Una sombra de 110 px de desenfoque al 60 % es un degradado enorme y suave. En 8 bits
+     un degradado asi solo tiene 256 niveles por canal: los saltos se agrupan en franjas, y
+     como cada canal salta en un punto distinto, las franjas salen DE COLORES. Es el mismo
+     bandeado que se perseguia en el fondo, pero producido por las sombras.
+     Repartirlo en varias capas de POCA opacidad da la misma profundidad con saltos mucho
+     mas pequeños, que es lo que deja de bandear. */
+  --depth-1: 0 1px 1px rgba(32,36,46,.04), 0 2px 4px rgba(32,36,46,.04), 0 8px 16px -6px rgba(32,36,46,.07);
+  --depth-2: 0 1px 1px rgba(32,36,46,.04), 0 3px 6px rgba(32,36,46,.05), 0 10px 20px -6px rgba(32,36,46,.07), 0 22px 40px -18px rgba(32,36,46,.10);
+  --depth-3: 0 2px 4px rgba(24,28,36,.05), 0 10px 20px -8px rgba(24,28,36,.08), 0 28px 52px -22px rgba(24,28,36,.12), 0 52px 90px -44px rgba(24,28,36,.14);
   --shadow: var(--depth-1);
-  --accent-glow: 0 12px 30px -12px rgba(226,0,26,.4);
+  /* Repartido en dos capas. Un halo ROJO al 40 % sobre 30 px es un degradado de color
+     bajo cada boton, y un degradado de color bandea con tinte rosado -- que es
+     exactamente uno de los colores que se veian. Dos capas de poca opacidad dan el mismo
+     brillo con saltos mucho menores. */
+  --accent-glow: 0 2px 5px -2px rgba(226,0,26,.16), 0 10px 22px -12px rgba(226,0,26,.20);
 }
 :root[data-theme="dark"]{
   --glass: rgba(22,24,29,.56);
   --glass-strong: rgba(22,24,29,.74);
   --glass-brd: rgba(214,222,238,.18);
   --glass-hi: inset 0 1px 0 rgba(214,222,238,.11), inset 0 0 0 1px rgba(214,222,238,.04);
-  --depth-1: 0 1px 2px rgba(0,0,0,.4), 0 16px 38px -16px rgba(0,0,0,.68);
-  --depth-2: 0 4px 12px rgba(0,0,0,.5), 0 36px 72px -24px rgba(0,0,0,.85);
-  --depth-3: 0 54px 120px -28px rgba(0,0,0,.92);
+  /* En oscuro pasa lo mismo y ademas se nota mas, porque el degradado va de negro a negro
+     y los saltos son mas visibles. Misma solucion: mas capas, menos opacidad cada una. */
+  --depth-1: 0 1px 1px rgba(0,0,0,.20), 0 2px 5px rgba(0,0,0,.22), 0 8px 18px -6px rgba(0,0,0,.30);
+  --depth-2: 0 1px 1px rgba(0,0,0,.22), 0 3px 7px rgba(0,0,0,.24), 0 12px 24px -6px rgba(0,0,0,.30), 0 26px 48px -20px rgba(0,0,0,.38);
+  --depth-3: 0 2px 5px rgba(0,0,0,.26), 0 12px 24px -8px rgba(0,0,0,.34), 0 32px 60px -24px rgba(0,0,0,.42), 0 60px 100px -46px rgba(0,0,0,.48);
   --shadow: var(--depth-1);
-  --accent-glow: 0 12px 32px -12px rgba(255,90,77,.55);
+  --accent-glow: 0 2px 5px -2px rgba(255,90,77,.22), 0 10px 24px -12px rgba(255,90,77,.28);
   --bh-glow:0 0 30px rgba(232,154,60,.08);
   --bh-border:rgba(232,154,60,.15);
 }

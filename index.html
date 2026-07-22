@@ -12,11 +12,63 @@
 <meta name="apple-mobile-web-app-title" content="SINELI">
 <meta name="theme-color" content="#17191D">
 <link rel="apple-touch-icon" href="icon-180.png">
+<!-- POLITICA DE CONTENIDO.
+     Que aporta y que no. La consola esta llena de onclick en el HTML, asi que script-src
+     necesita 'unsafe-inline' y esto NO impide un XSS por si solo. Lo que si hace, y es lo
+     que importa aqui, es acotar A DONDE puede hablar la pagina: aunque alguien logre
+     ejecutar codigo, connect-src le impide mandar la sesion del agente a un servidor suyo.
+     La sesion vive en localStorage, asi que robarla es el objetivo obvio; sin salida, el
+     XSS deja de ser una toma de cuenta.
+     script-src cierra la otra mitad: solo se ejecuta codigo de este sitio y de los dos CDN
+     de los que ya se depende, y esos ademas van con integrity.
+
+     Deliberadamente permisiva en img-src y style-src: ahi el riesgo es bajo y una politica
+     de mas rompe la consola. Estricta en lo que de verdad protege.
+
+     NO incluye frame-ancestors: los navegadores lo ignoran en <meta>, solo vale por
+     cabecera, y GitHub Pages no deja poner cabeceras. Queda pendiente para cuando esto se
+     sirva desde un sitio propio. -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net blob:;
+  worker-src 'self' blob: https://cdnjs.cloudflare.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' https://fonts.gstatic.com data:;
+  img-src 'self' data: blob: https:;
+  media-src 'self' data: blob:;
+  connect-src 'self' https://rmcsmxjzvxoybrziplhw.supabase.co wss://rmcsmxjzvxoybrziplhw.supabase.co https://laptop-38oeljea.tailc68292.ts.net https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- DEPENDENCIAS EXTERNAS: version FIJA + integridad + crossorigin.
+     Sin integrity, el navegador ejecuta lo que le devuelva el CDN, sea lo que sea. Y con la
+     sesion del agente en localStorage, eso no es un susto: es la cuenta entera. El hash hace
+     que el navegador se niegue a ejecutar el archivo si cambia un solo byte.
+     Para actualizar una version hay que recalcular su hash a proposito, que es justo la
+     revision que faltaba. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+        integrity="sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- Estaba como "@2", un tag FLOTANTE: jsdelivr servia lo ultimo de la v2, asi que cada
+     publicacion nueva entraba en la consola sin que nadie la mirase. Fijada a la 2.110.8,
+     que es exactamente el archivo que ese tag servia el 2026-07-22 (comprobado byte a byte). -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8"
+        integrity="sha384-Tve8O+C6PBzsIMK/IRCwHbi8fyEzXIlIs6OfVBZHubplwYhaQF/4Mzxqgg+pp/oy"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- SheetJS: se sirve desde ESTE repo, no desde npm.
+     La 0.18.5 que habia es de marzo de 2022 y arrastra prototype pollution conocido. Y en npm
+     no hay arreglo posible: SheetJS se retiro de npm despues de esa version, asi que 0.18.5
+     SIGUE siendo la "ultima" alli para siempre. Las versiones corregidas (>=0.19.3) solo
+     existen en su CDN propio.
+     Importa porque crm-ui.js hace XLSX.read() sobre un archivo que SUBE el agente: basta con
+     mandarle por correo un .xlsx preparado. Se guarda una copia propia en vendor/ para no
+     depender de un CDN mas y poder fijar el hash. -->
+<script src="vendor/xlsx-0.20.3.full.min.js"
+        integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT"
+        crossorigin="anonymous"></script>
 <script src="crm-core.js"></script>
 <script src="crm-ui.js"></script>
 <script src="reglas-negocio.js"></script>

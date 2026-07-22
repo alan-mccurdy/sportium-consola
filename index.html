@@ -822,6 +822,10 @@ body{background:transparent}
         <span class="who" id="useMeter" style="cursor:help;display:none"></span>
         <span class="who" id="presPill" style="display:none;cursor:pointer" onclick="openTeam()" title=""></span>
         <span class="who" id="who"></span>
+        <!-- Solo aparece si eres admin, tienes 2FA puesto y esta sesion aun no lo paso.
+             Entrar a la consola no lo pide; administrar si. -->
+        <button class="btn mini" id="mfaUnlock" onclick="mfaDesbloquear()" style="display:none;margin-left:8px"
+                title="Tu cuenta tiene verificación en dos pasos. Para las funciones de administración hace falta el código; para atender chats no.">Administrar</button>
         <button class="ic" id="copyToggle" title="Auto-copiar respuesta sugerida" onclick="toggleAutocopy()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         <button class="ic" id="themeBtn" title="Tema" onclick="toggleTheme()">
@@ -1645,9 +1649,13 @@ async function handleSession(session){
   catch(e){ myProfile={role:'agent',email:me.email}; }
   // cuenta bloqueada por el admin -> cerrar sesión
   if(myProfile && myProfile.active===false){ authMsg('Tu cuenta está bloqueada. Contacta al administrador.',true); try{ await sb.auth.signOut(); }catch(e){} me=null; myProfile={role:'agent'}; gateShow(); return; }
-  if(isRealAdmin()){ bootDone(); await mfaGate(); }   // 2FA: OCULTAR el splash ANTES de pedir el codigo (tapaba el modal y parecia que "no cargaba")
+  /* Se MIRA si hace falta 2FA, pero NO se pide aqui. Antes se pedia el codigo en cada
+     carga solo por ser admin, aunque fueras a atender chats. Ahora entras directo a modo
+     agente y el codigo se pide al pulsar "Administrar". */
+  if(isRealAdmin()){ bootDone(); await mfaGate(); mfaBotonUI(); }   // 2FA: OCULTAR el splash ANTES de pedir el codigo (tapaba el modal y parecia que "no cargaba")
   gateHide(); applyRoleUI();
   $('who').innerHTML=(me.email||'')+(isAdmin()?' · <b>admin</b>':'');
+  try{ mfaBotonUI(); }catch(e){}
   // Restaurar la última vista AQUI (mismo tick que se revela la app): si se hace despues de las
   // cargas de red, el chat general se ve un rato antes de que aparezca el inbox (parpadeo).
   // PESTAÑA DE CASO ESCALADO (?caso=<id>): vista dedicada del supervisor en su propia pestaña.
@@ -1681,6 +1689,19 @@ async function handleSession(session){
 }
 function setView(v){ try{ localStorage.setItem('sptm-view', v||'chat'); }catch(e){} }
 /* ===== 2FA (verificacion en dos pasos, MFA TOTP de Supabase) ===== */
+/* DOS PASOS SEPARADOS, y esa separacion es todo el cambio:
+     mfaGate()      -> MIRA en silencio si hace falta 2FA. No pregunta nada.
+     mfaDesbloquear -> PIDE el codigo. Solo cuando de verdad se va a administrar.
+
+   Antes se preguntaba el codigo en CADA carga de la pagina, solo por ser admin, aunque
+   fueras a atender chats. Eso convierte una medida de seguridad en un peaje, y un peaje
+   se acaba esquivando: es la clase de friccion por la que la gente desactiva el 2FA.
+
+   Ahora entras directo a modo agente, y el codigo se pide al pulsar "Administrar". Sigue
+   siendo REAL: sin el codigo, isAdmin() es falso, la interfaz de administracion no se
+   muestra, y ADEMAS el servidor lo rechaza aunque alguien se salte la interfaz -- el
+   webhook de admin comprueba el nivel de la sesion desde el 2026-07-22, asi que ya no es
+   una cortina de navegador. */
 async function mfaGate(){
   if(!sb||!me){ mfaOk=true; return; }
   try{
@@ -1690,15 +1711,40 @@ async function mfaGate(){
     _mfaFactor=v;
     const {data:aal}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
     if(aal&&aal.currentLevel==='aal2'){ mfaOk=true; return; }
+    // Tiene 2FA y la sesion aun no lo paso: administracion bloqueada, SIN preguntar nada.
     mfaOk=false;
+    mfaBotonUI();
+  }catch(e){ mfaOk=false; mfaBotonUI(); }   // FAIL-CLOSED: ante la duda, sin administracion
+}
+
+/* Pide el codigo. Se llama desde el boton "Administrar", no al cargar. */
+async function mfaDesbloquear(){
+  if(mfaOk){ toast('La administración ya está desbloqueada.'); return true; }
+  if(!_mfaFactor){ await mfaGate(); }
+  const v=_mfaFactor;
+  if(!v){ mfaOk=true; mfaBotonUI(); return true; }   // no tiene 2FA configurado
+  try{
     for(let i=0;i<3 && !mfaOk;i++){
       const code=await appPrompt('Verificación en dos pasos: ingresa el código de 6 dígitos de tu app de autenticación:',{placeholder:'123456'});
       if(code===null) break;
       try{ const {data:ch}=await sb.auth.mfa.challenge({factorId:v.id}); const {error}=await sb.auth.mfa.verify({factorId:v.id,challengeId:ch.id,code:(code||'').trim()}); if(!error){ mfaOk=true; toast('2FA verificado'); } else toast('Código incorrecto, reintenta'); }catch(e){ toast('Código incorrecto, reintenta'); }
     }
-    if(!mfaOk) toast('2FA sin verificar: tu acceso de admin queda limitado hasta completarlo (recarga para reintentar).');
-  }catch(e){ mfaOk=false; toast('No se pudo verificar el 2FA. Tu acceso de admin queda limitado; recarga para reintentar.'); }   // FAIL-CLOSED: ante error NO conceder admin (antes concedia sin verificar)
+    if(!mfaOk) toast('Código incorrecto. La administración sigue bloqueada; podés seguir trabajando en modo agente.');
+  }catch(e){ mfaOk=false; toast('No se pudo verificar el código. La administración sigue bloqueada.'); }   // FAIL-CLOSED
+  mfaBotonUI();
+  if(mfaOk){ toast('Administración desbloqueada.'); try{ if(typeof aplicarPermisos==='function') aplicarPermisos(); }catch(e){} }
+  return mfaOk;
 }
+
+/* El boton solo aparece si hace falta: eres admin de verdad, tienes 2FA puesto, y esta
+   sesion todavia no lo ha pasado. Si no tienes 2FA no estorba, y si ya lo pasaste
+   desaparece. */
+function mfaBotonUI(){
+  var b=document.getElementById('mfaUnlock'); if(!b) return;
+  var hace = (typeof isRealAdmin==='function' && isRealAdmin()) && !!_mfaFactor && !mfaOk;
+  b.style.display = hace ? '' : 'none';
+}
+
 async function mfaRefresh(){
   const st=$('mfaStatus'), bt=$('mfaBtn'), off=$('mfaOff'), en=$('mfaEnroll'); if(!st)return;
   try{ const {data:fl}=await sb.auth.mfa.listFactors(); const v=((fl&&fl.totp)||[]).find(f=>f.status==='verified');

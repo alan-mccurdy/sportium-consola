@@ -1,0 +1,6 @@
+# La libreria de vendor/ va con hash de integridad (SRI) en index.html. Si git le cambia
+# los saltos de linea, cambian los bytes, el hash deja de cuadrar y el NAVEGADOR SE NIEGA
+# a cargarla: la importacion de Excel muere sin mensaje y sin pista de por que.
+# Al commitearla git aviso "LF will be replaced by CRLF the next time Git touches it".
+# -text le dice que no toque nada nunca.
+vendor/** -text -diff

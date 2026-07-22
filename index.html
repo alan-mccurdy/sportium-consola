@@ -1938,7 +1938,16 @@ async function mfaDesbloquear(){
     if(!mfaOk) toast('Código incorrecto. La administración sigue bloqueada; podés seguir trabajando en modo agente.');
   }catch(e){ mfaOk=false; toast('No se pudo verificar el código. La administración sigue bloqueada.'); }   // FAIL-CLOSED
   mfaBotonUI();
-  if(mfaOk){ toast('Administración desbloqueada.'); try{ if(typeof aplicarPermisos==='function') aplicarPermisos(); }catch(e){} }
+  /* Refrescar la interfaz al desbloquear. Aqui habia un `if(typeof aplicarPermisos===
+     'function')` -- y esa funcion NO EXISTE: se llama applyRoleUI(). El guard, puesto "por
+     si acaso", convirtio un nombre equivocado en un fallo mudo: metias el codigo correcto,
+     mfaOk pasaba a true, y la pantalla se quedaba en modo agente sin decir por que.
+     Un guard que tapa una dependencia que falta no previene el fallo: lo esconde. */
+  if(mfaOk){
+    toast('Administración desbloqueada.');
+    applyRoleUI();
+    if(me && $('who')) $('who').innerHTML=(me.email||'')+(isAdmin()?' · <b>admin</b>':'');
+  }
   return mfaOk;
 }
 
@@ -3339,6 +3348,17 @@ function getImagenes(){ return Object.keys(imageMap); }
    RESPUESTAS RÁPIDAS (FAQ) — responden al instante, 0 tokens de IA
    ============================================================ */
 let FAQS=[];
+/* "Decir en voz" del chat privado: lo que escribes le llega hablado al otro, ademas de
+   escrito. Sirve para probar como se oye un guion sin tener que leerlo en alto. */
+let TC_VOZ=false;
+function tcVozToggle(){
+  TC_VOZ=!TC_VOZ;
+  document.querySelectorAll('.tc-voz').forEach(function(b){
+    b.textContent = TC_VOZ ? 'voz: ON' : 'voz: off';
+    b.style.color = TC_VOZ ? 'var(--ok,#2a7)' : '';
+  });
+  toast(TC_VOZ ? 'Lo que escribás le llegará hablado, además de escrito.' : 'Los mensajes vuelven a ir solo por escrito.');
+}
 let GLOS=[];
 let MISPLANTILLAS=[];
 async function loadPlantillas(){ if(!sb)return; try{ const {data}=await sb.from('agente_plantillas').select('id,nombre,texto,orden').order('orden',{ascending:true}); MISPLANTILLAS=data||[]; }catch(e){ MISPLANTILLAS=[]; } renderChips(); }
@@ -6435,6 +6455,11 @@ function liCanal() {
   return LI.chan;
 }
 
+/* Suscribirse AL ARRANCAR, no al llamar. Antes el canal se creaba la primera vez que TU
+   hacías algo, asi que si nunca abrias el panel no estabas escuchando: no podias RECIBIR
+   una llamada. Un telefono que solo suena si lo has usado antes no es un telefono. */
+function liIniciar(){ try{ liCanal(); }catch(e){} }
+
 function liEnviar(para, tipo, datos) {
   var c = liCanal(); if (!c) return;
   try { c.send({ type: 'broadcast', event: 'señal', payload: Object.assign({ para: para, de: me.id, deNombre: (myProfile && myProfile.full_name) || me.email, tipo: tipo }, datos || {}) }); }
@@ -6779,7 +6804,7 @@ function tcOpenConv(conv){
   tcUnread[conv]=0; tcBadges();
   if(!tcWins[conv]){
     const el=document.createElement('div'); el.className='fbwin'; el.id='fbwin-'+conv;
-    el.innerHTML='<div class="fbwin-h" onclick="tcToggleMin(\''+conv+'\')"><span class="fbwin-name">'+tcEsc(tcConvName(conv))+'</span><span class="fbwin-acts"><button title="Minimizar" onclick="event.stopPropagation();tcToggleMin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button><button title="Cerrar" onclick="event.stopPropagation();tcCloseWin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span></div><div class="fbwin-msgs" id="fbmsgs-'+conv+'"></div><div class="fbwin-in"><textarea id="fbin-'+conv+'" rows="1" placeholder="Escribe…"></textarea><button class="send" onclick="tcSendWin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>';
+    el.innerHTML='<div class="fbwin-h" onclick="tcToggleMin(\''+conv+'\')"><span class="fbwin-name">'+tcEsc(tcConvName(conv))+'</span><span class="fbwin-acts"><button title="Minimizar" onclick="event.stopPropagation();tcToggleMin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button><button title="Cerrar" onclick="event.stopPropagation();tcCloseWin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span></div><div class="fbwin-msgs" id="fbmsgs-'+conv+'"></div><div class="fbwin-in"><textarea id="fbin-'+conv+'" rows="1" placeholder="Escribe…"></textarea><button class="tc-voz" onclick="tcVozToggle()" title="Si está en ON, lo que escribas le llega hablado al otro además de escrito" style="background:none;border:0;cursor:pointer;font-size:10px;padding:0 6px">'+(TC_VOZ?'voz: ON':'voz: off')+'</button><button class="send" onclick="tcSendWin(\''+conv+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>';
     $('fbwins').appendChild(el); tcWins[conv]=el;
     const ta=el.querySelector('#fbin-'+conv);
     ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); tcSendWin(conv); } });
@@ -6804,16 +6829,25 @@ function tcHeadsRender(){
 }
 function tcCloseHead(conv){ delete tcHeads[conv]; tcHeadsRender(); }
 function tcRenderWin(conv){ const L=document.getElementById('fbmsgs-'+conv); if(!L)return; L.innerHTML=tcConvMsgs(conv).map(m=>{ const mine=me&&m.from_id===me.id; const img=m.image_url?'<img src="'+m.image_url+'" onclick="window.open(this.src)">':''; const who=(mine||conv!=='team')?'':'<div class="who">'+tcEsc(m.from_name||'agente')+'</div>'; const del=(m.id&&(mine||isAdmin()))?'<span class="tcdel" title="Borrar" onclick="delTeamMsg('+m.id+','+(mine?1:0)+')">×</span>':''; return '<div class="tcm '+(mine?'mine':'their')+'">'+who+tcEsc(m.body||'')+img+del+'</div>'; }).join(''); L.scrollTop=L.scrollHeight; }
-async function tcSendWin(conv,imgData){ if(!me||!sb)return; const ta=document.getElementById('fbin-'+conv); const t=ta?ta.value.trim():''; if(!t&&!imgData)return; if(ta){ ta.value=''; ta.style.height='auto'; } const name=(myProfile&&myProfile.full_name)||me.email; const _to=(conv!=='team')?conv:null; const row={tenant:CONFIG.tenant,from_id:me.id,from_name:name,to_id:_to,body:t,image_url:imgData||null}; try{ const {data,error}=await sb.from('team_messages').insert([row]).select(); if(error)throw error; (data||[]).forEach(m=>{ if(!tcMsgsArr.some(x=>x.id===m.id)) tcMsgsArr.push(m); }); tcRenderWin(conv); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo enviar: '+(e.message||e)); } }
+async function tcSendWin(conv,imgData){ if(!me||!sb)return; const ta=document.getElementById('fbin-'+conv); const t=ta?ta.value.trim():''; if(!t&&!imgData)return; if(ta){ ta.value=''; ta.style.height='auto'; } const name=(myProfile&&myProfile.full_name)||me.email; const _to=(conv!=='team')?conv:null; const row={tenant:CONFIG.tenant,from_id:me.id,from_name:name,to_id:_to,body:t,image_url:imgData||null};
+  /* DECIRLO EN VOZ. Si esta activado y es un chat privado, ademas de escribirse se manda
+     por el canal de señalizacion para que el navegador del otro lo PRONUNCIE. Va por ahi y
+     no por la tabla a proposito: team_messages no tiene columna para esto y añadirla
+     pediria una migracion, cuando el mecanismo que hace falta ya existe y esta probado.
+     El mensaje se guarda igual como texto: la voz es un extra, no un reemplazo. */
+  try{
+    if(TC_VOZ && _to && t && typeof liEnviar==='function') liEnviar(_to,'dicho',{texto:t});
+  }catch(e){} try{ const {data,error}=await sb.from('team_messages').insert([row]).select(); if(error)throw error; (data||[]).forEach(m=>{ if(!tcMsgsArr.some(x=>x.id===m.id)) tcMsgsArr.push(m); }); tcRenderWin(conv); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo enviar: '+(e.message||e)); } }
 async function loadTeam(){ if(!sb)return; try{ const {data}=await sb.from('team_messages').select('*').eq('tenant',CONFIG.tenant).order('created_at',{ascending:true}).limit(300); tcMsgsArr=data||[]; }catch(e){} }
 function subTeam(){ if(!sb||tcChan)return; tcChan=sb.channel('team-'+CONFIG.tenant)
-  .on('postgres_changes',{event:'INSERT',schema:'public',table:'team_messages',filter:'tenant=eq.'+CONFIG.tenant},payload=>{ const m=payload.new; if(tcMsgsArr.some(x=>x.id===m.id))return; if(m.to_id && !(me&&(m.from_id===me.id||m.to_id===me.id)))return; tcMsgsArr.push(m); const conv=tcConvOfMsg(m); const win=tcWins[conv]; if(win && !win.classList.contains('min')){ tcRenderWin(conv); } else if(!me||m.from_id!==me.id){ tcUnread[conv]=(tcUnread[conv]||0)+1; if(!tcWins[conv]&&!tcHeads[conv]){ tcHeads[conv]=true; } } tcBadges(); })
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'team_messages',filter:'tenant=eq.'+CONFIG.tenant},payload=>{ const m=payload.new; if(tcMsgsArr.some(x=>x.id===m.id))return; if(m.to_id && !(me&&(m.from_id===me.id||m.to_id===me.id)))return; tcMsgsArr.push(m);
+      const conv=tcConvOfMsg(m); const win=tcWins[conv]; if(win && !win.classList.contains('min')){ tcRenderWin(conv); } else if(!me||m.from_id!==me.id){ tcUnread[conv]=(tcUnread[conv]||0)+1; if(!tcWins[conv]&&!tcHeads[conv]){ tcHeads[conv]=true; } } tcBadges(); })
   .on('postgres_changes',{event:'DELETE',schema:'public',table:'team_messages'},payload=>{ const id=payload.old&&payload.old.id; if(id){ const n=tcMsgsArr.length; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); if(tcMsgsArr.length!==n){ Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); } } })
   .subscribe(function(status){ if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){ try{ sb.removeChannel(tcChan); }catch(e){ console.warn('subTeam removeChannel:', e); } tcChan=null; if(typeof toast==='function') toast('Chat de equipo: reconectando...'); setTimeout(function(){ subTeam(); }, 3000); } }); }
 async function delTeamMsg(id,mine){ if(!await appConfirm('¿Borrar este mensaje?',{danger:true}))return; try{ if(mine){ await sb.from('team_messages').delete().eq('id',id); } else if(isAdmin()){ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_delete',id})}); } else return; tcMsgsArr=tcMsgsArr.filter(x=>x.id!==id); Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo borrar: '+(e.message||e)); } }
 async function clearTeam(){ if(!isAdmin())return; if(!await appConfirm('¿Borrar TODO el chat de equipo (general, para todos)?',{danger:true}))return; try{ const {data:{session}}=await sb.auth.getSession(); await fetch(ADMIN_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'tm_clear',tenant:CONFIG.tenant})}); tcMsgsArr=[]; Object.keys(tcWins).forEach(tcRenderWin); if(tcOpen)tcRenderList(); }catch(e){ toast('No se pudo: '+(e.message||e)); } }
 function tcDownscale(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=1280; let w=img.width,h=img.height; if(w>max||h>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);} const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); res(c.toDataURL('image/jpeg',0.6)); }; img.onerror=()=>res(null); img.src=r.result; }; r.onerror=()=>res(null); r.readAsDataURL(file); }); }
-async function initTeam(){ await loadTeam(); subTeam(); tcLoadAgentes(); initPresence(); }
+async function initTeam(){ await loadTeam(); subTeam(); tcLoadAgentes(); initPresence(); liIniciar(); }
 
 applyBrand();
 loadComandosExtra();

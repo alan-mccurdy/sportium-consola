@@ -536,9 +536,25 @@
   .aviso-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
   .leftdock{position:fixed;right:14px;top:20px;display:flex;flex-direction:column;gap:9px;z-index:45;padding:9px 8px;background:var(--glass-strong);-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--glass-brd);border-radius:20px;box-shadow:var(--depth-2),var(--glass-hi);transition:opacity .2s ease, transform .25s cubic-bezier(.2,.8,.3,1.1)}
   .leftdock:empty{display:none}
+  /* Pestaña para recuperar el dock. Discreta pegada al borde: tiene que estar cuando la
+     buscas y no llamar la atencion cuando no. */
+  .dock-tirador{position:fixed;right:0;top:20px;z-index:46;width:22px;height:44px;
+    border:1px solid var(--glass-brd);border-right:0;border-radius:12px 0 0 12px;
+    background:var(--glass-strong);-webkit-backdrop-filter:blur(20px) saturate(160%);
+    backdrop-filter:blur(20px) saturate(160%);box-shadow:var(--depth-1);
+    color:var(--txt-2);cursor:pointer;font-size:15px;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    transition:color .18s ease, transform .18s cubic-bezier(.2,.7,.3,1.3)}
+  .dock-tirador:hover{color:var(--accent);transform:translateX(-2px)}
+  @media (max-width:760px){ .dock-tirador{top:auto;bottom:calc(12px + env(safe-area-inset-bottom));right:10px;width:44px;height:22px;border-radius:12px 12px 0 0;border-right:1px solid var(--glass-brd);border-bottom:0} }
   .leftdock.min{ opacity:0; pointer-events:none; transform:translateX(135%) }
-  .leftdock .ic{border:none;background:transparent;transition:transform .16s cubic-bezier(.2,.7,.3,1.5);transform-origin:right center;will-change:transform}
-  .leftdock .ic:hover{transform:scale(1.7);color:var(--accent)}
+  /* SIN will-change:transform. Esa propiedad promueve el icono a una capa de GPU
+     rasterizada A SU TAMAÑO NORMAL, y al ampliarlo a 1.7x en el hover el navegador ESTIRA
+     esos pixeles en vez de volver a dibujar el vector: por eso se veia pixelado justo al
+     pasar el raton, que es cuando mas se mira. Sin ella el icono se redibuja nitido.
+     La animacion sigue siendo barata: es un solo elemento pequeño. */
+  .leftdock .ic{border:none;background:transparent;transition:transform .18s cubic-bezier(.2,.7,.3,1.4);transform-origin:right center}
+  .leftdock .ic:hover{transform:scale(1.45);color:var(--accent)}
   .leftdock .ic:hover+.ic,.leftdock .ic:has(+.ic:hover){transform:scale(1.34)}
   .leftdock .ic:hover+.ic+.ic,.leftdock .ic:has(+.ic+.ic:hover){transform:scale(1.14)}
   @media(max-width:860px){ .leftdock{right:6px;gap:7px;padding:7px 6px} }
@@ -557,7 +573,7 @@
   .btn.ghost:hover{border-color:var(--accent);color:var(--txt)}
   .btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
   .overlay.on{opacity:1;pointer-events:auto}
-  .panel{position:fixed;top:0;right:0;bottom:0;width:min(440px,94%);background:var(--surface);border-left:1px solid var(--line);z-index:21;transform:translateX(100%);transition:.35s;overflow-y:auto}
+  .panel{position:fixed;top:0;right:0;bottom:0;width:min(440px,94%);background:var(--surface);border-left:1px solid var(--line);z-index:47;transform:translateX(100%);transition:.35s;overflow-y:auto}
   .panel.on{transform:none} .panel-in{padding:24px}
   .panel.wide{max-width:760px}
   .panel h3{font-size:18px;margin-bottom:4px}
@@ -603,7 +619,7 @@
   #glosList{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 
   /* AUTH GATE */
-  .auth-gate{position:fixed;inset:0;background:var(--bg);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+  .auth-gate{position:fixed;inset:0;background:var(--bg);z-index:86;display:flex;align-items:center;justify-content:center;padding:20px}
   .auth-gate.hide{display:none}
   .boot-splash{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
   .boot-splash.hide{display:none}
@@ -635,11 +651,18 @@
 :root[data-theme="light"]{
   --glass: rgba(246,247,250,.62);
   --glass-strong: rgba(246,247,250,.72);
-  --glass-brd: rgba(255,255,255,.95);
+  /* Antes .95: un filo blanco casi solido que endurecia el canto. El cristal real
+     tiene un borde SUGERIDO, no dibujado. */
+  --glass-brd: rgba(255,255,255,.62);
   --glass-hi: inset 0 1px 0 rgba(255,255,255,.85), inset 0 0 0 1px rgba(255,255,255,.25);
-  --depth-1: 0 1px 2px rgba(32,36,46,.06), 0 14px 36px -16px rgba(32,36,46,.30);
-  --depth-2: 0 4px 10px rgba(32,36,46,.08), 0 34px 70px -24px rgba(32,36,46,.5);
-  --depth-3: 0 50px 110px -28px rgba(24,28,36,.6);
+  /* Sombras EN CAPAS. Una sola sombra grande con mucha opacidad (antes: 70px de desenfoque
+     al 50%) se lee como una mancha gris pegada debajo, no como profundidad. La luz real
+     produce varias sombras superpuestas: uno o dos pixeles de contacto muy tenue, una
+     media, y una amplia y MUY suave. Cada capa va con poca opacidad; el efecto lo da la
+     suma, no la fuerza de ninguna. */
+  --depth-1: 0 1px 1px rgba(32,36,46,.04), 0 2px 4px rgba(32,36,46,.04), 0 8px 16px -6px rgba(32,36,46,.08);
+  --depth-2: 0 1px 1px rgba(32,36,46,.04), 0 3px 6px rgba(32,36,46,.05), 0 10px 20px -6px rgba(32,36,46,.08), 0 24px 48px -16px rgba(32,36,46,.14);
+  --depth-3: 0 2px 4px rgba(24,28,36,.05), 0 12px 24px -8px rgba(24,28,36,.10), 0 32px 64px -20px rgba(24,28,36,.18), 0 64px 120px -40px rgba(24,28,36,.22);
   --shadow: var(--depth-1);
   --accent-glow: 0 12px 30px -12px rgba(226,0,26,.4);
 }
@@ -648,9 +671,11 @@
   --glass-strong: rgba(22,24,29,.74);
   --glass-brd: rgba(214,222,238,.18);
   --glass-hi: inset 0 1px 0 rgba(214,222,238,.11), inset 0 0 0 1px rgba(214,222,238,.04);
-  --depth-1: 0 1px 2px rgba(0,0,0,.4), 0 16px 38px -16px rgba(0,0,0,.68);
-  --depth-2: 0 4px 12px rgba(0,0,0,.5), 0 36px 72px -24px rgba(0,0,0,.85);
-  --depth-3: 0 54px 120px -28px rgba(0,0,0,.92);
+  /* En oscuro la sombra se nota menos, asi que se compensa con una capa mas de contacto,
+     nunca subiendo la opacidad de una sola: al 85% se veia un halo negro duro. */
+  --depth-1: 0 1px 1px rgba(0,0,0,.20), 0 2px 5px rgba(0,0,0,.22), 0 8px 18px -6px rgba(0,0,0,.34);
+  --depth-2: 0 1px 1px rgba(0,0,0,.22), 0 3px 7px rgba(0,0,0,.26), 0 12px 24px -6px rgba(0,0,0,.34), 0 28px 56px -18px rgba(0,0,0,.46);
+  --depth-3: 0 2px 5px rgba(0,0,0,.28), 0 14px 28px -8px rgba(0,0,0,.40), 0 36px 72px -22px rgba(0,0,0,.52), 0 72px 130px -44px rgba(0,0,0,.60);
   --shadow: var(--depth-1);
   --accent-glow: 0 12px 32px -12px rgba(255,90,77,.55);
   --bh-glow:0 0 30px rgba(232,154,60,.08);
@@ -683,11 +708,25 @@ body{background:transparent}
 /* Radios mas generosos + sombras de profundidad en superficies */
 .blk{border-radius:var(--r,20px);box-shadow:var(--depth-1),var(--glass-hi)}
 .tile{border-radius:20px}
-.appmodal .am-card{border-radius:24px;box-shadow:var(--depth-3),var(--glass-hi)}
+/* Los avisos y preguntas se ven como la paleta de Ctrl+K, que es la que quedo bien.
+   Antes el modal usaba fondo SOLIDO (--surface) mientras la paleta usaba cristal, y puestos
+   uno al lado del otro el modal parecia de otra aplicacion. Mismo cristal, mismo borde,
+   mismo desenfoque: la diferencia entre "tiene estilo" y "tiene DOS estilos". */
+.appmodal .am-card{
+  border-radius:20px;
+  background:var(--glass-strong,var(--surface));
+  border:1px solid var(--glass-brd,var(--line));
+  box-shadow:var(--depth-3),var(--glass-hi);
+  -webkit-backdrop-filter:blur(30px) saturate(170%);
+  backdrop-filter:blur(30px) saturate(170%)}
 .panel{top:16px;bottom:16px;right:16px;height:auto;border-radius:24px;border:1px solid var(--glass-brd);box-shadow:var(--depth-3),var(--glass-hi)}
 @media(max-width:820px){.panel{top:0;bottom:0;right:0;border-radius:0}}
 .ic{border-radius:13px}
-.toast{border-radius:13px;box-shadow:var(--depth-2)}
+/* El aviso flotante tambien, para que no haya un tercer estilo. Se mantiene mas opaco que
+   los modales a proposito: aparece sobre cualquier fondo y tiene que leerse de un vistazo,
+   sin que el contenido de detras compita. */
+.toast{border-radius:14px;box-shadow:var(--depth-2),var(--glass-hi);
+  -webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%)}
 
 /* Overlays: foco por difuminado mas profundo */
 .overlay{background:rgba(12,13,17,.36);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
@@ -780,6 +819,8 @@ body{background:transparent}
 <div class="spatial-canvas" aria-hidden="true"></div>
 <div class="boot-splash" id="bootSplash" aria-hidden="true"><canvas class="bh-logo bh-big" width="120" height="120" aria-label="SINELI"></canvas><div class="boot-wm">SINELI</div><div class="boot-bar"><i></i></div></div>
 <div class="leftdock" id="leftDock" aria-label="Paneles"></div>
+<!-- Pestaña para recuperar el dock cuando esta escondido. Solo aparece si lo esta. -->
+<button class="dock-tirador" id="dockTirador" onclick="dockAlternar()" style="display:none" aria-label="Mostrar los accesos">‹</button>
 
 <div class="demo-bar" id="demoBar"><span>Vista de demostración — estás viendo la consola como un <b>Agente</b> (sin permisos de admin)</span><button onclick="toggleDemo()">Volver a admin</button></div>
 
@@ -6321,6 +6362,18 @@ function ckActions(){
   add('Contrato de licencia (venta)','admin',()=>window.open('contrato.html','_blank'),isRealAdmin());
   add('Firmar PDF — estampar firma en un PDF','admin',()=>window.open('contrato.html','_blank'),isRealAdmin());
   add('Efectos del logo: '+((lsGet('sptm-noglow')==='1')?'activar':'desactivar')+' (modo ligero)','ajuste',()=>{ lsSet('sptm-noglow',(lsGet('sptm-noglow')==='1')?'0':'1'); location.reload(); });
+  /* HERRAMIENTAS QUE FALTABAN. La paleta tenia los paneles pero no las cosas que un agente
+     hace a diario y que hoy solo estan a golpe de raton en algun rincon. Cada una se muestra
+     unicamente si tiene sentido para tu rol y tu momento. */
+  add('Mi jornada — mi horario y mis resultados','agente',()=>abrirJornada());
+  add('Llamar a un compañero (llamada interna)','agente',()=>{ simIniciar('cliente'); try{ liRenderAgentes(); }catch(e){} }, typeof liLlamar==='function');
+  add('Probar el bot de voz (simulador)','agente',()=>simIniciar('cliente'), typeof simIniciar==='function');
+  add('Practicar como agente (la IA hace de cliente)','agente',()=>simIniciar('agente'), typeof simIniciar==='function');
+  add('Copiar mi correo de acceso','cuenta',()=>{ try{ navigator.clipboard.writeText((me&&me.email)||''); toast('Correo copiado'); }catch(e){} }, !!me);
+  add('Cambiar mi PIN de agente','cuenta',()=>pinAgenteCambiar(), typeof pinAgenteCambiar==='function');
+  add('Desbloquear administración (2 pasos)','admin',()=>mfaDesbloquear(), isRealAdmin() && !isAdmin());
+  add('Ocultar o mostrar los accesos rápidos','ajuste',()=>dockAlternar(), typeof dockAlternar==='function');
+  add('Recargar la consola','ajuste',()=>location.reload());
   add('Cerrar sesión','cuenta',()=>doLogout());
   return A;
 }
@@ -6338,8 +6391,22 @@ function ckBuild(q){
 function ckRender(){
   const L=$('ckList'); if(!L)return;
   if(!_ckItems.length){ L.innerHTML='<div class="cmdk-empty">Sin resultados. Prueba un usuario, una sala o una acción.</div>'; return; }
-  L.innerHTML=_ckItems.map((it,i)=>'<div class="cmdk-it'+(i===_ckSel?' sel':'')+'" onmouseenter="_ckSel='+i+';ckRender()" onclick="ckRun('+i+')">'+(it.pais?flagHTML(it.pais):'')+'<span>'+escapeHtml(it.label)+'</span><span class="k">'+escapeHtml(it.tag||it.t)+'</span></div>').join('');
+  L.innerHTML=_ckItems.map((it,i)=>'<div class="cmdk-it'+(i===_ckSel?' sel':'')+'" onmouseenter="ckHover('+i+')" onclick="ckRun('+i+')">'+(it.pais?flagHTML(it.pais):'')+'<span>'+escapeHtml(it.label)+'</span><span class="k">'+escapeHtml(it.tag||it.t)+'</span></div>').join('');
   const sel=L.querySelector('.sel'); if(sel&&sel.scrollIntoView)sel.scrollIntoView({block:'nearest'});
+}
+
+/* Mover la seleccion con el raton SIN repintar la lista.
+   Antes cada mouseenter llamaba a ckRender(), que rehace todo con innerHTML. Eso destruye
+   el <input> y la pagina PIERDE EL FOCO: a partir de ese momento el teclado dejaba de
+   funcionar y habia que volver a hacer clic en el campo. Pasar el raton por encima es lo
+   mas facil del mundo de hacer sin querer, asi que el teclado se rompia casi siempre.
+   Mover una clase hace lo mismo visualmente, no toca el foco y ademas es mucho mas barato. */
+function ckHover(i){
+  if(i===_ckSel) return;
+  _ckSel=i;
+  const L=$('ckList'); if(!L)return;
+  const its=L.querySelectorAll('.cmdk-it');
+  for(let k=0;k<its.length;k++) its[k].classList.toggle('sel', k===i);
 }
 function ckOpen(){
   if(!me){ gateShow(); return; }
@@ -6854,8 +6921,36 @@ loadComandosExtra();
 loadUsage();
 
 renderAll();
-(function(){ try{ const d=document.getElementById('leftDock'); if(d){ ['teamBtn','retailBtn','demoBtn','emBtn','toolsBtn','transBtn','intelBtn','adminBtn'].forEach(function(id){ const b=document.getElementById(id); if(b)d.appendChild(b); }); } }catch(e){} })();
-function dockUpdate(){ const d=document.getElementById('leftDock'); if(!d)return; const open=document.querySelector('.overlay.on, .email.on, .copiloto.on, .retail.on, .appmodal.on'); d.classList.toggle('min', !!open); }
+(function(){ try{ const d=document.getElementById('leftDock'); if(d){ ['teamBtn','retailBtn','jornadaBtn','emBtn','toolsBtn','transBtn','intelBtn','adminBtn'].forEach(function(id){ const b=document.getElementById(id); if(b)d.appendChild(b); }); } }catch(e){} })();
+/* El dock se aparta solo cuando algo se abre encima, y ademas se puede ocultar a mano.
+   Antes la lista no incluia `.panel.on` -- que es justo lo que mas se abre (chat de
+   equipo, Mi jornada, cuenta) -- ni las ventanas de chat flotantes, asi que el dock se
+   quedaba encima estorbando. Lo que se abre por la derecha es exactamente lo que choca
+   con un dock pegado a la derecha.
+   `dockManual` gana sobre lo automatico: si lo escondes tu, se queda escondido. */
+let dockManual = null;   // null = automatico, true = escondido a mano, false = fijado a mano
+function dockUpdate(){
+  const d=document.getElementById('leftDock'); if(!d)return;
+  if(dockManual !== null){ d.classList.toggle('min', dockManual); dockTiradorUI(); return; }
+  const tapa=document.querySelector('.overlay.on, .email.on, .copiloto.on, .retail.on, .appmodal.on, .panel.on');
+  const chats=document.querySelector('#fbwins .fbwin');
+  d.classList.toggle('min', !!(tapa||chats));
+  dockTiradorUI();
+}
+/* Tirador para traerlo de vuelta. Sin esto, ocultarlo era un viaje sin retorno: la unica
+   forma de recuperarlo era cerrar todo lo que estuviera abierto. */
+function dockAlternar(){
+  const d=document.getElementById('leftDock'); if(!d)return;
+  dockManual = !d.classList.contains('min') ? true : false;
+  dockUpdate();
+}
+function dockTiradorUI(){
+  const d=document.getElementById('leftDock'), t=document.getElementById('dockTirador');
+  if(!d||!t)return;
+  const oculto=d.classList.contains('min');
+  t.style.display = oculto ? '' : 'none';   // solo se ve cuando hace falta
+  t.title = 'Mostrar los accesos';
+}
 try{ new MutationObserver(dockUpdate).observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']}); dockUpdate(); }catch(e){}
 /* Watchdog de arranque: si a los 10s la pantalla de carga sigue ahi, algo se atoro en esta
    computadora (red, GPU, cache). Ofrece reintentar o entrar en modo ligero (sin efectos). */

@@ -2611,6 +2611,42 @@ const BONOS = {
    apuestas: depositos, retiros, codigo aplicado, KYC, rollover, IP del
    dispositivo (para multicuenta), accesos y autoexclusion. */
 const CLIENTES=[
+ /* ===== TRES CLIENTES DE DEMOSTRACION, uno por pais =====
+    Van al principio a proposito: escribir "demo" en el buscador saca los tres juntos, sin
+    tener que ir a buscar un caso que sirva en mitad de una explicacion.
+    Cada uno lleva TODOS los campos rellenos y esta armado para enseñar algo distinto,
+    porque un cliente de ejemplo con todo en verde no demuestra nada: lo que se explica es
+    como se ve un problema.
+      demo-mx  CASO LIMPIO     KYC verificado, bono acreditado, rollover cumplido, retiro
+                               pagado. El camino feliz y la ficha completa.
+      demo-co  CASO CON PEGA   KYC a medias (faltan dos documentos) y retiro RECHAZADO justo
+                               por eso. Es el motivo real de la mayoria de las llamadas.
+      demo-pa  CASO DE RIESGO  cuatro logins fallidos, IP de otro pais (US en cuenta de PA) y
+                               autoexclusion activa. Enseña por que el bot NO resuelve solo.
+    Datos claramente inventados: los correos van a example.com, dominio reservado que no
+    entrega correo, y los documentos son secuencias obvias. Nadie los confundira con los de
+    una persona real. */
+ {usuario:'demo-mx', nombre:'Demo Mexico (cliente de ejemplo)', pais:'MX', email:'demo.mx@example.com', celular:'+52 55 0000 0001', cedula:'DEMO-MX-0001', registro:'2026-05-12',
+  kyc:{verificado:true, documentos_faltantes:[]},
+  depositos:[{monto:500, fecha:'2026-05-12', metodo:'tarjeta'},{monto:300, fecha:'2026-06-20', metodo:'transferencia'}],
+  retiros:[{monto:400, fecha:'2026-07-02', metodo:'transferencia', estado:'pagado'}],
+  bono_reclamado:'mx_dep', codigo_ingresado:'MAXSPORT', bono_acreditado:true, rollover_acumulado:1500, saldo:820,
+  logins_fallidos:0, ip:'189.203.10.10', ip_pais:'MX', dispositivo:'Android', autoexcluido:false},
+
+ {usuario:'demo-co', nombre:'Demo Colombia (cliente de ejemplo)', pais:'CO', email:'demo.co@example.com', celular:'+57 300 000 0002', cedula:'DEMO-CO-0002', registro:'2026-06-18',
+  kyc:{verificado:false, documentos_faltantes:['identificacion','comprobante de domicilio']},
+  depositos:[{monto:200000, fecha:'2026-06-18', metodo:'PSE'}],
+  retiros:[{monto:150000, fecha:'2026-07-15', metodo:'PSE', estado:'rechazado'}],
+  bono_reclamado:'co_dep', codigo_ingresado:'COLSPORT', bono_acreditado:false, rollover_acumulado:0, saldo:200000,
+  logins_fallidos:1, ip:'190.85.20.30', ip_pais:'CO', dispositivo:'iPhone', autoexcluido:false},
+
+ {usuario:'demo-pa', nombre:'Demo Panama (cliente de ejemplo)', pais:'PA', email:'demo.pa@example.com', celular:'+507 6000 0003', cedula:'DEMO-PA-0003', registro:'2026-04-30',
+  kyc:{verificado:true, documentos_faltantes:[]},
+  depositos:[{monto:150, fecha:'2026-04-30', metodo:'tarjeta'}],
+  retiros:[{monto:150, fecha:'2026-07-19', metodo:'tarjeta', estado:'en revision'}],
+  bono_reclamado:'pa_dep', codigo_ingresado:'PANSPORT', bono_acreditado:true, rollover_acumulado:90, saldo:0,
+  logins_fallidos:4, ip:'201.224.40.50', ip_pais:'US', dispositivo:'Windows', autoexcluido:true},
+
  {usuario:'juanp88', nombre:'Juan Perez', pais:'MX', email:'juan@mail.com', celular:'+52 55 1234 5678', cedula:'-', registro:'2026-06-05',
   kyc:{verificado:true, documentos_faltantes:[]}, depositos:[{monto:225, fecha:'2026-06-05', metodo:'tarjeta'}], retiros:[],
   bono_reclamado:'mx_dep', codigo_ingresado:'MAXSPORT', bono_acreditado:true, rollover_acumulado:270, saldo:450, logins_fallidos:0, ip:'189.203.45.12', ip_pais:'MX', dispositivo:'Android', autoexcluido:false},

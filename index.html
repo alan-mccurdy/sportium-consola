@@ -992,6 +992,9 @@ body{background:transparent}
     <span class="rm" onclick="closeIntel()" style="margin-left:8px;cursor:pointer">×</span></div>
   <div class="sec"><div id="intelMetricas"></div></div>
   <div class="sec"><div class="fld">Huecos de conocimiento</div><div id="intelHuecos"></div></div>
+  <!-- Cuanto trabajo llega de verdad a una persona. Es el numero que dimensiona el equipo:
+       volumen y tasa de acierto no dicen cuanta gente hace falta. -->
+  <div class="sec"><div class="fld">Carga que llega a un agente (por canal)</div><div id="intelAgentes"></div></div>
   <div class="sec"><div class="fld">Cobertura de la base (por país × vertical × audiencia)</div><div id="intelCobertura"></div></div>
 </aside>
 
@@ -5658,7 +5661,7 @@ async function usarFav(id){ try{ const {data}=await sb.from('agente_favoritos').
 async function delFav(id){ if(!await appConfirm('¿Borrar esta favorita?',{danger:true}))return; try{ await sb.from('agente_favoritos').delete().eq('id',id); await loadToolsFavoritas(); }catch(e){ toast('No se pudo: '+(e.message||e)); } }
 function rePreguntar(q){ closeTools(); const inp=$('input'); if(inp){ inp.value=q; inp.focus(); } }
 function setIntelDias(v){ intelDias=parseInt(v,10)||7; loadIntel(); }
-async function loadIntel(){ if(!sb||!isAdmin())return; await Promise.all([loadIntelResumen(), loadIntelHuecos(), loadIntelCobertura()]); }
+async function loadIntel(){ if(!sb||!isAdmin())return; await Promise.all([loadIntelResumen(), loadIntelHuecos(), loadIntelCobertura(), loadIntelAgentes()]); }
 async function loadIntelResumen(){ const el=$('intelMetricas'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
   try{ const {data,error}=await sb.rpc('intel_resumen',{match_tenant:CONFIG.tenant,dias:intelDias}); if(error)throw error; const m=data||{};
     const tasa=m.tasa_ok!=null?m.tasa_ok:0; const col=tasa>=85?'var(--ok)':(tasa>=60?'var(--warn)':'var(--bad)');
@@ -5690,6 +5693,38 @@ async function ensenarHueco(pregunta,pais,vertical){ if(!isAdmin())return; pregu
     ingestKB('Hueco: '+pregunta.slice(0,60),'Pregunta: '+pregunta+'\nRespuesta correcta: '+r, pais||undefined, vertical||undefined).catch(()=>{});
     toast('Aprendido. La próxima vez responderá la versión correcta.'); loadIntel();
   }catch(e){ toast('No se pudo: '+(e.message||e)); }
+}
+/* Porcentaje de conversaciones que el bot NO cierra solo, por canal.
+   Cuenta escalar / pedir_ayuda / ia_caida. NO cuenta "preguntar": sondear es lo que EVITA
+   escalar, y contarlo inflaria justo el numero que se quiere saber.
+   Si el RPC todavia no existe (la migracion 0009 se corre a mano en Supabase), lo dice en
+   claro en vez de mostrar un error generico que nadie sabe interpretar. */
+async function loadIntelAgentes(){ const el=$('intelAgentes'); if(!el)return;
+  el.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
+  try{
+    const {data,error}=await sb.rpc('intel_agentes',{match_tenant:CONFIG.tenant,dias:intelDias});
+    if(error) throw error;
+    const rows=data||[];
+    if(!rows.length){ el.innerHTML='<small style="color:var(--txt-2)">Sin consultas en el periodo.</small>'; return; }
+    const tot=rows.reduce((a,r)=>a+Number(r.consultas||0),0);
+    const aAg=rows.reduce((a,r)=>a+Number(r.a_agente||0),0);
+    el.innerHTML=
+      '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px">'
+      + '<span><b style="font-size:20px">'+(tot?Math.round(100*aAg/tot):0)+'%</b><br><small style="color:var(--txt-2)">llega a un agente</small></span>'
+      + '<span><b style="font-size:20px">'+aAg+'</b><br><small style="color:var(--txt-2)">de '+tot+' consultas</small></span>'
+      + '</div>'
+      + rows.map(function(r){
+          const pct=Number(r.pct_a_agente||0);
+          return '<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--bd,#2223)">'
+            + '<span>'+escapeHtml(r.canal||'?')+'</span>'
+            + '<span><b>'+pct+'%</b> <small style="color:var(--txt-2)">('+r.a_agente+'/'+r.consultas+')</small></span></div>';
+        }).join('');
+  }catch(e){
+    const m=(e&&e.message)||'';
+    el.innerHTML = /function|does not exist|PGRST202/i.test(m)
+      ? '<small style="color:var(--txt-2)">Falta correr <code>sql/0009_intel_agentes.sql</code> en Supabase para ver esta métrica.</small>'
+      : '<small style="color:var(--bad)">No se pudo cargar.</small>';
+  }
 }
 async function loadIntelCobertura(){ const el=$('intelCobertura'); if(!el)return; el.innerHTML='<small style="color:var(--txt-2)">Cargando…</small>';
   try{ const {data,error}=await sb.rpc('intel_cobertura',{match_tenant:CONFIG.tenant}); if(error)throw error; const rows=data||[];

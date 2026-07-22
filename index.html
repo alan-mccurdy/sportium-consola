@@ -684,50 +684,27 @@
    el efecto; la saturacion solo subia el color de algo que no pertenece al elemento.
    Si algun dia se quita este degradado, se puede volver a poner saturate(). */
 .spatial-canvas{position:fixed;inset:0;z-index:-1;pointer-events:none;
-  /* AFINADO. Estaban al 13/14/11/11/7 por ciento y a esas intensidades dejan de ser una
-     insinuacion de profundidad para volverse NUBES visibles: sobre un fondo casi blanco se
-     leen como manchas azul-grisaceas, y donde dos se solapan aparecen bandas de color.
-     Ademas iban con intensidades distintas entre si, por eso unas se veian mas bastas que
-     otras aunque fueran "lo mismo".
-     Ahora todas rondan el 5 % y con el desvanecido MAS LARGO (58 % -> 74 %): un degradado
-     tenue repartido en mas distancia tiene menos saltos de color por pixel, que es
-     justamente lo que produce las bandas en pantallas de 8 bits. Menos intensidad y mas
-     recorrido atacan las dos cosas a la vez. */
-  background:
-    /* SEGUNDA BAJADA. Al 5-6 % todavia se leian como nubes azul-grisaceas sobre las
-       superficies blancas. Ahora ~2.5 %, que es el umbral en el que el fondo deja de
-       tener "algo" y solo tiene profundidad.
-       Y se ELIMINA la nube central (50% 38%): las otras cuatro nacen fuera de la pantalla
-       y solo entra su borde, pero esa estaba entera en medio del area de trabajo, justo
-       donde el contenido es blanco y cualquier tinte canta. Era la que se veia en la foto.
-       Si algun dia el fondo se ve demasiado plano, se sube de aqui, pero de una en una. */
-    radial-gradient(1200px 860px at 4% -18%, color-mix(in srgb, var(--accent) 3%, transparent), transparent 76%),
-    radial-gradient(1060px 940px at 118% 2%, color-mix(in srgb, #6E7A93 2.5%, transparent), transparent 76%),
-    radial-gradient(1120px 960px at 100% 120%, color-mix(in srgb, #7E8698 2.5%, transparent), transparent 76%),
-    radial-gradient(980px 860px at 20% 126%, color-mix(in srgb, #8A8F9C 2.5%, transparent), transparent 76%),
-    var(--bg);
+  /* FONDO PLANO, a proposito.
+     Aqui hubo cinco radial-gradients muy suaves para dar profundidad. En pantallas de 8
+     bits un degradado repartido en mil pixeles solo tiene 256 niveles por canal: los saltos
+     se agrupan en franjas, y como cada canal salta en un punto distinto, esas franjas salen
+     DE COLORES. Se probo bajarlos (13 % -> 5 % -> 2.5 %), alargar el desvanecido y quitar la
+     nube central; se seguian viendo. Se probo tramar con grano finisimo, y eso ADEMAS metio
+     una textura cuadriculada visible: la cura salio peor que la enfermedad.
+     Un color plano no puede bandear ni tener textura. La profundidad la dan las sombras y
+     el cristal de los paneles, que es donde se aprecia de verdad; el fondo no la necesita.
+     Si algun dia se quiere recuperar, es AÑADIR UN SOLO degradado y comprobarlo en la
+     pantalla real, no varios a la vez. */
+  background: var(--bg);
   background-attachment:fixed;}
-/* GRANO CONTRA EL BANDEADO.
-   Un degradado repartido en 1000 px solo dispone de 256 niveles por canal: los saltos entre
-   nivel y nivel se agrupan en franjas visibles, y como cada canal salta en un sitio
-   distinto, esas franjas salen de COLORES -- las "lineas de arcoiris". Bajar la intensidad
-   reduce el efecto pero no lo quita: es un limite de la pantalla, no del CSS.
-   La solucion de siempre es tramar: un grano finisimo que desplaza cada pixel medio nivel
-   arriba o abajo, de modo que la frontera entre franjas deja de ser una linea recta y el
-   ojo la promedia. Al 3.5 % de opacidad es invisible como textura y suficiente para romper
-   las bandas.
-   Va como SVG en la propia hoja (data:), sin pedir ningun archivo: el CSP permite data: en
-   img-src y no se añade ninguna descarga. */
-.spatial-canvas::after{content:'';position:absolute;inset:0;pointer-events:none;
-  opacity:.035;mix-blend-mode:multiply;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-repeat:repeat}
-/* En oscuro el grano tiene que ACLARAR, no oscurecer, o se ve como suciedad sobre el negro. */
-:root[data-theme="dark"] .spatial-canvas::after{mix-blend-mode:screen;opacity:.028}
 /* Grano finisimo anti-banding: rompe los "escalones" visibles de los degradados (lo pixelado) */
-.spatial-canvas::after{content:'';position:absolute;inset:0;opacity:.05;mix-blend-mode:overlay;
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  background-size:140px 140px}
+/* AQUI HABIA UN GRANO de ruido (feTurbulence, 140x140, opacidad .05, mix-blend-mode
+   overlay) para dar textura. En pantalla se ve como una TRAMA CUADRICULADA fina: el mosaico
+   de 140 px se repite y su rejilla queda visible sobre superficies claras. Es lo que se veia
+   en las fotos y lo que se confundio con bandas de color -- de hecho la primera sospecha fue
+   `saturate()` y la segunda los degradados; el grano llevaba ahi desde el principio.
+   Se quita. Un fondo liso no tiene textura que se pueda ver mal, y la sensacion de material
+   la dan las sombras y el cristal de los paneles, que es donde se aprecia de verdad. */
 body{background:transparent}
 
 /* Shell flotante: slab de vidrio que flota sobre el lienzo */

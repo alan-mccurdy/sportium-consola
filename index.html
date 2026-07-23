@@ -6282,10 +6282,13 @@ async function loadIntelAgentes(){ const el=$('intelAgentes'); if(!el)return;
     if(!rows.length){ el.innerHTML='<small style="color:var(--txt-2)">Sin consultas en el periodo.</small>'; return; }
     const tot=rows.reduce((a,r)=>a+Number(r.consultas||0),0);
     const aAg=rows.reduce((a,r)=>a+Number(r.a_agente||0),0);
+    const solo=rows.reduce((a,r)=>a+Number(r.resueltas_solo||0),0);
+    const horas=Math.round(solo*6/60);   // ~6 min por caso resuelto por la IA
     el.innerHTML=
       '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px">'
-      + '<span><b style="font-size:20px">'+(tot?Math.round(100*aAg/tot):0)+'%</b><br><small style="color:var(--txt-2)">llega a un agente</small></span>'
-      + '<span><b style="font-size:20px">'+aAg+'</b><br><small style="color:var(--txt-2)">de '+tot+' consultas</small></span>'
+      + '<span><b style="font-size:20px;color:var(--ok)">'+(tot?Math.round(100*solo/tot):0)+'%</b><br><small style="color:var(--txt-2)">resueltas por la IA sola ('+solo+')</small></span>'
+      + '<span><b style="font-size:20px">'+(tot?Math.round(100*aAg/tot):0)+'%</b><br><small style="color:var(--txt-2)">llega a un agente ('+aAg+')</small></span>'
+      + '<span><b style="font-size:20px">&asymp; '+horas+' h</b><br><small style="color:var(--txt-2)">ahorradas al personal</small></span>'
       + '</div>'
       + rows.map(function(r){
           const pct=Number(r.pct_a_agente||0);
@@ -6458,6 +6461,7 @@ function ckActions(){
   add('Ver como agente (demo)','admin',()=>toggleDemo(),isRealAdmin());
   add('Tour de la consola (guía rápida)','ayuda',()=>tourOpen());
   add('Modo presentación — Resultados','admin',()=>resOpen(),isAdmin());
+  add('Caso de negocio (propuesta)','admin',()=>window.open('caso-negocio.html','_blank'),isRealAdmin());
   add('Horarios y cambios de turno','equipo',()=>openHorarios());
   add('Contrato de licencia (venta)','admin',()=>window.open('contrato.html','_blank'),isRealAdmin());
   add('Firmar PDF — estampar firma en un PDF','admin',()=>window.open('contrato.html','_blank'),isRealAdmin());
@@ -6871,15 +6875,35 @@ async function resLoad(){
   try{ const {data,error}=await sb.rpc('intel_resumen',{match_tenant:CONFIG.tenant,dias:_resDias}); if(error)throw error; m=data||{}; }catch(e){ m=null; }
   let csat=null;
   try{ const {data}=await sb.from('csat_respuestas').select('rating').eq('tenant',CONFIG.tenant); if(data&&data.length){ csat={n:data.length, avg:data.reduce(function(a,r){return a+(r.rating||0);},0)/data.length}; } }catch(e){}
+  /* Cuanto resuelve la IA SOLA vs cuanto se escala a una persona (intel_agentes, por canal).
+     Es lo que dimensiona la produccion que se le ahorra al equipo -> alimenta el ROI. */
+  let ia=null;
+  try{ const {data,error}=await sb.rpc('intel_agentes',{match_tenant:CONFIG.tenant,dias:_resDias});
+    if(!error && data && data.length){
+      const tot=data.reduce(function(a,r){return a+Number(r.consultas||0);},0);
+      const aAg=data.reduce(function(a,r){return a+Number(r.a_agente||0);},0);
+      const solo=data.reduce(function(a,r){return a+Number(r.resueltas_solo||0);},0);
+      // ~6 min por caso, jornada de 8 h (480 min). Supuesto para traducir casos a trabajo humano.
+      const min=solo*6;
+      ia={tot:tot,aAg:aAg,solo:solo,pctSolo:tot?Math.round(100*solo/tot):0,pctAg:tot?Math.round(100*aAg/tot):0,horas:Math.round(min/60),jornadas:Math.round(min/480*10)/10};
+    }
+  }catch(e){}
   if(!m){ g.innerHTML='<div class="res-card"><div class="res-l">No se pudieron cargar las métricas (revisa la sesión o el RPC intel_resumen)</div></div>'; if(bx)bx.innerHTML=''; return; }
   const tasa=m.tasa_ok!=null?m.tasa_ok:0;
   const online=Object.keys(PRES||{}).length;
   const cards=[
-    {n:(m.consultas_periodo||0), l:'consultas resueltas · '+_resDias+' días'},
-    {n:tasa+'%', l:'respuestas con respaldo en la base'},
-    {n:(m.consultas_hoy||0), l:'consultas hoy'+(online?(' · '+online+' agentes en línea'):'')},
-    {n: csat?(csat.avg.toFixed(1)+' / 5'):'—', l: csat?('satisfacción del cliente ('+csat.n+' calificaciones)'):'satisfacción del cliente (aún sin calificaciones)'}
+    {n:(m.consultas_periodo||0), l:'consultas · '+_resDias+' días'}
   ];
+  /* La historia principal para un decisor: cuanto resuelve la IA sola, cuanto se escala,
+     y cuanta produccion le ahorra eso al personal. */
+  if(ia){
+    cards.push({n:ia.pctSolo+'%', l:'resueltas por la IA sola ('+ia.solo+' casos)'});
+    cards.push({n:ia.pctAg+'%', l:'escaladas a un agente ('+ia.aAg+')'});
+    cards.push({n:'≈ '+ia.horas+' h', l:ia.jornadas+' jornadas de agente ahorradas'});
+  }
+  cards.push({n:tasa+'%', l:'respuestas con respaldo en la base'});
+  cards.push({n:(m.consultas_hoy||0), l:'consultas hoy'+(online?(' · '+online+' agentes en línea'):'')});
+  cards.push({n: csat?(csat.avg.toFixed(1)+' / 5'):'—', l: csat?('satisfacción del cliente ('+csat.n+' calificaciones)'):'satisfacción del cliente (aún sin calificaciones)'});
   g.innerHTML=cards.map(function(c){ return '<div class="res-card"><div class="res-n">'+c.n+'</div><div class="res-l">'+c.l+'</div></div>'; }).join('');
   const dias=(m.por_dia||[]); const mx=Math.max.apply(null,[1].concat(dias.map(function(d){return d.n;})));
   if(bx) bx.innerHTML=dias.map(function(d){ return '<div class="res-bar" title="'+escapeHtml(d.fecha||'')+': '+d.n+'"><i style="height:'+Math.round(8+92*d.n/mx)+'%"></i><span>'+escapeHtml((d.fecha||'').slice(5))+'</span></div>'; }).join('')||'<small style="color:var(--txt-3)">sin datos del período</small>';

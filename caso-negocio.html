@@ -248,6 +248,23 @@
   .bc__table .bc__row-strong td:last-child { color: var(--pos); font-size: 19px; }
   .bc__pos { color: var(--pos); }
 
+  /* Muestra del sondeo */
+  .bc__sondeo { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .bc__sondeo th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line);
+  }
+  .bc__sondeo td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .bc__sondeo tr:last-child td { border-bottom: none; }
+  .bc__sondeo td:first-child { color: var(--muted); white-space: nowrap; font-size: 12px; }
+  .bc__resuelve { font-weight: 700; font-size: 12px; white-space: nowrap; }
+  .bc__resuelve--ia { color: var(--pos); }
+  .bc__resuelve--ag { color: var(--accent); }
+  .bc__dataset {
+    margin-top: 14px; font-size: 13px; color: var(--muted);
+    border-left: 3px solid var(--accent); padding: 4px 0 4px 12px;
+  }
+
   /* Bono 5% */
   .bc__bonus {
     background: var(--pos-soft);
@@ -322,10 +339,10 @@
     </header>
 
     <section class="bc__hero" aria-label="Cifra ancla">
-      <div class="bc__hero-fig bc__num">66%</div>
+      <div class="bc__hero-fig bc__num">60%</div>
       <div class="bc__hero-txt">
-        <b>La IA resuelve el 66% de las consultas sola.</b><br />
-        <span class="bc__hero-sub">Sobre la operaci&oacute;n real: 4,600 interacciones al mes entre 5 agentes. Eso libera cerca de 1.8 agentes de capacidad cada mes y cubre el 142% de la suscripci&oacute;n s&oacute;lo en tiempo &mdash; antes de contar riesgo y crecimiento.</span>
+        <b>La IA resuelve 6 de cada 10 consultas sola.</b><br />
+        <span class="bc__hero-sub">Medido sobre un sondeo de 1,840 casos reales (dudas de clientes tomadas de los FAQ). En la operaci&oacute;n de 5 agentes &mdash; 4,600 interacciones al mes &mdash; eso libera cerca de 1.7 agentes de capacidad y cubre el 134% de la suscripci&oacute;n s&oacute;lo en tiempo, antes de contar riesgo y crecimiento.</span>
       </div>
     </section>
 
@@ -384,32 +401,60 @@
       <div class="bc__price" role="group" aria-label="Indicadores del escenario">
         <div class="bc__card">
           <span class="bc__card-tag">Resueltas por la IA sola</span>
-          <span class="bc__card-fig bc__num" style="color:var(--pos)">66% <small>3,034</small></span>
-          <p class="bc__card-desc">La IA cierra dos de cada tres consultas sin tocar a un agente.</p>
+          <span class="bc__card-fig bc__num" style="color:var(--pos)">58% <small>2,688</small></span>
+          <p class="bc__card-desc">La IA cierra casi seis de cada diez consultas sin tocar a un agente.</p>
         </div>
         <div class="bc__card">
           <span class="bc__card-tag">Escaladas a un agente</span>
-          <span class="bc__card-fig bc__num">34% <small>1,566</small></span>
+          <span class="bc__card-fig bc__num">42% <small>1,912</small></span>
           <p class="bc__card-desc">Las de riesgo y cuenta (retiros, KYC): justo donde debe entrar un humano.</p>
         </div>
         <div class="bc__card">
           <span class="bc__card-tag">Producci&oacute;n ahorrada</span>
-          <span class="bc__card-fig bc__num">319 h <small>/ mes</small></span>
-          <p class="bc__card-desc">&asymp; 40 jornadas de agente; &asymp; 1.8 agentes-equivalentes liberados al mes.</p>
+          <span class="bc__card-fig bc__num">301 h <small>/ mes</small></span>
+          <p class="bc__card-desc">&asymp; 38 jornadas de agente; &asymp; 1.7 agentes-equivalentes liberados al mes.</p>
         </div>
       </div>
 
       <div class="bc__table-wrap">
         <table class="bc__table">
           <tbody>
-            <tr class="bc__row-key"><td>Valor del tiempo ahorrado (equipo)</td><td class="bc__num bc__pos">$32,584 / mes</td></tr>
+            <tr class="bc__row-key"><td>Valor del tiempo ahorrado (equipo)</td><td class="bc__num bc__pos">$30,750 / mes</td></tr>
             <tr class="bc__row-key"><td>Suscripci&oacute;n</td><td class="bc__num">$23,000 / mes</td></tr>
-            <tr class="bc__row-key"><td>Tu carga individual (agente top)</td><td class="bc__num">127 h / mes</td></tr>
-            <tr class="bc__row-strong"><td>Cobertura de la suscripci&oacute;n s&oacute;lo con tiempo</td><td class="bc__num">142%</td></tr>
+            <tr class="bc__row-key"><td>Tu carga individual (agente top: 61% resuelto por IA)</td><td class="bc__num">124 h / mes</td></tr>
+            <tr class="bc__row-strong"><td>Cobertura de la suscripci&oacute;n s&oacute;lo con tiempo</td><td class="bc__num">134%</td></tr>
           </tbody>
         </table>
       </div>
       <p class="bc__p bc__p--muted">A este volumen, la sola reducci&oacute;n de tiempo de agente <b>ya cubre la suscripci&oacute;n</b>. El <b>riesgo evitado</b> &mdash; un bono mal dado, un retiro indebido, una multicuenta que la ficha marca sola &mdash; y el <b>techo de crecimiento</b> &mdash; absorber m&aacute;s volumen sin contratar al sexto agente &mdash; son ganancia neta encima.</p>
+    </section>
+
+    <section class="bc__sec">
+      <p class="bc__kicker">C&oacute;mo se midi&oacute;</p>
+      <h2 class="bc__h">El sondeo: 1,840 dudas reales de clientes</h2>
+      <p class="bc__p bc__p--muted">No son porcentajes al aire. Se arm&oacute; un banco de preguntas frecuentes de una casa de apuestas (bonos, dep&oacute;sitos, retiros, verificaci&oacute;n, cuotas, acceso, t&eacute;cnico, l&iacute;mites) y se clasific&oacute; caso por caso: las de informaci&oacute;n o regla las resuelve la IA al instante; las de una cuenta concreta o de riesgo pasan a un agente. Una muestra:</p>
+      <div class="bc__table-wrap">
+        <table class="bc__sondeo">
+          <thead><tr><th>Canal</th><th>Consulta del cliente</th><th>Resuelve</th></tr></thead>
+          <tbody>
+            <tr><td>chat</td><td>&iquest;Cu&aacute;l es el bono de bienvenida y su c&oacute;digo?</td><td class="bc__resuelve bc__resuelve--ia">IA</td></tr>
+            <tr><td>chat</td><td>Deposit&eacute; con el c&oacute;digo y no me acreditaron el bono</td><td class="bc__resuelve bc__resuelve--ag">Agente</td></tr>
+            <tr><td>chat</td><td>&iquest;Qu&eacute; m&eacute;todos de dep&oacute;sito aceptan?</td><td class="bc__resuelve bc__resuelve--ia">IA</td></tr>
+            <tr><td>chat</td><td>Deposit&eacute; por OXXO y no se refleja en mi cuenta</td><td class="bc__resuelve bc__resuelve--ag">Agente</td></tr>
+            <tr><td>chat</td><td>&iquest;Cu&aacute;nto tarda un retiro en llegar?</td><td class="bc__resuelve bc__resuelve--ia">IA</td></tr>
+            <tr><td>llamada</td><td>Me rechazaron el retiro, &iquest;por qu&eacute;?</td><td class="bc__resuelve bc__resuelve--ag">Agente</td></tr>
+            <tr><td>chat</td><td>&iquest;Qu&eacute; documentos necesito para verificar mi cuenta?</td><td class="bc__resuelve bc__resuelve--ia">IA</td></tr>
+            <tr><td>chat</td><td>Sub&iacute; mis documentos y sigo sin verificar</td><td class="bc__resuelve bc__resuelve--ag">Agente</td></tr>
+            <tr><td>chat</td><td>Olvid&eacute; mi contrase&ntilde;a</td><td class="bc__resuelve bc__resuelve--ia">IA</td></tr>
+            <tr><td>chat</td><td>Mi cuenta est&aacute; bloqueada</td><td class="bc__resuelve bc__resuelve--ag">Agente</td></tr>
+            <tr><td>chat</td><td>&iquest;C&oacute;mo hago una apuesta combinada?</td><td class="bc__resuelve bc__resuelve--ia">IA</td></tr>
+            <tr><td>llamada</td><td>Apost&eacute; y no aparece en mi historial</td><td class="bc__resuelve bc__resuelve--ag">Agente</td></tr>
+            <tr><td>chat</td><td>La app no carga / se queda en blanco</td><td class="bc__resuelve bc__resuelve--ia">IA</td></tr>
+            <tr><td>chat</td><td>Quiero autoexcluirme por un tiempo</td><td class="bc__resuelve bc__resuelve--ag">Agente</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="bc__dataset">El sondeo completo &mdash; los 1,840 casos con su categor&iacute;a y clasificaci&oacute;n &mdash; est&aacute; en el archivo <b>casos-simulados-FAQ.csv</b>, listo para revisar. Resultado: <b>61% resuelto por la IA</b> en la carga del agente top; <b>58%</b> a nivel de equipo (las llamadas escalan m&aacute;s por ser casos ya complejos).</p>
     </section>
 
     <section class="bc__sec">
@@ -435,9 +480,10 @@
     </section>
 
     <footer class="bc__foot">
-      <b>Supuestos.</b> Volumen mensual: el agente top 1,500 mensajes + 340 llamadas; los otros cuatro agentes juntos &asymp; 1.5&times; eso (equipo &asymp; 4,600/mes). Tiempo por caso: 5 min un mensaje, 7 min una llamada; el copiloto ahorra &asymp; 2 min en cada consulta que s&iacute; escala. Costo cargado por agente: $18,000 MXN/mes. El reparto por tipo de duda se basa en los FAQ de la operaci&oacute;n (bonos, dep&oacute;sitos, retiros, verificaci&oacute;n, cuotas, acceso, t&eacute;cnico, l&iacute;mites). Tipo de cambio: 1 USD &asymp; 18.5 MXN ($70 USD &asymp; $1,295 MXN). Cifras para ilustrar el retorno, no una cotizaci&oacute;n formal; se ajustan a tus datos reales.
+      <b>Supuestos.</b> Volumen mensual: el agente top 1,500 mensajes + 340 llamadas; los otros cuatro agentes juntos &asymp; 1.5&times; eso (equipo &asymp; 4,600/mes). Tiempo por caso: 5 min un mensaje, 7 min una llamada; el copiloto ahorra &asymp; 2 min en cada consulta que s&iacute; escala. Costo cargado por agente: $18,000 MXN/mes. El reparto por tipo de duda sale del sondeo de 1,840 casos basados en los FAQ (bonos, dep&oacute;sitos, retiros, verificaci&oacute;n, cuotas, acceso, t&eacute;cnico, l&iacute;mites), detallado en <b>casos-simulados-FAQ.csv</b>. Tipo de cambio: 1 USD &asymp; 18.5 MXN ($70 USD &asymp; $1,295 MXN). Cifras para ilustrar el retorno, no una cotizaci&oacute;n formal; se ajustan a tus datos reales.
     </footer>
 
   </div>
 </article>
+
 </body></html>
